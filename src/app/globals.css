@@ -72,6 +72,7 @@
   --text-caption--line-height: 1.4;
 
   --radius-control: 9999px;
+  --radius-field: 14px;
   --radius-card: 20px;
   --radius-panel: 28px;
 
@@ -199,6 +200,14 @@
     line-height: var(--text-body--line-height);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Длинные слова в заголовках («конфиденциальности») не ломают узкие экраны. */
+  h1,
+  h2,
+  h3 {
+    overflow-wrap: break-word;
+    hyphens: auto;
   }
 
   ::selection {
