@@ -4,7 +4,7 @@
 **Статус: демо-версия, в разработке.** Правила проекта — [AGENTS.md](AGENTS.md),
 этапы — [docs/roadmap.md](docs/roadmap.md).
 
-Стек: Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · ESLint · Prettier · npm.
+Стек: Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Zod · Vitest · ESLint · Prettier · npm.
 
 ## Требования
 
@@ -54,8 +54,9 @@
 | `npm run start`        | запуск собранной версии (после `build`)            |
 | `npm run lint`         | ESLint                                             |
 | `npm run typecheck`    | генерация типов маршрутов Next.js + `tsc --noEmit` |
+| `npm run test`         | тесты (Vitest)                                     |
 | `npm run format`       | форматирование Prettier (изменяет файлы)           |
 | `npm run format:check` | проверка форматирования без изменений              |
 
-Перед PR должны проходить: `lint`, `typecheck`, `format:check`, `build`.
+Перед PR должны проходить: `lint`, `typecheck`, `test`, `format:check`, `build`.
 CI (GitHub Actions) выполняет их на Ubuntu и Windows.
