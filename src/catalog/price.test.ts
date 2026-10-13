@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPrice, getStartingPrice } from "@/catalog/price";
+import { formatPrice, getPriceParts, getStartingPrice } from "@/catalog/price";
 import type { Price } from "@/catalog/schema";
 
 /** Intl может ставить обычный, неразрывный или узкий неразрывный пробел. */
@@ -86,5 +86,28 @@ describe("getStartingPrice", () => {
   it("возвращает цену пакета без изменений", () => {
     const price = from(4200);
     expect(getStartingPrice(withPrices(price))).toBe(price);
+  });
+});
+
+describe("getPriceParts", () => {
+  it("цена «от» отдаёт префикс отдельно от суммы", () => {
+    const parts = getPriceParts(from(5000000));
+    expect(parts.kind).toBe("from");
+    if (parts.kind !== "from") return;
+    expect(parts.prefix).toBe("от");
+    expect(normalize(parts.amount)).toBe("50 000 ₽");
+  });
+
+  it("фиксированная цена — без префикса", () => {
+    const parts = getPriceParts(fixed(15000000));
+    expect(parts).not.toHaveProperty("prefix");
+    expect(parts.kind).toBe("fixed");
+  });
+
+  it("цена по запросу — без суммы", () => {
+    expect(getPriceParts(onRequest)).toEqual({
+      kind: "on_request",
+      label: "По запросу",
+    });
   });
 });

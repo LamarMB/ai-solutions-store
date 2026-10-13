@@ -1,16 +1,34 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { onest } from "@/app/fonts";
+import { DemoBar } from "@/components/layout/DemoBar";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import { SkipLink } from "@/components/ui/SkipLink";
 import { site } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: site.name,
+  title: { default: site.name, template: `%s · ${site.name}` },
   description: site.description,
+};
+
+export const viewport: Viewport = {
+  themeColor: "#050506",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ru" className="h-full antialiased">
-      <body className="flex min-h-full flex-col">{children}</body>
+    <html lang="ru" className={onest.variable}>
+      <body className="flex min-h-dvh flex-col">
+        <SkipLink />
+        <DemoBar />
+        <SiteHeader />
+        <main id="main" className="flex flex-1 flex-col">
+          {children}
+        </main>
+        <SiteFooter />
+      </body>
     </html>
   );
 }

@@ -1,30 +1,238 @@
 @import "tailwindcss";
 
+/*
+ * Дизайн-токены «Витрина решений» в стиле Liquid Glass.
+ * Цвета задаются только здесь; палитра Tailwind по умолчанию отключена,
+ * чтобы в компонентах не появлялись цвета мимо токенов.
+ * Основная тема — глубокий чёрный и графит.
+ * Стекло (полупрозрачность + blur + светлая кромка + блик) — для кнопок и навигации;
+ * карточки остаются плотными графитовыми поверхностями ради читаемости.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #050506;
+  --surface: #0d0e11;
+  --surface-2: #16181d;
+  --border: rgb(255 255 255 / 0.08);
+  --border-strong: rgb(255 255 255 / 0.16);
+  --ink: #f2f3f5;
+  --muted: #a3a8b4;
+  --accent: #a5a3ff;
+  --accent-hover: #bdbbff;
+  --accent-ink: #050506;
+  --accent-soft: #1c1b3d;
+  --demo-bg: #241a0b;
+  --demo-ink: #f5b860;
+  --success: #5fd39a;
+  --warning: #f5b860;
+  --danger: #ff7b82;
+
+  /* Стекло */
+  --glass-fill: rgb(20 22 27 / 0.55);
+  --glass-sheen: rgb(255 255 255 / 0.1);
+  --glass-sheen-hover: rgb(255 255 255 / 0.16);
+  --glass-edge: rgb(255 255 255 / 0.14);
+  --glass-edge-hover: rgb(255 255 255 / 0.24);
+  --glass-highlight: rgb(255 255 255 / 0.22);
+  --glass-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.7);
+
+  /* Светлая «жидкая» кнопка основного действия */
+  --primary-top: #ffffff;
+  --primary-bottom: #c9ccd4;
+
+  color-scheme: dark;
+}
+
+@theme {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans:
+    var(--font-onest), ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial,
+    sans-serif;
+
+  /* Плавная типографическая шкала */
+  --text-display: clamp(2.5rem, 1.6rem + 3.6vw, 4rem);
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.02em;
+  --text-h1: clamp(2rem, 1.5rem + 2vw, 3rem);
+  --text-h1--line-height: 1.1;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h2: clamp(1.5rem, 1.25rem + 1vw, 2rem);
+  --text-h2--line-height: 1.2;
+  --text-h2--letter-spacing: -0.015em;
+  --text-h3: clamp(1.25rem, 1.15rem + 0.4vw, 1.5rem);
+  --text-h3--line-height: 1.3;
+  --text-h3--letter-spacing: -0.01em;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.5;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+
+  --radius-control: 9999px;
+  --radius-card: 20px;
+  --radius-panel: 28px;
+
+  --container-page: 80rem;
+  --container-prose: 68ch;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-demo-bg: var(--demo-bg);
+  --color-demo-ink: var(--demo-ink);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Регистрация свойства позволяет плавно менять блик при наведении. */
+@property --glass-sheen {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgb(255 255 255 / 0.1);
+}
+
+/* Стеклянная поверхность для кнопок, навигации и мелких элементов. */
+@utility glass {
+  background-color: var(--glass-fill);
+  background-image: linear-gradient(
+    180deg,
+    var(--glass-sheen) 0%,
+    rgb(255 255 255 / 0.02) 55%,
+    rgb(255 255 255 / 0.04) 100%
+  );
+  border: 1px solid var(--glass-edge);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    inset 0 -1px 0 rgb(255 255 255 / 0.04),
+    var(--glass-shadow);
+  backdrop-filter: blur(16px) saturate(160%);
+}
+
+/* Мягкий отклик стекла на наведение: ярче блик и кромка. */
+@utility glass-hover {
+  transition:
+    --glass-sheen 200ms ease,
+    background-color 200ms ease,
+    border-color 200ms ease;
+  &:hover {
+    --glass-sheen: var(--glass-sheen-hover);
+    border-color: var(--glass-edge-hover);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    Arial,
-    sans-serif;
+/* Панель (шапка, мобильное меню): стекло без тени и боковых кромок. */
+@utility glass-bar {
+  background-color: rgb(5 5 6 / 0.62);
+  backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* Светлая «жидкая» кнопка основного действия. */
+@utility liquid-primary {
+  color: var(--accent-ink);
+  background-image: linear-gradient(
+    180deg,
+    var(--primary-top) 0%,
+    var(--primary-bottom) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 -1px 0 rgb(0 0 0 / 0.12),
+    0 8px 24px -10px rgb(255 255 255 / 0.25);
+  transition:
+    box-shadow 200ms ease,
+    filter 200ms ease;
+  &:hover {
+    filter: brightness(1.04);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 1),
+      inset 0 -1px 0 rgb(0 0 0 / 0.12),
+      0 10px 30px -10px rgb(255 255 255 / 0.35);
+  }
+}
+
+@layer base {
+  html {
+    /* Фон и под зарезервированным местом полосы прокрутки (Windows). */
+    background-color: var(--bg);
+    scrollbar-gutter: stable;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Открытое модальное окно (мобильное меню) блокирует прокрутку страницы. */
+  html:has(dialog[open]) {
+    overflow: hidden;
+  }
+
+  body {
+    background-color: var(--bg);
+    /* Мягкое глубинное свечение — даёт стеклу, что преломлять. */
+    background-image:
+      radial-gradient(
+        60% 45% at 12% -5%,
+        rgb(165 163 255 / 0.2),
+        transparent 70%
+      ),
+      radial-gradient(
+        45% 35% at 95% 5%,
+        rgb(110 170 255 / 0.12),
+        transparent 70%
+      );
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--accent-soft);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Пользователь просит меньше прозрачности — стекло становится плотным. */
+  @media (prefers-reduced-transparency: reduce) {
+    :root {
+      --glass-fill: #14161b;
+    }
+    .glass,
+    .glass-bar {
+      backdrop-filter: none;
+    }
+    .glass-bar {
+      background-color: var(--bg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

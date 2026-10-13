@@ -34,4 +34,4 @@ export function getSolutionsByIndustry(industryId: string) {
 }
 
 export type * from "@/catalog/schema";
-export { formatPrice, getStartingPrice } from "@/catalog/price";
+export { formatPrice, getPriceParts, getStartingPrice } from "@/catalog/price";
