@@ -36,9 +36,9 @@ export function MobileMenu() {
         onClick={open}
         aria-haspopup="dialog"
         aria-controls="mobile-menu"
-        className={buttonClasses({ variant: "ghost", size: "icon" })}
+        className={buttonClasses({ variant: "secondary", size: "icon" })}
       >
-        <Icon name="menu" size={22} />
+        <Icon name="menu" size={20} />
         <span className="sr-only">Открыть меню</span>
       </button>
 
@@ -46,7 +46,7 @@ export function MobileMenu() {
         id="mobile-menu"
         ref={dialogRef}
         aria-label="Меню сайта"
-        className="bg-bg text-ink backdrop:bg-ink/40 m-0 h-dvh max-h-none w-full max-w-none p-0"
+        className="bg-bg/92 text-ink m-0 h-dvh max-h-none w-full max-w-none p-0 backdrop-blur-xl backdrop:bg-transparent"
       >
         <div className="flex h-full flex-col">
           <div className="border-border flex h-16 items-center justify-between border-b px-4 sm:px-6">
@@ -54,9 +54,9 @@ export function MobileMenu() {
             <button
               type="button"
               onClick={close}
-              className={buttonClasses({ variant: "ghost", size: "icon" })}
+              className={buttonClasses({ variant: "secondary", size: "icon" })}
             >
-              <Icon name="close" size={22} />
+              <Icon name="close" size={20} />
               <span className="sr-only">Закрыть меню</span>
             </button>
           </div>

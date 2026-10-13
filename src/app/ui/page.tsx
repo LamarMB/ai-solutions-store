@@ -52,8 +52,8 @@ export default function UiPage() {
     <Section>
       <h1 className="text-h1 font-semibold">UI-компоненты</h1>
       <p className="text-muted mt-3">
-        Служебная страница для проверки дизайн-системы. Тема следует настройке
-        системы.
+        Служебная страница для проверки дизайн-системы. Тема — тёмная, Liquid
+        Glass.
       </p>
 
       <h2 className="text-h2 mt-14 font-semibold">Цвета</h2>
@@ -61,7 +61,7 @@ export default function UiPage() {
         {colors.map((name) => (
           <li key={name} className="text-caption text-muted">
             <span
-              className="rounded-control border-border mb-2 block h-14 border"
+              className="rounded-card border-border mb-2 block h-14 border"
               style={{ background: `var(--${name})` }}
             />
             {name}

@@ -8,7 +8,7 @@ import { headerActions } from "@/config/navigation";
 
 export function SiteHeader() {
   return (
-    <header className="border-border bg-bg/85 sticky top-0 z-40 border-b backdrop-blur-md">
+    <header className="glass-bar border-border sticky top-0 z-40 border-b">
       <Container className="flex h-16 items-center gap-4">
         <Logo />
 

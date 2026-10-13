@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 export function NavLinks() {
   const pathname = usePathname();
   return (
-    <ul className="flex items-center gap-1">
+    <ul className="glass flex items-center gap-0.5 rounded-full p-1">
       {mainNav.map((item) => {
         const active = isActivePath(pathname, item.href);
         return (
@@ -18,8 +18,10 @@ export function NavLinks() {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "rounded-control text-small px-3 py-2 font-medium transition-colors duration-150",
-                active ? "text-ink" : "text-muted hover:text-ink",
+                "text-small block rounded-full px-3.5 py-1.5 font-medium transition-colors duration-200",
+                active
+                  ? "bg-surface-2 text-ink shadow-[inset_0_1px_0_rgb(255_255_255/0.12)]"
+                  : "text-muted hover:text-ink",
               )}
             >
               {item.label}

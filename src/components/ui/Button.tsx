@@ -9,9 +9,11 @@ const base =
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-control font-medium whitespace-nowrap transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-accent-ink hover:bg-accent-hover",
-  secondary:
-    "border border-border-strong bg-surface text-ink hover:border-ink/40 hover:bg-surface-2",
+  /** Светлая «жидкая» пилюля — главное действие. */
+  primary: "liquid-primary",
+  /** Стеклянная пилюля. */
+  secondary: "glass glass-hover text-ink",
+  /** Без фона; при наведении — лёгкая подложка. */
   ghost: "text-ink hover:bg-surface-2",
 };
 
