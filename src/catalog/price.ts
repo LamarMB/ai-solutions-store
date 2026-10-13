@@ -1,4 +1,4 @@
-import type { Price, Solution } from "@/catalog/schema";
+import type { Currency, Price, Solution } from "@/catalog/schema";
 
 const MINOR_UNITS_PER_MAJOR = 100;
 
@@ -11,15 +11,45 @@ const formatters = {
   }),
 } as const;
 
+/** Части цены для вёрстки: префикс «от» отделён от суммы, вид цены сохраняется. */
+export type PriceParts =
+  | { kind: "fixed"; amount: string }
+  | { kind: "from"; prefix: "от"; amount: string }
+  | { kind: "on_request"; label: "По запросу" };
+
+export function getPriceParts(price: Price): PriceParts {
+  switch (price.kind) {
+    case "on_request":
+      return { kind: "on_request", label: "По запросу" };
+    case "from":
+      return {
+        kind: "from",
+        prefix: "от",
+        amount: formatAmount(price.amount, price.currency),
+      };
+    case "fixed":
+      return {
+        kind: "fixed",
+        amount: formatAmount(price.amount, price.currency),
+      };
+  }
+}
+
 /** Форматирует цену с сохранением её вида: «150 000 ₽», «от 50 000 ₽», «По запросу». */
 export function formatPrice(price: Price): string {
-  if (price.kind === "on_request") {
-    return "По запросу";
+  const parts = getPriceParts(price);
+  switch (parts.kind) {
+    case "on_request":
+      return parts.label;
+    case "from":
+      return `${parts.prefix} ${parts.amount}`;
+    case "fixed":
+      return parts.amount;
   }
-  const amount = formatters[price.currency].format(
-    price.amount / MINOR_UNITS_PER_MAJOR,
-  );
-  return price.kind === "from" ? `от ${amount}` : amount;
+}
+
+function formatAmount(amount: number, currency: Currency) {
+  return formatters[currency].format(amount / MINOR_UNITS_PER_MAJOR);
 }
 
 /**

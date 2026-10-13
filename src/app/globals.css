@@ -1,30 +1,150 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Дизайн-токены «Витрина решений».
+ * Цвета задаются только здесь; палитра Tailwind по умолчанию отключена,
+ * чтобы в компонентах не появлялись цвета мимо токенов.
+ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --surface-2: #efede8;
+  --border: #e4e2dc;
+  --border-strong: #cfccc4;
+  --ink: #0e1116;
+  --muted: #5b6170;
+  --accent: #3a35e0;
+  --accent-hover: #2d28c4;
+  --accent-ink: #ffffff;
+  --accent-soft: #e9e8fc;
+  --demo-bg: #fdf0dc;
+  --demo-ink: #8a4b00;
+  --success: #1f7a4d;
+  --warning: #8a4b00;
+  --danger: #b4232c;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #0b0d11;
+    --surface: #14171d;
+    --surface-2: #1b1f27;
+    --border: #262a33;
+    --border-strong: #3a3f4b;
+    --ink: #ecedef;
+    --muted: #9aa0ac;
+    --accent: #8e8bff;
+    --accent-hover: #a9a7ff;
+    --accent-ink: #0b0d11;
+    --accent-soft: #23224a;
+    --demo-bg: #2a1e0c;
+    --demo-ink: #f5b860;
+    --success: #5fd39a;
+    --warning: #f5b860;
+    --danger: #ff7b82;
+    color-scheme: dark;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    Arial,
+@theme {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans:
+    var(--font-onest), ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial,
     sans-serif;
+
+  /* Плавная типографическая шкала */
+  --text-display: clamp(2.5rem, 1.6rem + 3.6vw, 4rem);
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.02em;
+  --text-h1: clamp(2rem, 1.5rem + 2vw, 3rem);
+  --text-h1--line-height: 1.1;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h2: clamp(1.5rem, 1.25rem + 1vw, 2rem);
+  --text-h2--line-height: 1.2;
+  --text-h2--letter-spacing: -0.015em;
+  --text-h3: clamp(1.25rem, 1.15rem + 0.4vw, 1.5rem);
+  --text-h3--line-height: 1.3;
+  --text-h3--letter-spacing: -0.01em;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.5;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-panel: 24px;
+
+  --container-page: 80rem;
+  --container-prose: 68ch;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-demo-bg: var(--demo-bg);
+  --color-demo-ink: var(--demo-ink);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+}
+
+@layer base {
+  html {
+    /* Фон и под зарезервированным местом полосы прокрутки (Windows). */
+    background-color: var(--bg);
+    scrollbar-gutter: stable;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Открытое модальное окно (мобильное меню) блокирует прокрутку страницы. */
+  html:has(dialog[open]) {
+    overflow: hidden;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--accent-soft);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
