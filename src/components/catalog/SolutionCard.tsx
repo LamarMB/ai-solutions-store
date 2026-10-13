@@ -12,6 +12,8 @@ type SolutionCardProps = {
   solution: Solution;
   categoryTitles: ReadonlyMap<string, string>;
   industryTitles: ReadonlyMap<string, string>;
+  /** Уровень заголовка карточки: h2 в каталоге, h3 внутри секций. */
+  headingLevel?: "h2" | "h3";
 };
 
 /** Карточка решения в каталоге; вся карточка ведёт на страницу решения. */
@@ -19,6 +21,7 @@ export function SolutionCard({
   solution,
   categoryTitles,
   industryTitles,
+  headingLevel: Heading = "h2",
 }: SolutionCardProps) {
   const titleId = `solution-${solution.id}`;
   const startingPrice = getStartingPrice(solution);
@@ -46,7 +49,7 @@ export function SolutionCard({
         ))}
       </div>
 
-      <h2 id={titleId} className="text-h3 mt-4 font-semibold text-balance">
+      <Heading id={titleId} className="text-h3 mt-4 font-semibold text-balance">
         {/* Ссылка растянута на всю карточку (::after), фокус показывает карточка. */}
         <Link
           href={solutionHref(solution.id)}
@@ -54,7 +57,7 @@ export function SolutionCard({
         >
           {solution.title}
         </Link>
-      </h2>
+      </Heading>
       <p className="text-small text-muted mt-2 line-clamp-3">
         {solution.summary}
       </p>
