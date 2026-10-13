@@ -22,16 +22,15 @@ export function PriceTag({ price, size = "md", className }: PriceTagProps) {
   }
 
   return (
-    <span
-      className={cn(
-        "text-ink inline-flex items-baseline gap-1.5 font-semibold tabular-nums",
-        className,
-      )}
-    >
+    <span className={cn("text-ink font-semibold tabular-nums", className)}>
+      {/* Обычные inline-элементы с пробелом: текст копируется и читается
+          как «от 50 000 ₽», а не двумя отдельными строками. */}
       {parts.kind === "from" && (
-        <span className="text-small text-muted font-medium">
-          {parts.prefix}
-        </span>
+        <>
+          <span className="text-small text-muted font-medium">
+            {parts.prefix}
+          </span>{" "}
+        </>
       )}
       <span className={amountSize}>{parts.amount}</span>
     </span>
