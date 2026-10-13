@@ -50,6 +50,10 @@
 - Вид цены нельзя терять: «от» никогда не превращается в фиксированную цену
   (`getStartingPrice`, `formatPrice` в `src/catalog/price.ts`).
 - Позиция будущей заявки — пара `(solutionId, packageId)`; id пакетов уникальны внутри решения.
+- Адреса — только через `src/catalog/links.ts`: страница решения `solutionHref(id)` →
+  `/catalog/<id>`, заявка `requestHref(solutionId, packageId)` →
+  `/request?solution=…&package=…`. Параметры заявки проверяются по каталогу
+  (`resolveRequestSelection`); неизвестное отбрасывается.
 - Поиск и фильтры каталога — чистые функции в `src/catalog/search.ts`. Состояние хранится в URL:
   `/catalog?q=…&category=a&category=b&industry=x` (принимаются и значения через запятую,
   неизвестные id отбрасываются). Внутри группы — «или», между поиском, категориями и

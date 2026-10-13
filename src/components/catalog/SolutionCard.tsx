@@ -1,8 +1,11 @@
+import Link from "next/link";
+import { solutionHref } from "@/catalog/links";
 import { getStartingPrice } from "@/catalog/price";
 import type { Solution } from "@/catalog/schema";
 import { pluralRu } from "@/catalog/search";
 import { Badge, DemoBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { Icon } from "@/components/ui/Icon";
 import { PriceTag } from "@/components/ui/PriceTag";
 
 type SolutionCardProps = {
@@ -11,7 +14,7 @@ type SolutionCardProps = {
   industryTitles: ReadonlyMap<string, string>;
 };
 
-/** Карточка решения в каталоге. Страница решения появится на этапе 5. */
+/** Карточка решения в каталоге; вся карточка ведёт на страницу решения. */
 export function SolutionCard({
   solution,
   categoryTitles,
@@ -32,7 +35,8 @@ export function SolutionCard({
   return (
     <Card
       aria-labelledby={titleId}
-      className="flex h-full flex-col"
+      interactive
+      className="has-focus-visible:outline-accent relative flex h-full flex-col has-focus-visible:outline-2 has-focus-visible:outline-offset-2"
       role="article"
     >
       <div className="flex flex-wrap gap-2">
@@ -43,7 +47,13 @@ export function SolutionCard({
       </div>
 
       <h2 id={titleId} className="text-h3 mt-4 font-semibold text-balance">
-        {solution.title}
+        {/* Ссылка растянута на всю карточку (::after), фокус показывает карточка. */}
+        <Link
+          href={solutionHref(solution.id)}
+          className="after:rounded-card outline-none after:absolute after:inset-0"
+        >
+          {solution.title}
+        </Link>
       </h2>
       <p className="text-small text-muted mt-2 line-clamp-3">
         {solution.summary}
@@ -64,6 +74,13 @@ export function SolutionCard({
                 : packagesLabel}
           </span>
         </div>
+        <p
+          aria-hidden="true"
+          className="text-small text-accent mt-4 inline-flex items-center gap-1.5 font-medium"
+        >
+          Подробнее
+          <Icon name="arrow-right" size={16} />
+        </p>
       </div>
     </Card>
   );
