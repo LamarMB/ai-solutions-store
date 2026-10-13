@@ -1,0 +1,13 @@
+# Единые окончания строк (LF) на Windows и Linux
+* text=auto eol=lf
+
+# Бинарные файлы
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
