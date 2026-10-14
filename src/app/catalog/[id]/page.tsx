@@ -7,8 +7,9 @@ import {
   getSolutionById,
   getSolutions,
 } from "@/catalog";
-import { requestHref } from "@/catalog/links";
+import { requestHref, solutionHref } from "@/catalog/links";
 import { MATURITY_NOTES } from "@/catalog/maturity";
+import { solutionSeoDescription, solutionSeoTitle } from "@/catalog/seo";
 import { PackagePicker } from "@/components/catalog/PackagePicker";
 import { Badge, DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
@@ -16,6 +17,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { Section } from "@/components/ui/Section";
+import { pageMetadata } from "@/lib/seo";
 
 export function generateStaticParams() {
   return getSolutions().map((solution) => ({ id: solution.id }));
@@ -26,7 +28,11 @@ export async function generateMetadata({
 }: PageProps<"/catalog/[id]">): Promise<Metadata> {
   const solution = getSolutionById((await params).id);
   if (!solution) return {};
-  return { title: solution.title, description: solution.summary };
+  return pageMetadata({
+    title: solutionSeoTitle(solution),
+    description: solutionSeoDescription(solution),
+    path: solutionHref(solution.id),
+  });
 }
 
 export default async function SolutionPage({

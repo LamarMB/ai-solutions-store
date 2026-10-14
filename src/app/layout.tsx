@@ -4,12 +4,27 @@ import { DemoBar } from "@/components/layout/DemoBar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SkipLink } from "@/components/ui/SkipLink";
+import { getSeoConfig, OG_IMAGE, robotsFor } from "@/lib/seo";
 import { site } from "@/lib/site";
 import "./globals.css";
 
+const seo = getSeoConfig();
+
 export const metadata: Metadata = {
+  metadataBase: seo.baseUrl,
   title: { default: site.name, template: `%s · ${site.name}` },
   description: site.description,
+  applicationName: site.name,
+  robots: robotsFor(false, seo),
+  openGraph: {
+    type: "website",
+    locale: "ru_RU",
+    siteName: site.name,
+    images: [OG_IMAGE],
+  },
+  twitter: { card: "summary_large_image", images: [OG_IMAGE] },
+  // Номера и адреса в демо-текстах не должны превращаться в ссылки.
+  formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {

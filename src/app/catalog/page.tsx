@@ -12,12 +12,15 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { Section } from "@/components/ui/Section";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Каталог",
+// Фильтры и поиск — представления одной страницы: canonical всегда /catalog.
+export const metadata: Metadata = pageMetadata({
+  title: "Каталог ИИ-решений для бизнеса",
   description:
-    "Каталог демонстрационных ИИ-решений для бизнеса: поиск и фильтры по категориям и отраслям.",
-};
+    "ИИ-ассистенты, обработка документов, ИИ для бухгалтерии, продаж, HR, клиник и ресторанов. Поиск и фильтры по задачам и отраслям, состав работ и ограничения.",
+  path: "/catalog",
+});
 
 export default async function CatalogPage({
   searchParams,

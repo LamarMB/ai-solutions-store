@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getCategories, getIndustries, getSolutions } from "@/catalog";
 import { SolutionCard } from "@/components/catalog/SolutionCard";
 import { CtaPanel } from "@/components/marketing/CtaPanel";
@@ -13,6 +14,16 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { headerActions, mainNav } from "@/config/navigation";
 import { principles, processSteps } from "@/content/approach";
 import { directions } from "@/content/directions";
+import { absoluteUrl, getSeoConfig, jsonLd, pageMetadata } from "@/lib/seo";
+import { site } from "@/lib/site";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Внедрение ИИ и автоматизация бизнеса — AI Solutions Store",
+  description:
+    "Каталог решений по внедрению искусственного интеллекта в бизнес: ИИ-ассистенты, обработка документов, ИИ для бухгалтерии, медицинских клиник, продаж и HR. Состав работ, цена и ограничения.",
+  path: "/",
+  absoluteTitle: true,
+});
 
 const FEATURED_COUNT = 3;
 
@@ -21,8 +32,22 @@ export default function Home() {
   const categoryTitles = new Map(getCategories().map((c) => [c.id, c.title]));
   const industryTitles = new Map(getIndustries().map((i) => [i.id, i.title]));
 
+  const config = getSeoConfig();
+  const website = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: site.name,
+    url: absoluteUrl("/", config),
+    description: site.description,
+    inLanguage: "ru-RU",
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd(website) }}
+      />
       {/* Первый экран */}
       <section aria-labelledby="hero-title" className="overflow-hidden">
         <Container className="grid items-center gap-16 pt-14 pb-20 md:pt-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 lg:pt-24 lg:pb-28">
@@ -38,9 +63,8 @@ export default function Home() {
               Внедрение ИИ в&nbsp;процессы бизнеса
             </h1>
             <p className="text-h3 text-muted mt-6 max-w-xl font-normal">
-              Готовые решения с понятным составом работ, пакетами и ценой.
-              Выберите подходящее в каталоге или подберите вместе с
-              ИИ-консультантом.
+              Решения с понятным составом работ, ценой и ограничениями. Выберите
+              подходящее в каталоге или подберите вместе с ИИ-консультантом.
             </p>
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <ButtonLink href={mainNav[0].href} size="lg">

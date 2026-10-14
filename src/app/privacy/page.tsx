@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Section } from "@/components/ui/Section";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Политика конфиденциальности",
-  robots: { index: false, follow: true },
-};
+  description:
+    "Политика обработки персональных данных AI Solutions Store готовится. Сейчас заявки принимаются в тестовом режиме и не сохраняются.",
+  path: "/privacy",
+  noindex: true,
+});
 
 /**
  * Заглушка. Текст политики, сведения об операторе персональных данных и
