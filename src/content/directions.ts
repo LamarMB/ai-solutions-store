@@ -25,16 +25,41 @@ export const directions = [
   {
     id: "sales",
     title: "Продажи и CRM",
-    description: "ИИ-функции в CRM: сводки по клиентам и подсказки менеджерам.",
+    description:
+      "Обработка входящих запросов, квалификация лидов и ИИ-функции в CRM.",
     icon: "chart",
-    query: { q: "CRM" },
+    query: { categories: ["sales"] },
+  },
+  {
+    id: "accounting",
+    title: "Бухгалтерия",
+    description:
+      "Обработка первичных документов и поиск расхождений между ними.",
+    icon: "calculator",
+    query: { categories: ["accounting"] },
   },
   {
     id: "documents",
     title: "Документооборот",
-    description: "Извлечение данных из счетов, накладных и актов.",
+    description:
+      "Извлечение данных из документов, сверка и поиск по документации.",
     icon: "document",
-    query: { categories: ["document-processing"] },
+    query: { categories: ["document-processing", "knowledge-search"] },
+  },
+  {
+    id: "hr",
+    title: "HR и персонал",
+    description:
+      "Первичный отбор кандидатов и ответы сотрудникам на типовые вопросы.",
+    icon: "users",
+    query: { categories: ["hr"] },
+  },
+  {
+    id: "restaurants",
+    title: "Рестораны",
+    description: "Приём заказов, ответы по меню и анализ данных о продажах.",
+    icon: "utensils",
+    query: { industries: ["restaurants"] },
   },
   {
     id: "retail",
@@ -68,4 +93,5 @@ export const industryIcons: Record<string, IconName> = {
   "professional-services": "briefcase",
   education: "book",
   healthcare: "heart",
+  restaurants: "utensils",
 };

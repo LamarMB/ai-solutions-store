@@ -1,4 +1,6 @@
 import type { ComponentProps } from "react";
+import { MATURITY_LABELS } from "@/catalog/maturity";
+import type { Maturity } from "@/catalog/schema";
 import { cn } from "@/lib/cn";
 
 type Tone = "neutral" | "accent" | "demo";
@@ -31,6 +33,23 @@ export function DemoBadge({ className }: { className?: string }) {
   return (
     <Badge tone="demo" className={className} title="Демонстрационные данные">
       Демо
+    </Badge>
+  );
+}
+
+/** Статус зрелости решения: «Концепция» или «В разработке». Для demo ничего не выводит. */
+export function MaturityBadge({
+  maturity,
+  className,
+}: {
+  maturity: Maturity;
+  className?: string;
+}) {
+  const label = MATURITY_LABELS[maturity];
+  if (!label) return null;
+  return (
+    <Badge tone="accent" className={className} title={label}>
+      {label}
     </Badge>
   );
 }

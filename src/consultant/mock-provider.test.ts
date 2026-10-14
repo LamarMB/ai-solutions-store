@@ -62,15 +62,20 @@ describe("сценарии диалога", () => {
   });
 
   it("CRM и продажи → интеграция с CRM", async () => {
-    expect(await ids("Менеджеры по продажам тонут в сделках в CRM")).toEqual([
+    expect((await ids("Менеджеры по продажам тонут в сделках в CRM"))[0]).toBe(
       "crm-ai-integration",
-    ]);
+    );
   });
 
   it("несколько задач → несколько решений", async () => {
     expect(
-      new Set(await ids("Нужна обработка документов и помощь отделу продаж")),
-    ).toEqual(new Set(["document-data-extraction", "crm-ai-integration"]));
+      await ids("Нужна обработка документов и помощь отделу продаж"),
+    ).toEqual(
+      expect.arrayContaining([
+        "document-data-extraction",
+        "crm-ai-integration",
+      ]),
+    );
   });
 
   it("приветствие → уточняющий вопрос и примеры, без рекомендаций", async () => {
@@ -175,6 +180,41 @@ describe("сценарии диалога", () => {
       "что угодно",
     ]) {
       for (const id of await ids(text)) expect(all.has(id)).toBe(true);
+    }
+  });
+
+  it("бухгалтерия → AI Accounting Department со статусом «в разработке»", async () => {
+    const r = await provider.reply(
+      user("Нужно автоматизировать бухгалтерию и первичные документы"),
+    );
+    const aad = r.recommendations.find(
+      (x) => x.solutionId === "ai-accounting-department",
+    );
+    expect(aad).toBeDefined();
+    expect(aad!.reason).toContain("в разработке");
+    expect(r.text).toContain("не готовые продукты");
+  });
+
+  it("ресторан и заказы → ассистент приёма заказов", async () => {
+    expect((await ids("Ресторан, принимаем заказы по телефону"))[0]).toBe(
+      "restaurant-order-assistant",
+    );
+  });
+
+  it("концепции и продукты в разработке всегда помечены в причине", async () => {
+    const byId = new Map(getSolutions().map((s) => [s.id, s]));
+    for (const text of [
+      ...EXAMPLE_TASKS,
+      "подбор кандидатов",
+      "поиск по базе знаний",
+      "квалификация лидов",
+      "сверка актов",
+    ]) {
+      for (const rec of (await provider.reply(user(text))).recommendations) {
+        if (byId.get(rec.solutionId)!.maturity !== "demo") {
+          expect(rec.reason, rec.solutionId).toMatch(/^статус:/);
+        }
+      }
     }
   });
 });

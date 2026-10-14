@@ -8,7 +8,7 @@ import {
   solutionHref,
 } from "@/catalog/links";
 import { RequestForm } from "@/components/request/RequestForm";
-import { DemoBadge } from "@/components/ui/Badge";
+import { DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
@@ -90,6 +90,7 @@ export default async function RequestPage({
               <>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selection.solution.isDemo && <DemoBadge />}
+                  <MaturityBadge maturity={selection.solution.maturity} />
                 </div>
                 <p className="text-h3 mt-3 font-semibold">
                   <Link
@@ -110,6 +111,10 @@ export default async function RequestPage({
                       className="mt-1 block"
                     />
                   </div>
+                ) : selection.solution.packages.length === 0 ? (
+                  <p className="text-small text-muted mt-3">
+                    Пакеты не сформированы — стоимость по запросу.
+                  </p>
                 ) : (
                   <p className="text-small text-muted mt-3">Пакет не выбран</p>
                 )}
@@ -118,7 +123,9 @@ export default async function RequestPage({
                     href={solutionHref(selection.solution.id)}
                     className="text-small text-accent hover:text-accent-hover rounded-sm font-medium"
                   >
-                    Выбрать другой пакет
+                    {selection.solution.packages.length === 0
+                      ? "Вернуться к решению"
+                      : "Выбрать другой пакет"}
                   </Link>
                   <Link
                     href="/request"

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requestHref, solutionHref } from "@/catalog/links";
 import type { RecommendationView } from "@/consultant/recommendations";
-import { DemoBadge } from "@/components/ui/Badge";
+import { DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { PriceTag } from "@/components/ui/PriceTag";
 
@@ -14,6 +14,7 @@ export function RecommendationCard({ rec }: { rec: RecommendationView }) {
     >
       <div className="flex flex-wrap items-center gap-2">
         {rec.isDemo && <DemoBadge />}
+        <MaturityBadge maturity={rec.maturity} />
       </div>
       <h3 className="text-body mt-2 font-semibold">
         <Link
@@ -31,24 +32,30 @@ export function RecommendationCard({ rec }: { rec: RecommendationView }) {
         </p>
       )}
 
-      <ul className="border-border mt-3 grid gap-1.5 border-t pt-3">
-        {rec.packages.map((pkg) => (
-          <li
-            key={pkg.id}
-            className="text-small flex flex-wrap items-baseline justify-between gap-x-3"
-          >
-            <span>Пакет «{pkg.title}»</span>
-            <PriceTag price={pkg.price} />
-          </li>
-        ))}
-      </ul>
+      {rec.packages.length > 0 ? (
+        <ul className="border-border mt-3 grid gap-1.5 border-t pt-3">
+          {rec.packages.map((pkg) => (
+            <li
+              key={pkg.id}
+              className="text-small flex flex-wrap items-baseline justify-between gap-x-3"
+            >
+              <span>Пакет «{pkg.title}»</span>
+              <PriceTag price={pkg.price} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="border-border text-small text-muted mt-3 border-t pt-3">
+          Пакеты не сформированы — стоимость по запросу.
+        </p>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           href={`${solutionHref(rec.solutionId)}#packages-title`}
           className="liquid-primary text-small rounded-control inline-flex h-9 items-center gap-1.5 px-4 font-medium"
         >
-          Выбрать пакет
+          {rec.packages.length > 0 ? "Выбрать пакет" : "Подробнее"}
           <Icon name="arrow-right" size={16} />
         </Link>
         <Link

@@ -85,6 +85,21 @@ const paths = {
       <path d="M6 6l3.5 3.5M14.5 14.5L18 18M18 6l-3.5 3.5M9.5 14.5L6 18" />
     </>
   ),
+  utensils: (
+    <path d="M7 3.5v7a2 2 0 0 0 2 2v8M5 3.5v5M9 3.5v5M17 20.5v-17c-2 1-3.5 3.5-3.5 7v3h3.5" />
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8.5" r="3.5" />
+      <path d="M3 19.5c0-3 2.7-5 6-5s6 2 6 5M16 5.5a3 3 0 0 1 0 6M18 14.8c2 .6 3.5 2.2 3.5 4.7" />
+    </>
+  ),
+  calculator: (
+    <>
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof paths;

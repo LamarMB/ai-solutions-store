@@ -7,9 +7,12 @@ import {
   getSolutionById,
   getSolutions,
 } from "@/catalog";
+import { requestHref } from "@/catalog/links";
+import { MATURITY_NOTES } from "@/catalog/maturity";
 import { PackagePicker } from "@/components/catalog/PackagePicker";
-import { Badge, DemoBadge } from "@/components/ui/Badge";
+import { Badge, DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
+import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { Section } from "@/components/ui/Section";
@@ -34,6 +37,20 @@ export default async function SolutionPage({
 
   const categoryTitles = new Map(getCategories().map((c) => [c.id, c.title]));
   const industryTitles = new Map(getIndustries().map((i) => [i.id, i.title]));
+  const maturityNote = MATURITY_NOTES[solution.maturity];
+  const overview = [
+    { id: "audience-title", title: "Для кого", items: solution.audience },
+    {
+      id: "problems-title",
+      title: "Какие задачи решает",
+      items: solution.problems,
+    },
+    {
+      id: "capabilities-title",
+      title: "Возможности",
+      items: solution.capabilities,
+    },
+  ].filter((block) => block.items.length > 0);
   const industries =
     solution.industryIds.length === 0
       ? "Для любой отрасли"
@@ -52,6 +69,7 @@ export default async function SolutionPage({
       <header className="mt-8 max-w-3xl">
         <div className="flex flex-wrap gap-2">
           {solution.isDemo && <DemoBadge />}
+          <MaturityBadge maturity={solution.maturity} />
           {solution.categoryIds.map((id) => (
             <Badge key={id}>{categoryTitles.get(id)}</Badge>
           ))}
@@ -65,6 +83,19 @@ export default async function SolutionPage({
         <p className="text-small text-muted mt-5">
           <span className="text-ink font-medium">Отрасли:</span> {industries}
         </p>
+        {maturityNote && (
+          <p
+            role="note"
+            className="rounded-card border-accent/40 bg-accent-soft/40 text-small text-ink mt-6 flex gap-3 border p-4"
+          >
+            <Icon
+              name="shield"
+              size={18}
+              className="text-accent mt-0.5 shrink-0"
+            />
+            {maturityNote}
+          </p>
+        )}
       </header>
 
       <section aria-labelledby="about-title" className="mt-12">
@@ -74,19 +105,50 @@ export default async function SolutionPage({
         <p className="mt-4 max-w-prose">{solution.description}</p>
       </section>
 
+      {overview.length > 0 && (
+        <div className="mt-10 grid gap-4 lg:grid-cols-3">
+          {overview.map((block) => (
+            <InfoList
+              key={block.id}
+              id={block.id}
+              title={block.title}
+              items={block.items}
+            />
+          ))}
+        </div>
+      )}
+
       <section aria-labelledby="packages-title" className="mt-14">
-        <h2 id="packages-title" className="text-h2 font-semibold">
+        <h2 id="packages-title" className="text-h2 scroll-mt-28 font-semibold">
           Пакеты внедрения
         </h2>
-        <p className="text-small text-muted mt-2">
-          Выберите пакет и оставьте заявку — мы уточним задачу и условия.
-        </p>
-        <div className="mt-6">
-          <PackagePicker
-            solution={solution}
-            defaultPackageId={solution.packages[0].id}
-          />
-        </div>
+        {solution.packages.length > 0 ? (
+          <>
+            <p className="text-small text-muted mt-2">
+              Выберите пакет и оставьте заявку — мы уточним задачу и условия.
+            </p>
+            <div className="mt-6">
+              <PackagePicker
+                solution={solution}
+                defaultPackageId={solution.packages[0].id}
+              />
+            </div>
+          </>
+        ) : (
+          <Card className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-body font-semibold">Пакеты не сформированы</p>
+              <p className="text-small text-muted mt-1 max-w-prose">
+                Состав работ, сроки и стоимость определяются после обсуждения
+                задачи. Цена — по запросу.
+              </p>
+            </div>
+            <ButtonLink href={requestHref(solution.id)} className="shrink-0">
+              Обсудить решение
+              <Icon name="arrow-right" size={18} />
+            </ButtonLink>
+          </Card>
+        )}
       </section>
 
       <section aria-labelledby="stages-title" className="mt-14">

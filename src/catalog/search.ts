@@ -101,14 +101,23 @@ function matchesText(solution: Solution, q: string): boolean {
   const words = normalizeText(q).split(" ").filter(Boolean);
   if (words.length === 0) return true;
   const haystack = normalizeText(
-    [solution.title, solution.summary, solution.description].join(" "),
+    [
+      solution.title,
+      solution.summary,
+      solution.description,
+      ...solution.audience,
+      ...solution.problems,
+      ...solution.capabilities,
+      ...solution.tags,
+    ].join(" "),
   );
   return words.every((word) => haystack.includes(word));
 }
 
 /**
  * Фильтрация каталога.
- * - Поиск: все слова запроса должны встречаться в названии или описании.
+ * - Поиск: все слова запроса должны встречаться в названии, описании,
+ *   аудитории, задачах, возможностях или тегах.
  * - Внутри категорий и внутри отраслей — «или», между группами — «и».
  * - Решение с пустым industryIds подходит для любой отрасли.
  */

@@ -31,4 +31,9 @@ export const industries = [
     title: "Медицина и клиники",
     description: "Медицинские центры, клиники и частные практики.",
   },
+  {
+    id: "restaurants",
+    title: "Рестораны и общепит",
+    description: "Рестораны, кафе, доставка готовой еды.",
+  },
 ] satisfies IndustryInput[];
