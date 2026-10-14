@@ -19,7 +19,7 @@ import { industryIcons } from "@/content/directions";
 export const metadata: Metadata = {
   title: "Отрасли",
   description:
-    "Решения каталога по отраслям: медицина, розница, логистика, производство, услуги и образование.",
+    "Решения каталога по отраслям: медицина, рестораны, розница, логистика, производство, услуги и образование.",
 };
 
 export default function IndustriesPage() {
@@ -45,6 +45,9 @@ export default function IndustriesPage() {
         {getIndustries().map((industry) => {
           const query = { ...EMPTY_QUERY, industries: [industry.id] };
           const matching = filterSolutions(solutions, query);
+          // Универсальные решения одинаковы для всех отраслей — их только считаем.
+          const specific = matching.filter((s) => s.industryIds.length > 0);
+          const universalCount = matching.length - specific.length;
           const titleId = `industry-${industry.id}`;
           return (
             <li key={industry.id}>
@@ -76,31 +79,37 @@ export default function IndustriesPage() {
                     ])}{" "}
                     в демо-каталоге
                   </p>
-                  <ul className="mt-3 grid gap-2">
-                    {matching.map((solution) => (
-                      <li key={solution.id}>
-                        <Link
-                          href={solutionHref(solution.id)}
-                          className="text-small hover:text-accent inline-flex gap-2 rounded-sm transition-colors"
-                        >
-                          <Icon
-                            name="chevron-right"
-                            size={16}
-                            className="text-muted mt-0.5 shrink-0"
-                          />
-                          <span>
-                            {solution.title}
-                            {solution.industryIds.length === 0 && (
-                              <span className="text-muted">
-                                {" "}
-                                (для любой отрасли)
-                              </span>
-                            )}
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                  {specific.length > 0 && (
+                    <ul className="mt-3 grid gap-2">
+                      {specific.map((solution) => (
+                        <li key={solution.id}>
+                          <Link
+                            href={solutionHref(solution.id)}
+                            className="text-small hover:text-accent inline-flex gap-2 rounded-sm transition-colors"
+                          >
+                            <Icon
+                              name="chevron-right"
+                              size={16}
+                              className="text-muted mt-0.5 shrink-0"
+                            />
+                            <span>{solution.title}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {universalCount > 0 && (
+                    <p className="text-small text-muted mt-3">
+                      {specific.length > 0 ? "И ещё " : ""}
+                      {universalCount}{" "}
+                      {pluralRu(universalCount, [
+                        "универсальное решение",
+                        "универсальных решения",
+                        "универсальных решений",
+                      ])}{" "}
+                      для любой отрасли
+                    </p>
+                  )}
                 </div>
 
                 <ButtonLink

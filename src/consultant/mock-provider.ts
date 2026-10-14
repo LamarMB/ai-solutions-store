@@ -25,23 +25,10 @@ type Topic = {
 /** Задачи → решения каталога (id проверяются тестом). */
 export const MOCK_TOPICS: Topic[] = [
   {
-    id: "inbound",
-    label: "обработка обращений клиентов",
-    stems: [
-      "обращен",
-      "чат",
-      "бот",
-      "ассистент",
-      "администратор",
-      "звонк",
-      "запис",
-      "пациент",
-      "поддержк",
-      "типов вопрос",
-      "отвечать",
-      "консультир",
-    ],
-    solutionIds: ["clinic-ai-administrator"],
+    id: "clinic",
+    label: "обращения и запись пациентов",
+    stems: ["пациент", "запис", "регистратур", "прием", "администратор"],
+    solutionIds: ["clinic-ai-administrator", "patient-request-routing"],
   },
   {
     id: "documents",
@@ -53,8 +40,6 @@ export const MOCK_TOPICS: Topic[] = [
       "скан",
       "pdf",
       "распозна",
-      "бухгалт",
-      "учетн",
       "1с",
       "реквизит",
       "первичк",
@@ -62,21 +47,104 @@ export const MOCK_TOPICS: Topic[] = [
     solutionIds: ["document-data-extraction"],
   },
   {
+    id: "accounting",
+    label: "бухгалтерия и учёт",
+    stems: ["бухгалт", "главбух", "проводк", "отчетност", "учет"],
+    solutionIds: ["ai-accounting-department", "document-reconciliation"],
+  },
+  {
+    id: "reconciliation",
+    label: "сверка и поиск расхождений",
+    stems: ["сверк", "сверя", "расхожден", "дубликат", "дубл", "несоответств"],
+    solutionIds: ["document-reconciliation", "ai-accounting-department"],
+  },
+  {
     id: "crm",
-    label: "продажи и CRM",
-    stems: [
-      "crm",
-      "црм",
-      "продаж",
-      "менеджер",
-      "лид",
-      "воронк",
-      "сделк",
-      "клиентск баз",
-      "битрикс",
-      "amocrm",
-    ],
+    label: "работа в CRM",
+    stems: ["crm", "црм", "битрикс", "amocrm", "клиентск баз"],
     solutionIds: ["crm-ai-integration"],
+  },
+  {
+    id: "sales",
+    label: "продажи и входящие обращения клиентов",
+    stems: ["продаж", "менеджер", "сделк", "воронк", "покупател"],
+    solutionIds: ["ai-sales-manager", "crm-ai-integration"],
+  },
+  {
+    id: "leads",
+    label: "квалификация лидов",
+    stems: ["лид", "квалифик", "скоринг", "приоритиз"],
+    solutionIds: ["lead-qualification"],
+  },
+  {
+    id: "restaurant-orders",
+    label: "приём заказов и вопросы о меню",
+    stems: ["заказ", "меню", "блюд", "аллерген", "самовывоз"],
+    solutionIds: ["restaurant-order-assistant"],
+  },
+  {
+    id: "analytics",
+    label: "аналитика продаж",
+    stems: ["аналитик", "отчет", "выручк", "спрос"],
+    solutionIds: ["restaurant-sales-analytics"],
+  },
+  {
+    id: "knowledge",
+    label: "поиск по внутренним документам",
+    stems: [
+      "регламент",
+      "инструкц",
+      "база знаний",
+      "базе знаний",
+      "wiki",
+      "вики",
+      "внутренн документ",
+    ],
+    solutionIds: ["corporate-knowledge-search"],
+  },
+  {
+    id: "recruiting",
+    label: "подбор персонала",
+    stems: [
+      "ваканс",
+      "резюме",
+      "кандидат",
+      "собеседован",
+      "найм",
+      "рекрут",
+      "отклик",
+    ],
+    solutionIds: ["ai-recruiter"],
+  },
+  {
+    id: "hr",
+    label: "HR и адаптация сотрудников",
+    stems: [
+      "адаптац",
+      "новичк",
+      "онбординг",
+      "новых сотрудник",
+      "отпуск",
+      "кадров",
+      "hr",
+    ],
+    solutionIds: ["hr-assistant"],
+  },
+  {
+    id: "inbound",
+    label: "обработка обращений клиентов",
+    stems: [
+      "обращен",
+      "чат",
+      "бот",
+      "ассистент",
+      "звонк",
+      "поддержк",
+      "типов вопрос",
+      "отвечать",
+      "консультир",
+    ],
+    solutionIds: ["clinic-ai-administrator", "ai-sales-manager"],
   },
 ];
 
@@ -91,10 +159,26 @@ export const MOCK_INDUSTRY_STEMS: Record<string, string[]> = {
     "ecommerce",
     "товар",
   ],
-  logistics: ["логист", "перевоз", "склад", "доставк", "транспорт", "экспедир"],
+  logistics: [
+    "логист",
+    "перевоз",
+    "склад",
+    "доставк груз",
+    "курьер",
+    "транспорт",
+    "экспедир",
+  ],
   manufacturing: ["производств", "завод", "цех", "предприят"],
   "professional-services": ["консалтинг", "юрид", "юрист", "агентств", "аудит"],
   education: ["обучен", "школ", "курс", "образован", "студент", "учебн"],
+  restaurants: [
+    "ресторан",
+    "кафе",
+    "общепит",
+    "кофейн",
+    "доставк ед",
+    "столов",
+  ],
 };
 
 const INTENTS = {
@@ -129,6 +213,12 @@ function has(text: string, stems: readonly string[]): boolean {
       : words.some((word) => word.startsWith(stem)),
   );
 }
+
+const MATURITY_REASON: Record<Solution["maturity"], string | null> = {
+  demo: null,
+  concept: "статус: концепция — готового продукта нет",
+  in_development: "статус: в разработке — не готов к промышленной эксплуатации",
+};
 
 export const EXAMPLE_TASKS = [
   "Клиника тратит много времени на звонки и запись пациентов",
@@ -185,7 +275,12 @@ export class MockChatProvider implements ChatProvider {
         text:
           `Похоже, ваша задача — ${(recentTopics.length > 0 ? recentTopics : topics).map((t) => t.label).join(" и ")}. ` +
           `В каталоге есть подходящие решения${industryNote}. ` +
-          "Посмотрите карточки ниже: у каждого решения — пакеты, состав работ и ограничения.",
+          "Посмотрите карточки ниже: у каждого решения — состав работ и ограничения." +
+          (ranked
+            .slice(0, 3)
+            .some(({ solution }) => solution.maturity !== "demo")
+            ? " Обратите внимание: часть решений — концепции или продукт в разработке, а не готовые продукты; состав и стоимость по ним обсуждаются индивидуально."
+            : ""),
         recommendations: ranked.map(({ solution, reasons }) => ({
           solutionId: solution.id,
           reason: reasons.join("; "),
@@ -234,7 +329,7 @@ export class MockChatProvider implements ChatProvider {
         const solution = this.solutions.find((s) => s.id === id);
         if (!solution) continue;
         const entry = scored.get(id) ?? { solution, score: 0, reasons: [] };
-        entry.score += recentTopics.includes(topic) ? 6 : 3;
+        entry.score += recentTopics.includes(topic) ? 10 : 3;
         entry.reasons.push(`подходит под задачу: ${topic.label}`);
         scored.set(id, entry);
       }
@@ -249,10 +344,16 @@ export class MockChatProvider implements ChatProvider {
         entry.score += 2;
         entry.reasons.push("ваша отрасль есть в списке отраслей решения");
       } else {
+        entry.score -= 2;
         entry.reasons.push(
           "ваша отрасль не указана среди отраслей решения — уточните применимость",
         );
       }
+    }
+    // Концепции и разработки никогда не подаются как готовые продукты.
+    for (const entry of scored.values()) {
+      const note = MATURITY_REASON[entry.solution.maturity];
+      if (note) entry.reasons.unshift(note);
     }
     return [...scored.values()].sort((a, b) => b.score - a.score);
   }
@@ -261,6 +362,9 @@ export class MockChatProvider implements ChatProvider {
     ranked: { solution: Solution; reasons: string[] }[],
   ): ProviderReply {
     const lines = ranked.map(({ solution }) => {
+      if (solution.packages.length === 0) {
+        return `${solution.title}: пакеты не сформированы, стоимость — по запросу.`;
+      }
       const pkgs = solution.packages
         .map((p) => `«${p.title}» — ${formatPrice(p.price)}`)
         .join(", ");
@@ -280,6 +384,9 @@ export class MockChatProvider implements ChatProvider {
     ranked: { solution: Solution; reasons: string[] }[],
   ): ProviderReply {
     const lines = ranked.map(({ solution }) => {
+      if (solution.packages.length === 0) {
+        return `${solution.title}: сроки определяются после обсуждения задачи.`;
+      }
       const pkgs = solution.packages
         .map((p) =>
           p.duration

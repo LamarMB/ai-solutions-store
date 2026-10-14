@@ -131,12 +131,17 @@ describe("helpers", () => {
 });
 
 describe("filterSolutions на данных каталога", () => {
+  const all = getSolutions();
+
   it("без условий возвращает все решения", () => {
-    expect(ids({})).toHaveLength(3);
+    expect(ids({})).toHaveLength(all.length);
   });
 
-  it("ищет по названию без учёта регистра", () => {
-    expect(ids({ q: "crm" })).toEqual(["crm-ai-integration"]);
+  it("ищет без учёта регистра по названию, описанию и тегам", () => {
+    expect(ids({ q: "crm" })).toEqual([
+      "crm-ai-integration",
+      "lead-qualification",
+    ]);
   });
 
   it("ищет по краткому и полному описанию", () => {
@@ -144,44 +149,85 @@ describe("filterSolutions на данных каталога", () => {
     expect(ids({ q: "диагнозы" })).toEqual(["clinic-ai-administrator"]);
   });
 
+  it("ищет по возможностям и тегам", () => {
+    expect(ids({ q: "аллергенах" })).toEqual(["restaurant-order-assistant"]);
+    expect(ids({ q: "онбординг" })).toEqual(["hr-assistant"]);
+  });
+
   it("учитывает «ё» и требует все слова запроса", () => {
     expect(ids({ q: "учетную систему" })).toEqual(["document-data-extraction"]);
     expect(ids({ q: "клиники накладных" })).toEqual([]);
   });
 
-  it("фильтр по категории", () => {
-    expect(ids({ categories: ["document-processing"] })).toEqual([
-      "document-data-extraction",
-    ]);
+  it("фильтр по категории — каждый результат в категории, ничего не потеряно", () => {
+    const result = ids({ categories: ["document-processing"] });
+    expect(result).toEqual(
+      all
+        .filter((s) => s.categoryIds.includes("document-processing"))
+        .map((s) => s.id),
+    );
+    expect(result).toContain("document-data-extraction");
   });
 
   it("несколько категорий — «или»", () => {
-    expect(ids({ categories: ["assistants", "document-processing"] })).toEqual([
-      "clinic-ai-administrator",
-      "document-data-extraction",
-    ]);
+    const cats = ["assistants", "document-processing"];
+    expect(ids({ categories: cats })).toEqual(
+      all
+        .filter((s) => s.categoryIds.some((c) => cats.includes(c)))
+        .map((s) => s.id),
+    );
   });
 
   it("решение с пустым industryIds подходит любой отрасли", () => {
-    expect(ids({ industries: ["education"] })).toEqual(["crm-ai-integration"]);
-    expect(ids({ industries: ["healthcare"] })).toEqual([
-      "clinic-ai-administrator",
-      "crm-ai-integration",
-    ]);
+    const result = ids({ industries: ["education"] });
+    expect(result).toEqual(
+      all
+        .filter(
+          (s) =>
+            s.industryIds.length === 0 || s.industryIds.includes("education"),
+        )
+        .map((s) => s.id),
+    );
+    expect(result).toContain("crm-ai-integration");
+    expect(result).not.toContain("clinic-ai-administrator");
+  });
+
+  it("отраслевые решения не попадают в чужую отрасль", () => {
+    const result = ids({ industries: ["healthcare"] });
+    expect(result).toEqual(
+      expect.arrayContaining([
+        "clinic-ai-administrator",
+        "patient-request-routing",
+        "crm-ai-integration",
+      ]),
+    );
+    expect(result).not.toContain("restaurant-order-assistant");
   });
 
   it("категории и отрасли независимы и сочетаются через «и»", () => {
     expect(
       ids({ categories: ["integrations"], industries: ["logistics"] }),
     ).toEqual(["crm-ai-integration"]);
-    expect(
-      ids({ categories: ["document-processing"], industries: ["healthcare"] }),
-    ).toEqual([]);
+    const docsInHealthcare = ids({
+      categories: ["document-processing"],
+      industries: ["healthcare"],
+    });
+    expect(docsInHealthcare).not.toContain("document-data-extraction");
+    for (const id of docsInHealthcare) {
+      const s = all.find((x) => x.id === id)!;
+      expect(s.categoryIds).toContain("document-processing");
+      expect(
+        s.industryIds.length === 0 || s.industryIds.includes("healthcare"),
+      ).toBe(true);
+    }
   });
 
   it("поиск сочетается с фильтрами", () => {
-    expect(ids({ q: "ассистент", industries: ["healthcare"] })).toEqual([
+    expect(ids({ q: "ассистент", industries: ["healthcare"] })).toContain(
       "clinic-ai-administrator",
-    ]);
+    );
+    expect(ids({ q: "ассистент", industries: ["restaurants"] })).not.toContain(
+      "clinic-ai-administrator",
+    );
   });
 });

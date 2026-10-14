@@ -76,18 +76,38 @@ export const ImplementationStageSchema = z.strictObject({
   description: Text,
 });
 
+/**
+ * Зрелость решения:
+ * - demo — демонстрационный пример услуги с условными пакетами и ценами;
+ * - concept — направление работ без готового продукта: состав и стоимость
+ *   определяются индивидуально;
+ * - in_development — продукт в разработке, не подтверждён для промышленной
+ *   эксплуатации.
+ */
+export const MaturitySchema = z.enum(["demo", "concept", "in_development"]);
+export type Maturity = z.infer<typeof MaturitySchema>;
+
 export const SolutionSchema = z
   .strictObject({
     id: SlugSchema,
     /** Демонстрационная запись. Обязательное поле, значения по умолчанию нет. */
     isDemo: z.boolean(),
+    /** Необязательное поле: по умолчанию demo — старые записи остаются валидными. */
+    maturity: MaturitySchema.default("demo"),
     title: Text,
     summary: Text,
     description: Text,
+    /** Для кого решение. */
+    audience: TextList.default([]),
+    /** Какие бизнес-задачи решает. */
+    problems: TextList.default([]),
+    /** Что умеет решение. */
+    capabilities: TextList.default([]),
     categoryIds: z.array(SlugSchema).min(1, "Нужна хотя бы одна категория"),
     /** Пустой массив означает: решение применимо к любой отрасли. */
     industryIds: z.array(SlugSchema),
-    packages: z.array(PackageSchema).min(1, "Нужен хотя бы один пакет"),
+    /** Для demo — хотя бы один пакет; концепции и разработки могут быть без пакетов. */
+    packages: z.array(PackageSchema),
     implementationStages: z
       .array(ImplementationStageSchema)
       .min(1, "Нужен хотя бы один этап внедрения"),
@@ -99,6 +119,13 @@ export const SolutionSchema = z
     tags: TextList,
   })
   .superRefine((solution, ctx) => {
+    if (solution.maturity === "demo" && solution.packages.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Нужен хотя бы один пакет",
+        path: ["packages"],
+      });
+    }
     addDuplicateIssues(
       ctx,
       solution.packages.map((p) => p.id),

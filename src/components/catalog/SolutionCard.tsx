@@ -3,7 +3,7 @@ import { solutionHref } from "@/catalog/links";
 import { getStartingPrice } from "@/catalog/price";
 import type { Solution } from "@/catalog/schema";
 import { pluralRu } from "@/catalog/search";
-import { Badge, DemoBadge } from "@/components/ui/Badge";
+import { Badge, DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { PriceTag } from "@/components/ui/PriceTag";
@@ -44,6 +44,7 @@ export function SolutionCard({
     >
       <div className="flex flex-wrap gap-2">
         {solution.isDemo && <DemoBadge />}
+        <MaturityBadge maturity={solution.maturity} />
         {solution.categoryIds.map((id) => (
           <Badge key={id}>{categoryTitles.get(id)}</Badge>
         ))}
@@ -70,11 +71,13 @@ export function SolutionCard({
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <PriceTag price={startingPrice} size="lg" />
           <span className="text-caption text-muted">
-            {startingPackage && packagesCount > 1
-              ? `пакет «${startingPackage.title}» · ${packagesLabel}`
-              : startingPackage
-                ? `пакет «${startingPackage.title}»`
-                : packagesLabel}
+            {packagesCount === 0
+              ? "пакеты не сформированы"
+              : startingPackage && packagesCount > 1
+                ? `пакет «${startingPackage.title}» · ${packagesLabel}`
+                : startingPackage
+                  ? `пакет «${startingPackage.title}»`
+                  : packagesLabel}
           </span>
         </div>
         <p

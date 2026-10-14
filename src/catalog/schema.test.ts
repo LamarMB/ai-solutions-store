@@ -123,4 +123,39 @@ describe("SolutionSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("статус по умолчанию — demo, новые списки по умолчанию пустые", () => {
+    const result = SolutionSchema.parse(validSolution);
+    expect(result.maturity).toBe("demo");
+    expect(result.audience).toEqual([]);
+    expect(result.problems).toEqual([]);
+    expect(result.capabilities).toEqual([]);
+  });
+
+  it.each(["concept", "in_development"] as const)(
+    "статус %s допускает решение без пакетов",
+    (maturity) => {
+      const result = SolutionSchema.safeParse({
+        ...validSolution,
+        maturity,
+        packages: [],
+      });
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it("демо-решению нужен хотя бы один пакет", () => {
+    const result = SolutionSchema.safeParse({
+      ...validSolution,
+      maturity: "demo",
+      packages: [],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("отклоняет неизвестный статус", () => {
+    expect(
+      SolutionSchema.safeParse({ ...validSolution, maturity: "ready" }).success,
+    ).toBe(false);
+  });
 });

@@ -1,5 +1,5 @@
 import { getStartingPrice } from "@/catalog/price";
-import type { Price, Solution } from "@/catalog/schema";
+import type { Maturity, Price, Solution } from "@/catalog/schema";
 import type { ProviderRecommendation } from "@/consultant/types";
 
 /** Рекомендация для интерфейса: все данные — из каталога, не из ответа провайдера. */
@@ -8,6 +8,7 @@ export type RecommendationView = {
   title: string;
   summary: string;
   isDemo: boolean;
+  maturity: Maturity;
   reason: string;
   startingPrice: Price;
   packages: { id: string; title: string; price: Price }[];
@@ -35,6 +36,7 @@ export function resolveRecommendations(
       title: solution.title,
       summary: solution.summary,
       isDemo: solution.isDemo,
+      maturity: solution.maturity,
       reason: rec.reason.trim().slice(0, REASON_MAX),
       startingPrice: getStartingPrice(solution),
       packages: solution.packages.map((p) => ({
