@@ -44,7 +44,10 @@ export function SiteFooter() {
       <div className="border-border border-t">
         <Container className="text-caption text-muted flex flex-col gap-1 py-5 sm:flex-row sm:justify-between">
           <p>
-            © {new Date().getFullYear()} {site.name}
+            © {new Date().getFullYear()} {site.name} ·{" "}
+            <Link href="/privacy" className="hover:text-ink rounded-sm">
+              Политика конфиденциальности
+            </Link>
           </p>
           <p>Демо-версия: решения, цены и описания демонстрационные.</p>
         </Container>
