@@ -15,7 +15,9 @@ export const metadata: Metadata = {
   title: { default: site.name, template: `%s · ${site.name}` },
   description: site.description,
   applicationName: site.name,
-  robots: robotsFor(false, seo),
+  // Страницы задают robots сами (pageMetadata). Здесь — только запрет для демо-режима:
+  // на 404 Next.js добавляет свой noindex, и разрешающий тег рядом с ним противоречил бы.
+  robots: seo.indexing ? undefined : robotsFor(false, seo),
   openGraph: {
     type: "website",
     locale: "ru_RU",

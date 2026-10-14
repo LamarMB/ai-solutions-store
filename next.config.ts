@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Настройки индексации фиксируются при сборке (см. docs/seo.md).
+  env: {
+    SITE_URL: process.env.SITE_URL ?? "",
+    SITE_INDEXING: process.env.SITE_INDEXING ?? "",
+  },
   // Не раскрываем стек в заголовке X-Powered-By.
   poweredByHeader: false,
   async headers() {

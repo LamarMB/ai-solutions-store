@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { ButtonLink } from "@/components/ui/Button";
 import { Section } from "@/components/ui/Section";
+
+export const metadata: Metadata = { title: "Страница не найдена" };
 
 export default function NotFound() {
   return (

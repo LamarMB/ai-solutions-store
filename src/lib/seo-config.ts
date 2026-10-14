@@ -37,7 +37,18 @@ function parseSiteUrl(raw: string | undefined): URL | null {
   }
 }
 
-export function getSeoConfig(env: Env = process.env): SeoConfig {
+/**
+ * Значения по умолчанию читаются явными обращениями `process.env.X`: next.config.ts
+ * передаёт их через `env`, и сборщик подставляет их в код при сборке. Поэтому
+ * статические и динамические страницы ведут себя одинаково, даже если сервер
+ * запущен без этих переменных.
+ */
+export function getSeoConfig(
+  env: Env = {
+    SITE_URL: process.env.SITE_URL,
+    SITE_INDEXING: process.env.SITE_INDEXING,
+  },
+): SeoConfig {
   const siteUrl = parseSiteUrl(env.SITE_URL);
   return {
     baseUrl: siteUrl ?? new URL(FALLBACK_URL),

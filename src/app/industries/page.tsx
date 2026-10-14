@@ -121,7 +121,7 @@ export default function IndustriesPage() {
                   className="mt-auto self-start"
                 >
                   Смотреть в каталоге
-                  <span className="sr-only">: {industry.title}</span>
+                  <span className="sr-only">— {industry.title}</span>
                   <Icon name="arrow-right" size={16} />
                 </ButtonLink>
               </Card>
