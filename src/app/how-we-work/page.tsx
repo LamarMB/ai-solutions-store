@@ -6,12 +6,14 @@ import { Icon } from "@/components/ui/Icon";
 import { PriceTag } from "@/components/ui/PriceTag";
 import { Section } from "@/components/ui/Section";
 import { processSteps } from "@/content/approach";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Как мы работаем",
+export const metadata: Metadata = pageMetadata({
+  title: "Как проходит внедрение ИИ",
   description:
-    "Порядок внедрения ИИ-решений: анализ задачи, подбор решения, внедрение и поддержка.",
-};
+    "Этапы внедрения ИИ в бизнес-процессы: анализ задачи, подбор решения, пилот и запуск, поддержка. Что нужно от заказчика на каждом этапе.",
+  path: "/how-we-work",
+});
 
 const priceKinds = [
   {

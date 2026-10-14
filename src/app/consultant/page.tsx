@@ -6,12 +6,14 @@ import { Icon } from "@/components/ui/Icon";
 import { Section } from "@/components/ui/Section";
 import { EXAMPLE_TASKS } from "@/consultant/mock-provider";
 import { getChatProvider } from "@/consultant/provider";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Подбор решения",
+export const metadata: Metadata = pageMetadata({
+  title: "Подбор ИИ-решения под задачу",
   description:
-    "Опишите задачу бизнеса — консультант подберёт подходящие решения из каталога.",
-};
+    "Опишите задачу бизнеса — демонстрационный помощник подберёт подходящие решения из каталога. Переписка не сохраняется.",
+  path: "/consultant",
+});
 
 export default function ConsultantPage() {
   const provider = getChatProvider().info;

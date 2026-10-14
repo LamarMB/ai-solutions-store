@@ -6,12 +6,14 @@ import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Card } from "@/components/ui/Card";
 import { Section } from "@/components/ui/Section";
 import { principles } from "@/content/approach";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "О компании",
   description:
-    "Подход к внедрению ИИ и автоматизации: каталог решений с понятным составом работ, ценой и ограничениями.",
-};
+    "Как устроен каталог AI Solutions Store и подход к внедрению ИИ и автоматизации: понятный состав работ, вид цены и честные ограничения решений.",
+  path: "/about",
+});
 
 const siteParts = [
   {

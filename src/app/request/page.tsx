@@ -15,11 +15,15 @@ import { Icon } from "@/components/ui/Icon";
 import { PriceTag } from "@/components/ui/PriceTag";
 import { Section } from "@/components/ui/Section";
 import { getRequestStore } from "@/requests/store";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Оставить заявку",
-  description: "Заявка на внедрение ИИ-решения из каталога или общая заявка.",
-};
+  description:
+    "Заявка на внедрение ИИ-решения из каталога или общая заявка. Приём заявок работает в тестовом режиме.",
+  path: "/request",
+  noindex: true,
+});
 
 /** Метка начала заполнения и ключ отправки — новые при каждом показе формы. */
 function newFormSession() {

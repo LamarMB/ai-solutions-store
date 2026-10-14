@@ -15,12 +15,14 @@ import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { Section } from "@/components/ui/Section";
 import { industryIcons } from "@/content/directions";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Отрасли",
+export const metadata: Metadata = pageMetadata({
+  title: "ИИ-решения по отраслям",
   description:
-    "Решения каталога по отраслям: медицина, рестораны, розница, логистика, производство, услуги и образование.",
-};
+    "Автоматизация и ИИ для медицинских клиник, ресторанов, розницы, логистики, производства, услуг и образования: отраслевые и универсальные решения каталога.",
+  path: "/industries",
+});
 
 export default function IndustriesPage() {
   const solutions = getSolutions();
@@ -117,9 +119,9 @@ export default function IndustriesPage() {
                   variant="secondary"
                   size="sm"
                   className="mt-auto self-start"
-                  aria-label={`Открыть каталог: ${industry.title}`}
                 >
                   Смотреть в каталоге
+                  <span className="sr-only">— {industry.title}</span>
                   <Icon name="arrow-right" size={16} />
                 </ButtonLink>
               </Card>

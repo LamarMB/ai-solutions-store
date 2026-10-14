@@ -179,8 +179,26 @@
   }
 
   body {
-    background-color: var(--bg);
-    /* Мягкое глубинное свечение — даёт стеклу, что преломлять. */
+    /* Фон страницы задаёт html: так свечение ниже остаётся видимым. */
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * Мягкое глубинное свечение — даёт стеклу, что преломлять. Отдельный
+   * фиксированный слой вместо background-attachment: fixed: тот перерисовывает
+   * весь фон при каждом шаге прокрутки, слой же композитится один раз.
+   */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background-image:
       radial-gradient(
         60% 45% at 12% -5%,
@@ -193,13 +211,6 @@
         transparent 70%
       );
     background-repeat: no-repeat;
-    background-attachment: fixed;
-    color: var(--ink);
-    font-family: var(--font-sans);
-    font-size: var(--text-body);
-    line-height: var(--text-body--line-height);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Длинные слова в заголовках («конфиденциальности») не ломают узкие экраны. */
