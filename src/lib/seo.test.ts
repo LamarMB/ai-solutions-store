@@ -9,6 +9,7 @@ import {
   getSeoConfig,
   INDEXABLE_PAGES,
   jsonLd,
+  MAX_TITLE_LENGTH,
   OG_IMAGE,
   pageMetadata,
 } from "@/lib/seo";
@@ -140,6 +141,13 @@ describe("pageMetadata", () => {
     });
   });
 
+  it("длинный заголовок — без названия сайта", () => {
+    const title = "Внутренний HR-ассистент и адаптация сотрудников (концепция)";
+    const meta = pageMetadata({ ...page, title });
+    expect(meta.title).toEqual({ absolute: title });
+    expect(meta.openGraph?.title).toBe(title);
+  });
+
   it("absoluteTitle не добавляет название сайта", () => {
     const meta = pageMetadata({ ...page, absoluteTitle: true });
     expect(meta.title).toEqual({ absolute: "Каталог" });
@@ -161,6 +169,20 @@ describe("SEO страниц решений", () => {
       } else {
         expect(title).toBe(solution.title);
       }
+    }
+  });
+
+  it("итоговый title не длиннее ориентира", () => {
+    for (const solution of getSolutions()) {
+      const meta = pageMetadata({
+        title: solutionSeoTitle(solution),
+        description: solutionSeoDescription(solution),
+        path: `/catalog/${solution.id}`,
+      });
+      expect(
+        String(meta.openGraph?.title).length,
+        solution.id,
+      ).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
     }
   });
 

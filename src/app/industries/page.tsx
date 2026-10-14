@@ -119,9 +119,9 @@ export default function IndustriesPage() {
                   variant="secondary"
                   size="sm"
                   className="mt-auto self-start"
-                  aria-label={`Открыть каталог: ${industry.title}`}
                 >
                   Смотреть в каталоге
+                  <span className="sr-only">: {industry.title}</span>
                   <Icon name="arrow-right" size={16} />
                 </ButtonLink>
               </Card>

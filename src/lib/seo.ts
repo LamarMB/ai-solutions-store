@@ -30,6 +30,9 @@ export function absoluteUrl(path: string, config = getSeoConfig()): string {
   return new URL(path, config.baseUrl).toString();
 }
 
+/** Ориентир длины title: дальше поисковики обычно обрезают. */
+export const MAX_TITLE_LENGTH = 70;
+
 export type PageSeo = {
   title: string;
   description: string;
@@ -49,9 +52,12 @@ export function pageMetadata(
   { title, description, path, noindex = false, absoluteTitle = false }: PageSeo,
   config = getSeoConfig(),
 ): Metadata {
-  const fullTitle = absoluteTitle ? title : `${title} · ${site.name}`;
+  const withSite = `${title} · ${site.name}`;
+  // Длинный заголовок обрезается в выдаче — название сайта уступает место странице.
+  const bare = absoluteTitle || withSite.length > MAX_TITLE_LENGTH;
+  const fullTitle = bare ? title : withSite;
   return {
-    title: absoluteTitle ? { absolute: title } : title,
+    title: bare ? { absolute: title } : title,
     description,
     alternates: { canonical: path },
     robots: robotsFor(noindex, config),
