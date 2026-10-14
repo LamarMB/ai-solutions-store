@@ -10,7 +10,11 @@ import {
   type SubmitDeps,
 } from "@/requests/service";
 import type { SubmitState } from "@/requests/state";
-import { TestRequestStore, type RequestRecord } from "@/requests/store";
+import {
+  getRequestStore,
+  TestRequestStore,
+  type RequestRecord,
+} from "@/requests/store";
 
 const NOW = 1_800_000_000_000;
 const UUID = "123e4567-e89b-42d3-a456-426614174000";
@@ -222,6 +226,20 @@ describe("TestRequestStore", () => {
     });
     expect(s.acceptedCount).toBe(1);
     expect(JSON.stringify(s)).not.toContain("a@b.c");
+  });
+});
+
+describe("getRequestStore", () => {
+  it("всегда тестовый адаптер: переменные окружения не включают сохранение", () => {
+    vi.stubEnv("DATABASE_URL", "postgres://user:pass@db/requests");
+    vi.stubEnv("REQUEST_STORE", "database");
+    try {
+      const store = getRequestStore();
+      expect(store).toBeInstanceOf(TestRequestStore);
+      expect(store.mode).toBe("test");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 
