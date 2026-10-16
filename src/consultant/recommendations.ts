@@ -1,5 +1,5 @@
 import { getStartingPrice } from "@/catalog/price";
-import type { Maturity, Price, Solution } from "@/catalog/schema";
+import type { Maturity, Package, Price, Solution } from "@/catalog/schema";
 import type { ProviderRecommendation } from "@/consultant/types";
 
 /** Рекомендация для интерфейса: все данные — из каталога, не из ответа провайдера. */
@@ -11,7 +11,7 @@ export type RecommendationView = {
   maturity: Maturity;
   reason: string;
   startingPrice: Price;
-  packages: { id: string; title: string; price: Price }[];
+  packages: Pick<Package, "id" | "title" | "price" | "monthlyPrice">[];
 };
 
 const MAX_RECOMMENDATIONS = 3;
@@ -43,6 +43,7 @@ export function resolveRecommendations(
         id: p.id,
         title: p.title,
         price: p.price,
+        ...(p.monthlyPrice ? { monthlyPrice: p.monthlyPrice } : {}),
       })),
     });
     if (result.length === MAX_RECOMMENDATIONS) break;

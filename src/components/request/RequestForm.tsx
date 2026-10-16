@@ -314,10 +314,16 @@ export function RequestForm({
           maxLength={LIMITS.messageMax}
           required
           aria-invalid={errors.message ? true : undefined}
-          aria-describedby={errors.message ? "message-error" : "message-hint"}
+          aria-describedby={
+            errors.message ? "message-error" : "message-hint message-note"
+          }
           onInput={() => clearError("message")}
           className={cn(inputClass(errors.message), "h-auto resize-y py-3")}
         />
+        <p id="message-note" className="text-caption text-muted mt-2">
+          Не указывайте данные пациентов: ФИО, диагнозы, результаты
+          обследований.
+        </p>
       </Field>
 
       <div>

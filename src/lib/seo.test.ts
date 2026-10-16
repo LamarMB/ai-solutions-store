@@ -236,7 +236,6 @@ describe("метаданные публичных страниц", () => {
       [
         import("@/app/page"),
         import("@/app/catalog/page"),
-        import("@/app/industries/page"),
         import("@/app/how-we-work/page"),
         import("@/app/about/page"),
         import("@/app/consultant/page"),

@@ -100,6 +100,12 @@ const paths = {
       <path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" />
     </>
   ),
+  calendar: (
+    <>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M8 3v4M16 3v4M9 14l2 2 4-4" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof paths;

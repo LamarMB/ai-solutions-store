@@ -11,7 +11,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata: Metadata = pageMetadata({
   title: "Подбор ИИ-решения под задачу",
   description:
-    "Опишите задачу бизнеса — демонстрационный помощник подберёт подходящие решения из каталога. Переписка не сохраняется.",
+    "Опишите задачу клиники — демонстрационный помощник подберёт подходящие решения из каталога. Не даёт медицинских советов, переписка не сохраняется.",
   path: "/consultant",
 });
 
@@ -28,8 +28,9 @@ export default function ConsultantPage() {
           <header className="max-w-prose">
             <h1 className="text-h1 font-semibold">Подбор решения</h1>
             <p className="text-muted mt-3">
-              Опишите задачу своими словами — консультант задаст уточняющие
-              вопросы и предложит подходящие решения из каталога.
+              Опишите задачу клиники своими словами — консультант задаст
+              уточняющие вопросы и предложит подходящие решения из каталога.
+              Медицинских советов он не даёт.
             </p>
           </header>
 
@@ -62,7 +63,7 @@ export default function ConsultantPage() {
           <div className="rounded-card border-border bg-surface border p-5">
             <h2 className="text-body font-semibold">Знаете, что нужно?</h2>
             <p className="text-small text-muted mt-1.5">
-              Все решения с фильтрами по категориям и отраслям.
+              Все решения для клиник с тарифами и ограничениями.
             </p>
             <ButtonLink
               href="/catalog"

@@ -1,4 +1,3 @@
-import type { CatalogQuery } from "@/catalog/search";
 import type { IconName } from "@/components/ui/Icon";
 
 export type Direction = {
@@ -6,92 +5,45 @@ export type Direction = {
   title: string;
   description: string;
   icon: IconName;
-  /** Фильтр каталога, на который ведёт направление. */
-  query: Partial<CatalogQuery>;
+  /** Решение каталога, которое закрывает задачу. */
+  solutionId: string;
 };
 
 /**
- * Популярные направления на главной. Каждое ведёт в каталог с фильтром
- * по существующей категории, отрасли или поисковому запросу.
+ * Задачи клиники на главной. Каждая ведёт на страницу решения из каталога;
+ * статус решения (например, «концепция») показывается рядом.
  */
 export const directions = [
   {
-    id: "healthcare",
-    title: "Медицина и клиники",
-    description: "Обработка обращений пациентов и помощь с записью на приём.",
-    icon: "heart",
-    query: { industries: ["healthcare"] },
+    id: "questions",
+    title: "Ответы пациентам круглосуточно",
+    description:
+      "Организационные вопросы об услугах, ценах, врачах и графике — без ожидания администратора.",
+    icon: "chat",
+    solutionId: "clinic-ai-administrator",
   },
   {
-    id: "sales",
-    title: "Продажи и CRM",
+    id: "booking",
+    title: "Заявки на приём",
     description:
-      "Обработка входящих запросов, квалификация лидов и ИИ-функции в CRM.",
-    icon: "chart",
-    query: { categories: ["sales"] },
+      "Сбор заявки в переписке. Подтверждённая запись — только при интеграции с расписанием клиники.",
+    icon: "calendar",
+    solutionId: "clinic-ai-administrator",
   },
   {
-    id: "accounting",
-    title: "Бухгалтерия",
+    id: "routing",
+    title: "Обработка обращений",
     description:
-      "Обработка первичных документов и поиск расхождений между ними.",
-    icon: "calculator",
-    query: { categories: ["accounting"] },
+      "Классификация, распределение по сотрудникам и контроль необработанных обращений.",
+    icon: "layers",
+    solutionId: "patient-request-routing",
   },
   {
-    id: "documents",
-    title: "Документооборот",
+    id: "patient-prep",
+    title: "Подготовка пациента к приёму",
     description:
-      "Извлечение данных из документов, сверка и поиск по документации.",
+      "Документы, анкета и описание жалоб заранее — с согласия пациента.",
     icon: "document",
-    query: { categories: ["document-processing", "knowledge-search"] },
-  },
-  {
-    id: "hr",
-    title: "HR и персонал",
-    description:
-      "Первичный отбор кандидатов и ответы сотрудникам на типовые вопросы.",
-    icon: "users",
-    query: { categories: ["hr"] },
-  },
-  {
-    id: "restaurants",
-    title: "Рестораны",
-    description: "Приём заказов, ответы по меню и анализ данных о продажах.",
-    icon: "utensils",
-    query: { industries: ["restaurants"] },
-  },
-  {
-    id: "retail",
-    title: "Розница и e-commerce",
-    description: "Решения для магазинов, интернет-магазинов и маркетплейсов.",
-    icon: "bag",
-    query: { industries: ["retail"] },
-  },
-  {
-    id: "logistics",
-    title: "Логистика",
-    description: "Обработка транспортных документов и передача данных в учёт.",
-    icon: "truck",
-    query: { industries: ["logistics"] },
-  },
-  {
-    id: "manufacturing",
-    title: "Производство",
-    description:
-      "Извлечение данных из документов и автоматизация их обработки.",
-    icon: "factory",
-    query: { industries: ["manufacturing"] },
+    solutionId: "patient-ai-assistant",
   },
 ] as const satisfies readonly Direction[];
-
-/** Иконки отраслей для страницы «Отрасли». */
-export const industryIcons: Record<string, IconName> = {
-  retail: "bag",
-  logistics: "truck",
-  manufacturing: "factory",
-  "professional-services": "briefcase",
-  education: "book",
-  healthcare: "heart",
-  restaurants: "utensils",
-};

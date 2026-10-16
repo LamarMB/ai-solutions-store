@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getSolutions } from "@/catalog";
+// Механика проверяется на всех записях, включая скрытые.
+import { getAllSolutions as getSolutions } from "@/catalog";
 import {
   catalogHref,
   EMPTY_QUERY,
@@ -146,7 +147,9 @@ describe("filterSolutions на данных каталога", () => {
 
   it("ищет по краткому и полному описанию", () => {
     expect(ids({ q: "накладных" })).toEqual(["document-data-extraction"]);
-    expect(ids({ q: "диагнозы" })).toEqual(["clinic-ai-administrator"]);
+    expect(ids({ q: "ставит диагнозы" })).toEqual(
+      expect.arrayContaining(["clinic-ai-administrator"]),
+    );
   });
 
   it("ищет по возможностям и тегам", () => {
@@ -223,11 +226,11 @@ describe("filterSolutions на данных каталога", () => {
   });
 
   it("поиск сочетается с фильтрами", () => {
-    expect(ids({ q: "ассистент", industries: ["healthcare"] })).toContain(
+    expect(ids({ q: "администратор", industries: ["healthcare"] })).toContain(
       "clinic-ai-administrator",
     );
-    expect(ids({ q: "ассистент", industries: ["restaurants"] })).not.toContain(
-      "clinic-ai-administrator",
-    );
+    expect(
+      ids({ q: "администратор", industries: ["restaurants"] }),
+    ).not.toContain("clinic-ai-administrator");
   });
 });

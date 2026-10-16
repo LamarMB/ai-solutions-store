@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const aiRecruiter = {
   id: "ai-recruiter",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   maturity: "concept",
   title: "ИИ-рекрутер",
   summary:

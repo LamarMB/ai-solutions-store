@@ -18,7 +18,9 @@ describe("навигация", () => {
   });
 
   it.each(allNavHrefs)("для %s существует страница", (href) => {
-    expect(existsSync(path.join(appDir, href, "page.tsx"))).toBe(true);
+    // Якорь (/#tariffs) ведёт на секцию страницы — проверяем саму страницу.
+    const page = href.split("#")[0];
+    expect(existsSync(path.join(appDir, page, "page.tsx"))).toBe(true);
   });
 
   it("подвал ссылается только на известные разделы", () => {

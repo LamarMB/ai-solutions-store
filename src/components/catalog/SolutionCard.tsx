@@ -6,6 +6,7 @@ import { pluralRu } from "@/catalog/search";
 import { Badge, DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
+import { PackagePrice } from "@/components/ui/PackagePrice";
 import { PriceTag } from "@/components/ui/PriceTag";
 
 type SolutionCardProps = {
@@ -69,7 +70,11 @@ export function SolutionCard({
 
       <div className="border-border mt-auto border-t pt-4">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <PriceTag price={startingPrice} size="lg" />
+          {startingPackage ? (
+            <PackagePrice pkg={startingPackage} size="lg" compact />
+          ) : (
+            <PriceTag price={startingPrice} size="lg" />
+          )}
           <span className="text-caption text-muted">
             {packagesCount === 0
               ? "пакеты не сформированы"

@@ -158,4 +158,29 @@ describe("SolutionSchema", () => {
       SolutionSchema.safeParse({ ...validSolution, maturity: "ready" }).success,
     ).toBe(false);
   });
+
+  it("hidden по умолчанию false, рекомендуемый пакет — не больше одного", () => {
+    expect(SolutionSchema.parse(validSolution).hidden).toBe(false);
+    const two = SolutionSchema.safeParse({
+      ...validSolution,
+      packages: [
+        { ...validPackage, recommended: true },
+        { ...validPackage, id: "pro", recommended: true },
+      ],
+    });
+    expect(two.success).toBe(false);
+  });
+
+  it("пакет может иметь ежемесячную цену", () => {
+    const result = PackageSchema.parse({
+      ...validPackage,
+      monthlyPrice: { kind: "from", amount: 390000, currency: "RUB" },
+    });
+    expect(result.monthlyPrice).toEqual({
+      kind: "from",
+      amount: 390000,
+      currency: "RUB",
+    });
+    expect(result.recommended).toBe(false);
+  });
 });

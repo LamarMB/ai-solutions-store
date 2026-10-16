@@ -12,7 +12,7 @@ import { DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
-import { PriceTag } from "@/components/ui/PriceTag";
+import { PackagePrice } from "@/components/ui/PackagePrice";
 import { Section } from "@/components/ui/Section";
 import { getRequestStore } from "@/requests/store";
 import { pageMetadata } from "@/lib/seo";
@@ -109,11 +109,16 @@ export default async function RequestPage({
                     <p className="text-small">
                       Пакет «{selection.package.title}»
                     </p>
-                    <PriceTag
-                      price={selection.package.price}
+                    <PackagePrice
+                      pkg={selection.package}
                       size="lg"
-                      className="mt-1 block"
+                      className="mt-1"
                     />
+                    {selection.solution.pricingNote && (
+                      <p className="text-caption text-muted mt-2">
+                        {selection.solution.pricingNote}
+                      </p>
+                    )}
                   </div>
                 ) : selection.solution.packages.length === 0 ? (
                   <p className="text-small text-muted mt-3">

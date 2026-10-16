@@ -136,7 +136,12 @@ export default async function SolutionPage({
             <div className="mt-6">
               <PackagePicker
                 solution={solution}
-                defaultPackageId={solution.packages[0].id}
+                defaultPackageId={
+                  (
+                    solution.packages.find((p) => p.recommended) ??
+                    solution.packages[0]
+                  ).id
+                }
               />
             </div>
           </>

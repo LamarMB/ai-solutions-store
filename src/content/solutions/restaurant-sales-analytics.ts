@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const restaurantSalesAnalytics = {
   id: "restaurant-sales-analytics",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   maturity: "concept",
   title: "Аналитика продаж ресторана",
   summary:

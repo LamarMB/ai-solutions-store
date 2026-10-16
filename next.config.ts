@@ -38,6 +38,12 @@ const nextConfig: NextConfig = {
   },
   // Не раскрываем стек в заголовке X-Powered-By.
   poweredByHeader: false,
+  // Раздел «Отрасли» убран: сайт посвящён медицинским клиникам.
+  async redirects() {
+    return [
+      { source: "/industries", destination: "/catalog", permanent: false },
+    ];
+  },
   async headers() {
     const headers = [...SECURITY_HEADERS];
     // Пока индексация не включена, запрет дублируется заголовком для всех ответов,

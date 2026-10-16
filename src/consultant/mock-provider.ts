@@ -1,5 +1,5 @@
 import { formatDuration } from "@/catalog/links";
-import { formatPrice } from "@/catalog/price";
+import { formatPackagePrice } from "@/catalog/price";
 import type { Industry, Solution } from "@/catalog/schema";
 import { normalizeText } from "@/catalog/search";
 import type {
@@ -11,7 +11,7 @@ import type {
 
 /**
  * Демонстрационный помощник на правилах — НЕ языковая модель.
- * Сопоставляет ключевые слова с задачами и отраслями и рекомендует
+ * Сопоставляет ключевые слова с задачами клиники и рекомендует
  * только решения из переданного каталога.
  */
 
@@ -22,164 +22,106 @@ type Topic = {
   solutionIds: string[];
 };
 
-/** Задачи → решения каталога (id проверяются тестом). */
+/** Задачи клиники → решения каталога (id проверяются тестом). */
 export const MOCK_TOPICS: Topic[] = [
   {
-    id: "clinic",
-    label: "обращения и запись пациентов",
-    stems: ["пациент", "запис", "регистратур", "прием", "администратор"],
-    solutionIds: ["clinic-ai-administrator", "patient-request-routing"],
-  },
-  {
-    id: "documents",
-    label: "обработка документов",
+    id: "questions",
+    label: "ответы пациентам на типовые вопросы",
     stems: [
-      "документ",
-      "счет",
-      "накладн",
-      "скан",
-      "pdf",
-      "распозна",
-      "1с",
-      "реквизит",
-      "первичк",
-    ],
-    solutionIds: ["document-data-extraction"],
-  },
-  {
-    id: "accounting",
-    label: "бухгалтерия и учёт",
-    stems: ["бухгалт", "главбух", "проводк", "отчетност", "учет"],
-    solutionIds: ["ai-accounting-department", "document-reconciliation"],
-  },
-  {
-    id: "reconciliation",
-    label: "сверка и поиск расхождений",
-    stems: ["сверк", "сверя", "расхожден", "дубликат", "дубл", "несоответств"],
-    solutionIds: ["document-reconciliation", "ai-accounting-department"],
-  },
-  {
-    id: "crm",
-    label: "работа в CRM",
-    stems: ["crm", "црм", "битрикс", "amocrm", "клиентск баз"],
-    solutionIds: ["crm-ai-integration"],
-  },
-  {
-    id: "sales",
-    label: "продажи и входящие обращения клиентов",
-    stems: ["продаж", "менеджер", "сделк", "воронк", "покупател"],
-    solutionIds: ["ai-sales-manager", "crm-ai-integration"],
-  },
-  {
-    id: "leads",
-    label: "квалификация лидов",
-    stems: ["лид", "квалифик", "скоринг", "приоритиз"],
-    solutionIds: ["lead-qualification"],
-  },
-  {
-    id: "restaurant-orders",
-    label: "приём заказов и вопросы о меню",
-    stems: ["заказ", "меню", "блюд", "аллерген", "самовывоз"],
-    solutionIds: ["restaurant-order-assistant"],
-  },
-  {
-    id: "analytics",
-    label: "аналитика продаж",
-    stems: ["аналитик", "отчет", "выручк", "спрос"],
-    solutionIds: ["restaurant-sales-analytics"],
-  },
-  {
-    id: "knowledge",
-    label: "поиск по внутренним документам",
-    stems: [
-      "регламент",
-      "инструкц",
-      "база знаний",
-      "базе знаний",
-      "wiki",
-      "вики",
-      "внутренн документ",
-    ],
-    solutionIds: ["corporate-knowledge-search"],
-  },
-  {
-    id: "recruiting",
-    label: "подбор персонала",
-    stems: [
-      "ваканс",
-      "резюме",
-      "кандидат",
-      "собеседован",
-      "найм",
-      "рекрут",
-      "отклик",
-    ],
-    solutionIds: ["ai-recruiter"],
-  },
-  {
-    id: "hr",
-    label: "HR и адаптация сотрудников",
-    stems: [
-      "адаптац",
-      "новичк",
-      "онбординг",
-      "новых сотрудник",
-      "отпуск",
-      "кадров",
-      "hr",
-    ],
-    solutionIds: ["hr-assistant"],
-  },
-  {
-    id: "inbound",
-    label: "обработка обращений клиентов",
-    stems: [
-      "обращен",
+      "вопрос",
+      "звонк",
+      "звонят",
       "чат",
       "бот",
       "ассистент",
-      "звонк",
-      "поддержк",
-      "типов вопрос",
+      "администратор",
       "отвечать",
-      "консультир",
+      "ответ",
+      "круглосуточ",
+      "ночь",
+      "ночью",
+      "нерабоч",
+      "мессенджер",
     ],
-    solutionIds: ["clinic-ai-administrator", "ai-sales-manager"],
+    solutionIds: ["clinic-ai-administrator"],
+  },
+  {
+    id: "booking",
+    label: "запись на приём",
+    stems: ["запис", "прием", "расписан", "перенос", "отмен", "регистратур"],
+    solutionIds: ["clinic-ai-administrator", "patient-ai-assistant"],
+  },
+  {
+    id: "routing",
+    label: "разбор и распределение обращений",
+    stems: [
+      "обращен",
+      "письм",
+      "почт",
+      "распредел",
+      "маршрут",
+      "отдел",
+      "необработ",
+      "теряют",
+      "очеред",
+      "сортир",
+    ],
+    solutionIds: ["patient-request-routing", "clinic-ai-administrator"],
+  },
+  {
+    id: "patient-docs",
+    label: "документы пациента и подготовка к приёму",
+    stems: [
+      "документ",
+      "выписк",
+      "назначен",
+      "анкет",
+      "истори",
+      "медицинск карт",
+      "подготовк к прием",
+    ],
+    solutionIds: ["patient-ai-assistant"],
   },
 ];
 
-/** Отрасли → ключевые слова (id проверяются тестом). */
+/** Отрасли → ключевые слова (id проверяются тестом). Сайт работает с клиниками. */
 export const MOCK_INDUSTRY_STEMS: Record<string, string[]> = {
   healthcare: ["клиник", "медиц", "врач", "пациент", "стоматолог", "медцентр"],
-  retail: [
-    "магазин",
-    "розниц",
-    "маркетплейс",
-    "e-commerce",
-    "ecommerce",
-    "товар",
-  ],
-  logistics: [
-    "логист",
-    "перевоз",
-    "склад",
-    "доставк груз",
-    "курьер",
-    "транспорт",
-    "экспедир",
-  ],
-  manufacturing: ["производств", "завод", "цех", "предприят"],
-  "professional-services": ["консалтинг", "юрид", "юрист", "агентств", "аудит"],
-  education: ["обучен", "школ", "курс", "образован", "студент", "учебн"],
-  restaurants: [
-    "ресторан",
-    "кафе",
-    "общепит",
-    "кофейн",
-    "доставк ед",
-    "столов",
-  ],
 };
+
+/** Задачи вне медицинской тематики: честно говорим, что сейчас их не берём. */
+export const OUT_OF_SCOPE_STEMS = [
+  "ресторан",
+  "кафе",
+  "магазин",
+  "маркетплейс",
+  "производств",
+  "завод",
+  "склад",
+  "логист",
+  "бухгалт",
+  "crm",
+  "продаж",
+  "ваканс",
+  "резюме",
+  "кадров",
+  "hr",
+  "школ",
+];
+
+/** Медицинские вопросы: консультант не ставит диагнозы и не назначает лечение. */
+export const MEDICAL_ADVICE_STEMS = [
+  "диагноз",
+  "болит",
+  "боль",
+  "симптом",
+  "лечить",
+  "лечени",
+  "лекарств",
+  "таблетк",
+  "препарат",
+  "температур",
+];
 
 const INTENTS = {
   price: ["сколько", "стоит", "цена", "цены", "стоимост", "бюджет"],
@@ -221,9 +163,9 @@ const MATURITY_REASON: Record<Solution["maturity"], string | null> = {
 };
 
 export const EXAMPLE_TASKS = [
-  "Клиника тратит много времени на звонки и запись пациентов",
-  "Нужно быстрее вносить счета и накладные в учётную систему",
-  "Менеджеры не успевают разбирать обращения в CRM",
+  "Администраторы не успевают отвечать на звонки и сообщения пациентов",
+  "Пациенты пишут ночью, а ответить некому",
+  "Обращения пациентов теряются в общей почте",
 ];
 
 export class MockChatProvider implements ChatProvider {
@@ -266,6 +208,27 @@ export class MockChatProvider implements ChatProvider {
         return this.answerRequirements(top.solution);
     }
 
+    if (recentTopics.length === 0 && has(last, MEDICAL_ADVICE_STEMS)) {
+      return {
+        text:
+          "Я помогаю клиникам подобрать решения для работы с пациентами и не даю медицинских советов: не ставлю диагнозы и не назначаю лечение. " +
+          "С вопросами о здоровье обратитесь к врачу; при угрозе жизни звоните 103 или 112.",
+        recommendations: [],
+        followUps: EXAMPLE_TASKS,
+      };
+    }
+
+    // Решаем по последнему сообщению: раньше в диалоге могла быть задача клиники.
+    if (recentTopics.length === 0 && has(last, OUT_OF_SCOPE_STEMS)) {
+      return {
+        text:
+          "Сейчас мы работаем только с частными медицинскими клиниками: общение с пациентами, запись на приём и обработка обращений. " +
+          "Если ваша задача из этой области — опишите её, и я подскажу подходящее решение.",
+        recommendations: [],
+        followUps: EXAMPLE_TASKS,
+      };
+    }
+
     if (ranked.length > 0) {
       const industryNote =
         industryIds.length > 0
@@ -297,13 +260,9 @@ export class MockChatProvider implements ChatProvider {
       return {
         text:
           `Понял, отрасль — «${industryIds.map(industryTitle).join("», «")}». ` +
-          "Какую задачу хотите решить? Например, обработка обращений клиентов, работа с документами или продажи в CRM.",
+          "Какую задачу клиники хотите решить? Например, ответы пациентам, запись на приём или разбор обращений.",
         recommendations: [],
-        followUps: [
-          "Много повторяющихся обращений клиентов",
-          "Долго обрабатываем документы",
-          "Хотим помочь менеджерам по продажам",
-        ],
+        followUps: EXAMPLE_TASKS,
       };
     }
 
@@ -311,9 +270,9 @@ export class MockChatProvider implements ChatProvider {
     const unmatched = userTexts.length > 1 && !greeting;
     return {
       text: unmatched
-        ? "Не нашёл в каталоге решения под эту задачу. Попробуйте описать её иначе — какой процесс занимает больше всего времени? " +
+        ? "Не нашёл в каталоге решения под эту задачу. Попробуйте описать её иначе — что в работе с пациентами занимает больше всего времени? " +
           "Если подходящего решения нет, можно отправить общую заявку."
-        : `${greeting}Опишите задачу своими словами: какой процесс хотите ускорить или автоматизировать и в какой отрасли работаете.`,
+        : `${greeting}Опишите задачу клиники своими словами: что в общении с пациентами, записи или обработке обращений хотите упростить.`,
       recommendations: [],
       followUps: EXAMPLE_TASKS,
     };
@@ -366,14 +325,18 @@ export class MockChatProvider implements ChatProvider {
         return `${solution.title}: пакеты не сформированы, стоимость — по запросу.`;
       }
       const pkgs = solution.packages
-        .map((p) => `«${p.title}» — ${formatPrice(p.price)}`)
+        .map((p) => `«${p.title}» — ${formatPackagePrice(p)}`)
         .join(", ");
       return `${solution.title}: ${pkgs}.`;
     });
+    const notes = [
+      ...new Set(ranked.flatMap(({ solution }) => solution.pricingNote ?? [])),
+    ];
     return {
       text:
-        "Стоимость по пакетам из каталога (демонстрационные цены):\n" +
+        "Стоимость по тарифам из каталога:\n" +
         lines.join("\n") +
+        (notes.length > 0 ? `\n${notes.join(" ")}` : "") +
         "\nОкончательная стоимость уточняется после обсуждения задачи.",
       recommendations: this.keep(ranked),
       followUps: ["Какие сроки внедрения?", "Что нужно от нас для внедрения?"],
