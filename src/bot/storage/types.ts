@@ -33,4 +33,18 @@ export interface BookingRepository {
 export interface SessionStore {
   load(peerId: number): { state: unknown; updatedAt: string } | undefined;
   save(peerId: number, state: unknown, updatedAt: string): void;
+  /** Бот молчит в диалоге до этого момента (ISO): отвечает администратор. */
+  getPausedUntil(peerId: number): string | undefined;
+  setPausedUntil(peerId: number, until: string | undefined): void;
+}
+
+/** Служебные отметки канала: обработанные события и разовые уведомления. */
+export interface ChannelStore {
+  /** true — событие новое и отмечено; false — уже обрабатывалось. */
+  markEventProcessed(eventKey: string, at: string): boolean;
+  /** Удаляет отметки старше указанного момента. */
+  pruneProcessedEvents(before: string): void;
+  /** Когда собеседнику последний раз отправлялось уведомление этого вида. */
+  getNoticeAt(peerId: number, kind: string): string | undefined;
+  setNoticeAt(peerId: number, kind: string, at: string): void;
 }

@@ -14,7 +14,9 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "bot:sim": "tsx scripts/bot-sim.mts"
+    "bot:sim": "tsx scripts/bot-sim.mts",
+    "bot:vk": "tsx scripts/vk-bot.mts",
+    "bot:check": "tsx scripts/vk-check.mts"
   },
   "dependencies": {
     "next": "16.4.0",

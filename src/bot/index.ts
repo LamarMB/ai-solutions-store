@@ -2,10 +2,12 @@
  * VK-бот ИИ-администратора — бизнес-логика без привязки к каналу и LLM.
  * Подробности и этапы — docs/vk-bot-plan.md.
  */
-import { createBot } from "@/bot/bot";
+import { createBot, type AdminNotifier } from "@/bot/bot";
 import { fictionalClinic } from "@/bot/clinic/fictional-clinic";
 import type { Clinic } from "@/bot/clinic/types";
 import { RuleInterpreter } from "@/bot/dialog/rule-interpreter";
+import type { TextInterpreter } from "@/bot/dialog/types";
+import { OpenAiInterpreter } from "@/bot/llm/openai-interpreter";
 import { ClinicSchedule } from "@/bot/schedule/schedule";
 import { SqliteStore } from "@/bot/storage/sqlite";
 
@@ -17,19 +19,45 @@ export function createDemoBot({
   dbPath,
   clinic = fictionalClinic,
   now = () => new Date(),
+  openai,
+  notifier,
+  handoffHours,
+  log,
 }: {
   dbPath: string;
   clinic?: Clinic;
   now?: () => Date;
+  /** Без ключа — только правила: бот работает по кнопкам и ключевым словам. */
+  openai?: { apiKey: string; model: string; dailyLimit?: number };
+  notifier?: AdminNotifier;
+  handoffHours?: number;
+  log?: (message: string) => void;
 }) {
   const store = new SqliteStore(dbPath);
   const schedule = new ClinicSchedule(clinic, store, now);
+  const rules = new RuleInterpreter(clinic);
+  const interpreter: TextInterpreter = openai
+    ? new OpenAiInterpreter(
+        clinic,
+        {
+          apiKey: openai.apiKey,
+          model: openai.model,
+          dailyLimit: openai.dailyLimit,
+          now,
+          onError: log,
+        },
+        rules,
+      )
+    : rules;
   const bot = createBot({
     clinic,
     schedule,
     sessions: store,
-    interpreter: new RuleInterpreter(),
+    interpreter,
+    notifier,
+    handoffHours,
     now,
+    onError: log,
   });
   return { bot, schedule, store };
 }

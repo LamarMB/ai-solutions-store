@@ -7,6 +7,38 @@ import type { Clinic } from "@/bot/clinic/types";
 export const fictionalClinic = {
   name: "Тестовая клиника «Демо-Мед»",
   address: "г. Примерный, ул. Вымышленная, д. 1 (адрес вымышленный)",
+  route:
+    "Адрес вымышленный: это демонстрационная клиника. В настоящем боте здесь будет схема проезда, ближайшая остановка и парковка.",
+  workingHours: "пн–сб с 08:00 до 19:00, вс — выходной",
+  services: [
+    { title: "Приём терапевта", specialtyId: "therapist", priceRub: 2000 },
+    {
+      title: "Повторный приём терапевта",
+      specialtyId: "therapist",
+      priceRub: 1600,
+    },
+    {
+      title: "Консультация стоматолога",
+      specialtyId: "dentist",
+      priceRub: 1500,
+    },
+    {
+      title: "Профессиональная гигиена полости рта",
+      specialtyId: "dentist",
+      priceRub: 4500,
+    },
+    { title: "Приём педиатра", specialtyId: "pediatrician", priceRub: 1900 },
+    {
+      title: "Приём оториноларинголога (ЛОР)",
+      specialtyId: "ent",
+      priceRub: 2100,
+    },
+  ],
+  visitTips: [
+    "Приходите за 10 минут до приёма, чтобы оформить карту в регистратуре.",
+    "Возьмите паспорт; для ребёнка — свидетельство о рождении и документ родителя.",
+    "Если планы изменились, отмените запись в разделе «Мои записи» — время освободится для других.",
+  ],
   timeZone: "Europe/Moscow",
   specialties: [
     { id: "therapist", title: "Терапевт" },
@@ -17,6 +49,7 @@ export const fictionalClinic = {
   doctors: [
     {
       id: "testova",
+      about: "Терапевт, принимает взрослых пациентов.",
       name: "Анна Тестова",
       specialtyId: "therapist",
       slotMinutes: 30,
@@ -28,6 +61,7 @@ export const fictionalClinic = {
     },
     {
       id: "primerov",
+      about: "Терапевт, принимает взрослых пациентов, в том числе в субботу.",
       name: "Павел Примеров",
       specialtyId: "therapist",
       slotMinutes: 30,
@@ -39,6 +73,7 @@ export const fictionalClinic = {
     },
     {
       id: "demonstrova",
+      about: "Стоматолог-терапевт: консультации и гигиена полости рта.",
       name: "Мария Демонстрова",
       specialtyId: "dentist",
       slotMinutes: 60,
@@ -50,6 +85,7 @@ export const fictionalClinic = {
     },
     {
       id: "vymyslov",
+      about: "Педиатр, принимает детей от рождения до 18 лет.",
       name: "Олег Вымыслов",
       specialtyId: "pediatrician",
       slotMinutes: 30,
@@ -61,6 +97,7 @@ export const fictionalClinic = {
     },
     {
       id: "obraztsova",
+      about: "Оториноларинголог (ЛОР), принимает взрослых и детей.",
       name: "Елена Образцова",
       specialtyId: "ent",
       slotMinutes: 30,

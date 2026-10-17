@@ -1,3 +1,10 @@
+import {
+  addressText,
+  doctorsText,
+  prepText,
+  pricesText,
+  routeText,
+} from "@/bot/clinic/knowledge";
 import type { Clinic } from "@/bot/clinic/types";
 import { normalizeText } from "@/bot/dialog/rule-interpreter";
 import {
@@ -7,11 +14,14 @@ import {
   type BotEvent,
   type Button,
   type DialogState,
+  type Effect,
+  type InfoTopic,
+  type Interpretation,
   type Reply,
   type TextInterpreter,
 } from "@/bot/dialog/types";
 import type { ScheduleProvider } from "@/bot/schedule/schedule";
-import { formatDayShort } from "@/bot/schedule/time";
+import { formatDayShort, isDate, isTime } from "@/bot/schedule/time";
 import type { Booking } from "@/bot/storage/types";
 
 export type DialogContext = {
@@ -19,15 +29,29 @@ export type DialogContext = {
   clinic: Clinic;
   schedule: ScheduleProvider;
   interpreter: TextInterpreter;
+  /** Сегодняшняя дата клиники «ГГГГ-ММ-ДД» — для «сегодня/завтра». */
+  today: string;
 };
 
-export type DialogResult = { state: DialogState; replies: Reply[] };
+export type DialogResult = {
+  state: DialogState;
+  replies: Reply[];
+  effects?: Effect[];
+};
 
 /** Время на одной странице выбора: вместе с навигацией — не больше 10 кнопок. */
 export const TIMES_PER_PAGE = 6;
+/** Ответ модели длиннее — обрезается: короткие ответы удобнее в мессенджере. */
+export const ANSWER_MAX = 700;
 
 const MENU: Button = { label: "В меню", action: { a: "menu" } };
 const BACK: Button = { label: "Назад", action: { a: "back" } };
+
+export const MEDICAL_REFUSAL =
+  "Я не даю медицинских советов, не ставлю диагнозы и не назначаю лечение. " +
+  "С вопросами о здоровье обратитесь к врачу — на приём можно записаться здесь. " +
+  "При угрозе жизни звоните 103 или 112.\n" +
+  "Пожалуйста, не присылайте жалобы и медицинские документы: бот их не принимает.";
 
 const chunk = <T>(items: readonly T[], size: number): T[][] => {
   const rows: T[][] = [];
@@ -37,8 +61,9 @@ const chunk = <T>(items: readonly T[], size: number): T[][] => {
 };
 
 /**
- * Один шаг диалога: состояние + событие → новое состояние и ответы.
- * Не знает о ВКонтакте и LLM: канал передаёт события и показывает ответы.
+ * Один шаг диалога: состояние + событие → новое состояние, ответы и эффекты.
+ * Не знает о ВКонтакте и OpenAI: канал передаёт события и показывает ответы,
+ * интерпретатор разбирает текст. Запись создаётся только кнопкой «Подтвердить».
  */
 export async function handleEvent(
   state: DialogState,
@@ -59,45 +84,96 @@ export async function handleEvent(
   }
 
   const text = normalizeText(event.text);
+  if (!text) return show(state, ctx);
   if (text === "назад") return handleAction(state, { a: "back" }, ctx);
 
-  const intent = await ctx.interpreter.interpret(event.text);
-  if (intent === "medical") return medical(state, ctx);
-
-  // Текст, совпадающий с кнопкой текущего шага, работает как нажатие.
+  // Текст, совпадающий с кнопкой текущего шага, работает как нажатие — без модели.
   const option = matchOption(state, text, ctx);
   if (option) return handleAction(state, option, ctx);
 
-  switch (intent) {
-    case "start":
+  const meaning = await ctx.interpreter.interpret(event.text, {
+    peerId: ctx.peerId,
+    today: ctx.today,
+    step: state.step,
+  });
+  return handleMeaning(state, meaning, ctx);
+}
+
+function handleMeaning(
+  state: DialogState,
+  meaning: Interpretation,
+  ctx: DialogContext,
+): DialogResult {
+  switch (meaning.intent) {
+    case "medical":
+      return show(state, ctx, [MEDICAL_REFUSAL]);
+    case "greeting":
       return greet(ctx);
     case "menu":
       return show({ step: "menu" }, ctx);
     case "book":
-      return show({ step: "specialty" }, ctx);
+      return startBooking(meaning, ctx);
     case "my_bookings":
       return show({ step: "bookings" }, ctx);
     case "admin":
-      return show(state, ctx, [
-        "Передача диалога администратору появится в следующей версии прототипа. Пока вы можете записаться или посмотреть свои записи самостоятельно.",
-      ]);
+      return show({ step: "handoff" }, ctx);
+    case "question": {
+      const answer = meaning.topic
+        ? infoText(meaning.topic, ctx.clinic)
+        : meaning.answer?.trim().slice(0, ANSWER_MAX);
+      if (answer) return show(state, ctx, [answer]);
+      break;
+    }
     case "yes":
-      if (state.step === "confirm" || state.step === "cancel") {
-        return handleAction(
-          state,
-          { a: state.step === "confirm" ? "ok" : "cxok" },
-          ctx,
-        );
-      }
+      if (state.step === "confirm")
+        return handleAction(state, { a: "ok" }, ctx);
+      if (state.step === "cancel")
+        return handleAction(state, { a: "cxok" }, ctx);
+      if (state.step === "handoff")
+        return handleAction(state, { a: "hoff" }, ctx);
       break;
     case "no":
-      if (state.step === "confirm" || state.step === "cancel") {
+      if (["confirm", "cancel", "handoff"].includes(state.step))
         return handleAction(state, { a: "back" }, ctx);
-      }
       break;
   }
   return show(state, ctx, [
-    "Я пока умею записывать на приём и показывать ваши записи. Выберите действие кнопкой.",
+    "Я помогаю записаться на приём, отвечаю на вопросы о ценах, врачах и адресе клиники. Выберите действие кнопкой или напишите, что нужно.",
+  ]);
+}
+
+/**
+ * Переход к записи по подсказкам из текста. Каждая подсказка проверяется по
+ * расписанию; неподходящие отбрасываются. До записи — всегда шаг подтверждения.
+ */
+function startBooking(
+  meaning: Interpretation,
+  ctx: DialogContext,
+): DialogResult {
+  const { schedule } = ctx;
+  const doctor = meaning.doctorId
+    ? schedule.getDoctor(meaning.doctorId)
+    : undefined;
+  const specialtyId = doctor?.specialtyId ?? meaning.specialtyId;
+  const specialty = schedule
+    .listSpecialties()
+    .find((s) => s.id === specialtyId);
+  if (!specialty) return show({ step: "specialty" }, ctx);
+  if (!doctor) return show({ step: "doctor", specialtyId: specialty.id }, ctx);
+
+  const base = { specialtyId: specialty.id, doctorId: doctor.id };
+  const date = meaning.date && isDate(meaning.date) ? meaning.date : undefined;
+  if (!date || !schedule.listAvailableDays(doctor.id).includes(date)) {
+    return show({ step: "day", ...base }, ctx, [
+      ...(date ? [`На ${formatDayShort(date)} свободного времени нет.`] : []),
+    ]);
+  }
+  const time = meaning.time && isTime(meaning.time) ? meaning.time : undefined;
+  if (time && schedule.listFreeSlots(doctor.id, date).includes(time)) {
+    return show({ step: "confirm", ...base, date, time }, ctx);
+  }
+  return show({ step: "time", ...base, date, page: 0 }, ctx, [
+    ...(time ? [`Время ${time} недоступно. Выберите другое.`] : []),
   ]);
 }
 
@@ -116,6 +192,28 @@ function handleAction(
       return show({ step: "bookings" }, ctx);
     case "back":
       return show(previous(state), ctx);
+    case "info":
+      return show(state.step === "handoff" ? { step: "menu" } : state, ctx, [
+        infoText(action.k, ctx.clinic),
+      ]);
+    case "admin":
+      return show({ step: "handoff" }, ctx);
+    case "hoff":
+      if (state.step !== "handoff") return stale(state, ctx);
+      return {
+        state: { step: "menu" },
+        effects: [{ type: "handoff" }],
+        replies: [
+          {
+            text:
+              "Передал ваш запрос администратору клиники — он ответит в этом диалоге. " +
+              "Пока администратор отвечает, бот не вмешивается.",
+            buttons: [[{ label: "Вернуться к боту", action: { a: "bot" } }]],
+          },
+        ],
+      };
+    case "bot":
+      return show({ step: "menu" }, ctx, ["Снова на связи бот."]);
 
     case "spec":
       if (
@@ -217,6 +315,7 @@ function confirm(
   } as const;
   switch (result.status) {
     case "ok":
+      // Запись уже сохранена; всё, что ниже, — необязательно.
       return {
         state: { step: "menu" },
         replies: [
@@ -224,8 +323,15 @@ function confirm(
             text:
               `Запись №${result.booking.id} подтверждена (тестовое расписание).\n` +
               describeBooking(result.booking, ctx) +
-              "\n\nБольше ничего делать не нужно — диалог можно закрыть. Отменить запись можно в разделе «Мои записи».",
-            buttons: [[{ label: "Мои записи", action: { a: "my" } }, MENU]],
+              "\n\nБольше ничего делать не нужно — диалог можно закрыть.\n" +
+              "Если хотите (необязательно): памятка к визиту, как добраться, ваши записи.",
+            buttons: [
+              [
+                { label: "Памятка к визиту", action: { a: "info", k: "prep" } },
+                { label: "Как добраться", action: { a: "info", k: "route" } },
+              ],
+              [{ label: "Мои записи", action: { a: "my" } }, MENU],
+            ],
           },
         ],
       };
@@ -253,22 +359,28 @@ function confirm(
 function greet(ctx: DialogContext): DialogResult {
   return show({ step: "menu" }, ctx, [
     `Здравствуйте! Это демонстрационный бот: ${ctx.clinic.name}.\n` +
-      "Врачи и расписание вымышленные, запись — тестовая.\n" +
+      "Врачи, цены и расписание вымышленные, запись — тестовая.\n" +
       "Пожалуйста, не отправляйте медицинские данные: жалобы, диагнозы, документы.",
-  ]);
-}
-
-function medical(state: DialogState, ctx: DialogContext): DialogResult {
-  return show(state, ctx, [
-    "Я не даю медицинских советов, не ставлю диагнозы и не назначаю лечение. " +
-      "С вопросами о здоровье обратитесь к врачу — на приём можно записаться здесь. " +
-      "При угрозе жизни звоните 103 или 112.\n" +
-      "Пожалуйста, не присылайте описание жалоб: в прототипе такие данные не собираются.",
   ]);
 }
 
 function stale(state: DialogState, ctx: DialogContext): DialogResult {
   return show(state, ctx, ["Эта кнопка устарела. Вот актуальные варианты."]);
+}
+
+export function infoText(topic: InfoTopic, clinic: Clinic): string {
+  switch (topic) {
+    case "prices":
+      return pricesText(clinic);
+    case "doctors":
+      return doctorsText(clinic);
+    case "address":
+      return addressText(clinic);
+    case "prep":
+      return prepText(clinic);
+    case "route":
+      return routeText(clinic);
+  }
 }
 
 /** Шаг назад по сценарию. */
@@ -277,6 +389,7 @@ function previous(state: DialogState): DialogState {
     case "specialty":
     case "bookings":
     case "menu":
+    case "handoff":
       return { step: "menu" };
     case "doctor":
       return { step: "specialty" };
@@ -325,6 +438,12 @@ function show(
           },
           { label: "Мои записи", action: { a: "my" } },
         ],
+        [
+          { label: "Цены", action: { a: "info", k: "prices" } },
+          { label: "Врачи", action: { a: "info", k: "doctors" } },
+          { label: "Адрес", action: { a: "info", k: "address" } },
+        ],
+        [{ label: "Позвать администратора", action: { a: "admin" } }],
       ]);
 
     case "specialty":
@@ -497,12 +616,31 @@ function show(
         `Отменить запись №${booking.id}?\n` + describeBooking(booking, ctx),
         [
           [
-            { label: "Да, отменить", action: { a: "cxok" }, color: "negative" },
+            {
+              label: "Да, отменить",
+              action: { a: "cxok" },
+              color: "negative",
+            },
             { label: "Нет", action: { a: "back" } },
           ],
         ],
       );
     }
+
+    case "handoff":
+      return reply(
+        "Позвать администратора клиники? Он ответит в этом диалоге, бот на это время замолчит.",
+        [
+          [
+            {
+              label: "Да, позвать",
+              action: { a: "hoff" },
+              color: "primary",
+            },
+            { label: "Нет", action: { a: "back" } },
+          ],
+        ],
+      );
   }
 }
 

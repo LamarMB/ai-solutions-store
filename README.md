@@ -57,6 +57,9 @@
 | `npm run test`         | тесты (Vitest)                                     |
 | `npm run format`       | форматирование Prettier (изменяет файлы)           |
 | `npm run format:check` | проверка форматирования без изменений              |
+| `npm run bot:sim`      | симулятор VK-бота в терминале (без ВКонтакте)      |
+| `npm run bot:check`    | проверка настроек VK-бота и ключей                 |
+| `npm run bot:vk`       | запуск VK-бота (Long Poll), см. docs/vk-bot-run.md |
 
 Перед PR должны проходить: `lint`, `typecheck`, `test`, `format:check`, `build`.
 CI (GitHub Actions) выполняет их на Ubuntu и Windows.

@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createBot } from "@/bot/bot";
 import { fictionalClinic } from "@/bot/clinic/fictional-clinic";
+import { ANSWER_MAX } from "@/bot/dialog/dialog";
 import { RuleInterpreter } from "@/bot/dialog/rule-interpreter";
-import type { Action, BotEvent, Reply } from "@/bot/dialog/types";
+import type {
+  Action,
+  BotEvent,
+  Interpretation,
+  Reply,
+  TextInterpreter,
+} from "@/bot/dialog/types";
 import { ClinicSchedule } from "@/bot/schedule/schedule";
 import { SqliteStore } from "@/bot/storage/sqlite";
 
@@ -18,7 +25,7 @@ function setup(
     clinic: fictionalClinic,
     schedule,
     sessions: store,
-    interpreter: new RuleInterpreter(),
+    interpreter: new RuleInterpreter(fictionalClinic),
     now,
   });
   return { bot, schedule, store };
@@ -245,17 +252,18 @@ describe("безопасность и данные", () => {
   it("неизвестный текст — подсказка и текущие кнопки", async () => {
     const { bot } = setup();
     const r = await send(bot, 1, { type: "text", text: "расскажите анекдот" });
-    expect(text(r)).toMatch(/умею записывать на приём/);
+    expect(text(r)).toMatch(/помогаю записаться на приём/);
     expect(buttons(r).length).toBeGreaterThan(0);
   });
 
-  it("просьба позвать администратора — честный ответ о прототипе", async () => {
+  it("просьба позвать администратора — сначала подтверждение", async () => {
     const { bot } = setup();
     const r = await send(bot, 1, {
       type: "text",
       text: "Позовите администратора",
     });
-    expect(text(r)).toMatch(/появится в следующей версии прототипа/);
+    expect(text(r)).toMatch(/Позвать администратора клиники\?/);
+    expect(buttons(r).map((b) => b.label)).toEqual(["Да, позвать", "Нет"]);
   });
 });
 
@@ -355,5 +363,222 @@ describe("ограничения кнопок ВКонтакте", () => {
         expect(JSON.stringify(b.action).length).toBeLessThanOrEqual(255);
       }
     }
+  });
+});
+
+describe("вопросы о клинике", () => {
+  it("цены, врачи и адрес — из данных клиники, без модели", async () => {
+    const { bot } = setup();
+    let r = await send(bot, 1, {
+      type: "text",
+      text: "Сколько стоит приём терапевта?",
+    });
+    expect(text(r)).toMatch(/Приём терапевта — 2 000 ₽/);
+    expect(text(r)).toMatch(/тестовые/);
+    r = await send(bot, 1, { type: "text", text: "Где вы находитесь?" });
+    expect(text(r)).toMatch(/ул\. Вымышленная/);
+    r = await send(bot, 1, {
+      type: "text",
+      text: "Какие врачи у вас принимают?",
+    });
+    expect(text(r)).toMatch(/Анна Тестова — Терапевт/);
+  });
+
+  it("вопрос посреди записи не сбрасывает выбор", async () => {
+    const { bot } = setup();
+    await toConfirm(bot, 1);
+    const r = await send(bot, 1, {
+      type: "text",
+      text: "А сколько это стоит?",
+    });
+    expect(text(r)).toMatch(/Цены/);
+    expect(text(r)).toMatch(/Подтвердить\?/);
+  });
+
+  it("кнопки справки в меню", async () => {
+    const { bot } = setup();
+    const r = await press(
+      bot,
+      1,
+      await send(bot, 1, { type: "start" }),
+      "Врачи",
+    );
+    expect(text(r)).toMatch(/Наши врачи \(вымышленные\)/);
+  });
+});
+
+describe("понимание текста: подсказки проверяются по расписанию", () => {
+  const fixed = (meaning: Interpretation): TextInterpreter => ({
+    interpret: () => meaning,
+  });
+  function withInterpreter(interpreter: TextInterpreter) {
+    const store = new SqliteStore(":memory:");
+    const schedule = new ClinicSchedule(fictionalClinic, store, () => NOW);
+    return {
+      schedule,
+      bot: createBot({
+        clinic: fictionalClinic,
+        schedule,
+        sessions: store,
+        interpreter,
+        now: () => NOW,
+      }),
+    };
+  }
+
+  it("врач, день и свободное время → сразу подтверждение, но без записи", async () => {
+    const { bot, schedule } = withInterpreter(
+      fixed({
+        intent: "book",
+        doctorId: "testova",
+        date: "2026-10-19",
+        time: "10:30",
+      }),
+    );
+    const r = await send(bot, 1, { type: "text", text: "к Тестовой на 10:30" });
+    expect(text(r)).toMatch(/Проверьте запись/);
+    expect(text(r)).toMatch(/10:30/);
+    expect(schedule.listBookings(1)).toEqual([]);
+  });
+
+  it("занятое или несуществующее время → выбор времени", async () => {
+    const { bot, schedule } = withInterpreter(
+      fixed({
+        intent: "book",
+        doctorId: "testova",
+        date: "2026-10-19",
+        time: "10:15",
+      }),
+    );
+    schedule.book(2, "testova", "2026-10-19", "10:00");
+    const r = await send(bot, 1, { type: "text", text: "..." });
+    expect(text(r)).toMatch(/Время 10:15 недоступно/);
+    expect(text(r)).toMatch(/Выберите время/);
+  });
+
+  it("день без приёма → выбор дня; неизвестный врач → выбор направления", async () => {
+    let r = await send(
+      withInterpreter(
+        fixed({ intent: "book", doctorId: "testova", date: "2026-10-20" }),
+      ).bot,
+      1,
+      { type: "text", text: "..." },
+    );
+    expect(text(r)).toMatch(/На вт, 20 окт свободного времени нет/);
+    r = await send(
+      withInterpreter(fixed({ intent: "book", doctorId: "dr-house" })).bot,
+      1,
+      { type: "text", text: "..." },
+    );
+    expect(text(r)).toMatch(/Выберите направление/);
+  });
+
+  it("ответ модели показывается с кнопками; длинный — обрезается", async () => {
+    const { bot } = withInterpreter(
+      fixed({ intent: "question", answer: "Да, есть парковка. ".repeat(100) }),
+    );
+    const r = await send(bot, 1, { type: "text", text: "Есть парковка?" });
+    expect(r[0].text.length).toBeLessThan(ANSWER_MAX + 100);
+    expect(buttons(r).length).toBeGreaterThan(0);
+  });
+});
+
+describe("после записи", () => {
+  it("необязательные действия не влияют на подтверждённую запись", async () => {
+    const { bot, schedule } = setup();
+    const done = await press(bot, 1, await toConfirm(bot, 1), "Подтвердить");
+    expect(text(done)).toMatch(/необязательно/);
+    expect(buttons(done).map((b) => b.label)).toEqual([
+      "Памятка к визиту",
+      "Как добраться",
+      "Мои записи",
+      "В меню",
+    ]);
+    expect(schedule.listBookings(1)).toHaveLength(1);
+    const tips = await press(bot, 1, done, "Памятка к визиту");
+    expect(text(tips)).toMatch(/Приходите за 10 минут/);
+    expect(text(tips)).not.toMatch(/анализ|жалоб|документы врачу/i);
+    expect(schedule.listBookings(1)).toHaveLength(1);
+  });
+});
+
+describe("передача администратору", () => {
+  function withNotifier(fail = false) {
+    const store = new SqliteStore(":memory:");
+    let now = NOW;
+    const notified: number[] = [];
+    const errors: string[] = [];
+    const schedule = new ClinicSchedule(fictionalClinic, store, () => now);
+    const bot = createBot({
+      clinic: fictionalClinic,
+      schedule,
+      sessions: store,
+      interpreter: new RuleInterpreter(fictionalClinic),
+      notifier: {
+        notifyHandoff: async (peer) => {
+          if (fail) throw new Error("vk down");
+          notified.push(peer);
+        },
+      },
+      handoffHours: 12,
+      now: () => now,
+      onError: (m) => errors.push(m),
+    });
+    return {
+      bot,
+      notified,
+      errors,
+      advance: (h: number) => (now = new Date(now.getTime() + h * 3_600_000)),
+    };
+  }
+
+  it("администратор получает уведомление, бот молчит, пока его не вернут", async () => {
+    const { bot, notified } = withNotifier();
+    let r = await press(
+      bot,
+      1,
+      await send(bot, 1, { type: "start" }),
+      "Позвать администратора",
+    );
+    r = await press(bot, 1, r, "Да, позвать");
+    expect(text(r)).toMatch(/Передал ваш запрос администратору/);
+    expect(notified).toEqual([1]);
+    expect(await send(bot, 1, { type: "text", text: "алло?" })).toEqual([]);
+    const back = await press(bot, 1, r, "Вернуться к боту");
+    expect(text(back)).toMatch(/Снова на связи бот/);
+    expect(text(await send(bot, 1, { type: "text", text: "меню" }))).toMatch(
+      /Чем могу помочь/,
+    );
+  });
+
+  it("ответ администратора продлевает паузу; через 12 часов бот снова отвечает", async () => {
+    const { bot, advance } = withNotifier();
+    await send(bot, 1, { type: "action", payload: { a: "admin" } });
+    await send(bot, 1, { type: "action", payload: { a: "hoff" } });
+    advance(11);
+    bot.notePeerHandledByAdmin(1);
+    advance(11);
+    expect(await send(bot, 1, { type: "text", text: "здравствуйте" })).toEqual(
+      [],
+    );
+    advance(2);
+    expect(
+      text(await send(bot, 1, { type: "text", text: "здравствуйте" })),
+    ).toMatch(/демонстрационный бот/);
+  });
+
+  it("сбой уведомления не ломает ответ пациенту", async () => {
+    const { bot, errors } = withNotifier(true);
+    await send(bot, 1, { type: "action", payload: { a: "admin" } });
+    const r = await send(bot, 1, { type: "action", payload: { a: "hoff" } });
+    expect(text(r)).toMatch(/Передал ваш запрос/);
+    expect(errors).toEqual(["handoff notification failed"]);
+  });
+
+  it("«Да, позвать» без шага подтверждения — устаревшая кнопка", async () => {
+    const { bot, notified } = withNotifier();
+    const r = await send(bot, 1, { type: "action", payload: { a: "hoff" } });
+    expect(text(r)).toMatch(/кнопка устарела/);
+    expect(notified).toEqual([]);
   });
 });

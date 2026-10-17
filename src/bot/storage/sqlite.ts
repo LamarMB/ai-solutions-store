@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import type {
   Booking,
   BookingRepository,
+  ChannelStore,
   NewBooking,
   SessionStore,
 } from "@/bot/storage/types";
@@ -31,6 +32,25 @@ CREATE TABLE IF NOT EXISTS sessions (
   state TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+-- Пока администратор отвечает, бот молчит в диалоге.
+CREATE TABLE IF NOT EXISTS pauses (
+  peer_id INTEGER PRIMARY KEY,
+  until TEXT NOT NULL
+);
+
+-- Обработанные события канала: повторно доставленное событие не обрабатывается.
+CREATE TABLE IF NOT EXISTS processed_events (
+  event_key TEXT PRIMARY KEY,
+  processed_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS notices (
+  peer_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  sent_at TEXT NOT NULL,
+  PRIMARY KEY (peer_id, kind)
+);
 `;
 
 type BookingRow = {
@@ -55,7 +75,9 @@ const toBooking = (row: BookingRow): Booking => ({
  * Локальное хранилище прототипа на встроенном в Node.js модуле node:sqlite
  * (без нативных зависимостей). `:memory:` — для тестов.
  */
-export class SqliteStore implements BookingRepository, SessionStore {
+export class SqliteStore
+  implements BookingRepository, SessionStore, ChannelStore
+{
   private readonly db: DatabaseSync;
 
   constructor(path: string) {
@@ -142,6 +164,55 @@ export class SqliteStore implements BookingRepository, SessionStore {
         "INSERT INTO sessions (peer_id, state, updated_at) VALUES (?, ?, ?) ON CONFLICT(peer_id) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at",
       )
       .run(peerId, JSON.stringify(state), updatedAt);
+  }
+
+  getPausedUntil(peerId: number): string | undefined {
+    const row = this.db
+      .prepare("SELECT until FROM pauses WHERE peer_id = ?")
+      .get(peerId) as { until: string } | undefined;
+    return row?.until;
+  }
+
+  setPausedUntil(peerId: number, until: string | undefined): void {
+    if (until === undefined) {
+      this.db.prepare("DELETE FROM pauses WHERE peer_id = ?").run(peerId);
+      return;
+    }
+    this.db
+      .prepare(
+        "INSERT INTO pauses (peer_id, until) VALUES (?, ?) ON CONFLICT(peer_id) DO UPDATE SET until = excluded.until",
+      )
+      .run(peerId, until);
+  }
+
+  markEventProcessed(eventKey: string, at: string): boolean {
+    const result = this.db
+      .prepare(
+        "INSERT OR IGNORE INTO processed_events (event_key, processed_at) VALUES (?, ?)",
+      )
+      .run(eventKey, at);
+    return Number(result.changes) === 1;
+  }
+
+  pruneProcessedEvents(before: string): void {
+    this.db
+      .prepare("DELETE FROM processed_events WHERE processed_at < ?")
+      .run(before);
+  }
+
+  getNoticeAt(peerId: number, kind: string): string | undefined {
+    const row = this.db
+      .prepare("SELECT sent_at FROM notices WHERE peer_id = ? AND kind = ?")
+      .get(peerId, kind) as { sent_at: string } | undefined;
+    return row?.sent_at;
+  }
+
+  setNoticeAt(peerId: number, kind: string, at: string): void {
+    this.db
+      .prepare(
+        "INSERT INTO notices (peer_id, kind, sent_at) VALUES (?, ?, ?) ON CONFLICT(peer_id, kind) DO UPDATE SET sent_at = excluded.sent_at",
+      )
+      .run(peerId, kind, at);
   }
 
   close(): void {

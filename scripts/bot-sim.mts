@@ -4,19 +4,39 @@
  *   npm run bot:sim                 собеседник 1, база .data/bot.sqlite
  *   npm run bot:sim -- --peer=2     другой собеседник (проверка двойной записи)
  *   npm run bot:sim -- --db=путь    другой файл базы
+ *   npm run bot:sim -- --openai     понимание текста через OpenAI (ключ из .env.local)
  *
  * Номер — нажать кнопку, любой другой текст — сообщение боту, «выход» — завершить.
  */
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline";
 import { createDemoBot, type Button, type Reply } from "@/bot";
+import { createLogger } from "@/bot/config";
+import { loadLocalEnv } from "@/bot/env";
 
 const arg = (name: string) =>
   process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];
 
 const peerId = Number(arg("peer") ?? 1);
 const dbPath = arg("db") ?? ".data/bot.sqlite";
-const { bot, store } = createDemoBot({ dbPath });
+loadLocalEnv();
+const useOpenAi = process.argv.includes("--openai");
+const apiKey = process.env.OPENAI_API_KEY?.trim();
+if (useOpenAi && !apiKey) {
+  console.log("OPENAI_API_KEY не задан в .env.local — работаю по правилам.");
+}
+const openai =
+  useOpenAi && apiKey
+    ? {
+        apiKey,
+        model: process.env.OPENAI_MODEL?.trim() || "gpt-5.6-luna",
+      }
+    : undefined;
+const { bot, store } = createDemoBot({
+  dbPath,
+  openai,
+  log: createLogger("sim"),
+});
 
 let buttons: Button[] = [];
 
@@ -34,7 +54,9 @@ function print(replies: Reply[]) {
 }
 
 const rl = createInterface({ input: stdin, output: stdout, terminal: false });
-console.log(`Симулятор бота · собеседник ${peerId} · база ${dbPath}`);
+console.log(
+  `Симулятор бота · собеседник ${peerId} · база ${dbPath} · ${openai ? `OpenAI ${openai.model}` : "правила"}`,
+);
 // Незавершённый диалог продолжается с того же шага (как после перезапуска бота).
 print(await bot.handle(peerId, { type: "resume" }));
 stdout.write("\n> ");

@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+/** Темы справки: ответы строятся только из данных клиники. */
+export const INFO_TOPICS = [
+  "prices",
+  "doctors",
+  "address",
+  "prep",
+  "route",
+] as const;
+export type InfoTopic = (typeof INFO_TOPICS)[number];
+
 /**
  * Действие кнопки. Короткие ключи: payload кнопки ВКонтакте ограничен по длине.
  * Действия «ok» (подтвердить запись) и «cxok» (подтвердить отмену) не несут данных —
@@ -18,6 +28,13 @@ export const ActionSchema = z.discriminatedUnion("a", [
   z.strictObject({ a: z.literal("ok") }),
   z.strictObject({ a: z.literal("cx"), b: z.int().positive() }),
   z.strictObject({ a: z.literal("cxok") }),
+  /** Справка из данных клиники. */
+  z.strictObject({ a: z.literal("info"), k: z.enum(INFO_TOPICS) }),
+  /** Позвать администратора (с подтверждением) и подтверждение. */
+  z.strictObject({ a: z.literal("admin") }),
+  z.strictObject({ a: z.literal("hoff") }),
+  /** Вернуться к боту после передачи администратору. */
+  z.strictObject({ a: z.literal("bot") }),
 ]);
 export type Action = z.infer<typeof ActionSchema>;
 
@@ -47,6 +64,7 @@ export const DialogStateSchema = z.discriminatedUnion("step", [
   }),
   z.strictObject({ step: z.literal("bookings") }),
   z.strictObject({ step: z.literal("cancel"), bookingId: z.int().positive() }),
+  z.strictObject({ step: z.literal("handoff") }),
 ]);
 export type DialogState = z.infer<typeof DialogStateSchema>;
 
@@ -68,18 +86,54 @@ export type Button = { label: string; action: Action; color?: ButtonColor };
 /** Ответ бота: текст и кнопки рядами. Канал сам превращает их в свой формат. */
 export type Reply = { text: string; buttons: Button[][] };
 
-/** Намерение свободного текста. Сейчас — правила, позже — LLM. */
-export type Intent =
-  | "start"
-  | "menu"
-  | "book"
-  | "my_bookings"
-  | "admin"
-  | "medical"
-  | "yes"
-  | "no"
-  | "unknown";
+/** Намерение свободного текста. */
+export const INTENTS = [
+  "greeting",
+  "menu",
+  "book",
+  "my_bookings",
+  "question",
+  "admin",
+  "medical",
+  "yes",
+  "no",
+  "other",
+] as const;
+export type Intent = (typeof INTENTS)[number];
 
+/**
+ * Разбор свободного текста. Параметры записи — только подсказка: бот проверяет
+ * их по расписанию и всегда просит подтвердить запись кнопкой.
+ */
+export type Interpretation = {
+  intent: Intent;
+  specialtyId?: string;
+  doctorId?: string;
+  /** «ГГГГ-ММ-ДД». */
+  date?: string;
+  /** «ЧЧ:ММ». */
+  time?: string;
+  /** Тема справки, если вопрос типовой. */
+  topic?: InfoTopic;
+  /** Ответ на вопрос из данных клиники (только от модели, проверяется длина). */
+  answer?: string;
+};
+
+/** Что известно интерпретатору о диалоге — без истории и личных данных. */
+export type InterpretContext = {
+  peerId: number;
+  /** Сегодняшняя дата клиники «ГГГГ-ММ-ДД» и день недели. */
+  today: string;
+  step: DialogState["step"];
+};
+
+/** Разбор текста. Сейчас — правила или OpenAI; канал о нём не знает. */
 export interface TextInterpreter {
-  interpret(text: string): Intent | Promise<Intent>;
+  interpret(
+    text: string,
+    context: InterpretContext,
+  ): Interpretation | Promise<Interpretation>;
 }
+
+/** Побочные эффекты шага, которые выполняет обёртка бота, а не диалог. */
+export type Effect = { type: "handoff" };
