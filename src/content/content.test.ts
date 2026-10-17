@@ -57,11 +57,17 @@ describe("данные каталога", () => {
     expect(getIndustries().map((i) => i.id)).toEqual(["healthcare"]);
   });
 
-  it("используют все три вида цены", () => {
+  it("публичные цены — фиксированные и «от»; концепции без пакетов", () => {
     const kinds = new Set(
       getSolutions().flatMap((s) => s.packages.map((p) => p.price.kind)),
     );
-    expect([...kinds].sort()).toEqual(["fixed", "from", "on_request"]);
+    expect([...kinds].sort()).toEqual(["fixed", "from"]);
+    // Вид «по запросу» по-прежнему встречается в скрытых записях.
+    expect(
+      catalog.solutions.some((s) =>
+        s.packages.some((p) => p.price.kind === "on_request"),
+      ),
+    ).toBe(true);
   });
 
   it("скрытое решение не находится по id на публичных страницах", () => {
@@ -127,6 +133,26 @@ describe("медицинские решения", () => {
     }
   });
 
+  it("маршрутизация обращений — концепция без пакетов и цены", () => {
+    const routing = getSolutionById("patient-request-routing")!;
+    expect(routing.maturity).toBe("concept");
+    expect(routing.packages).toEqual([]);
+    expect(getStartingPrice(routing)).toEqual({ kind: "on_request" });
+  });
+
+  it("каналы: только ВКонтакте подключается первым, остальные не обещаются", () => {
+    const admin = getSolutionById("clinic-ai-administrator")!;
+    const includes = admin.packages.flatMap((p) => p.includes).join(" ");
+    expect(includes).toMatch(/ВКонтакте/);
+    expect(includes).not.toMatch(/Два канала связи|До трёх каналов связи/);
+    expect(admin.limitations.join(" ")).toMatch(
+      /один канал — сообщения сообщества ВКонтакте/,
+    );
+    expect(admin.limitations.join(" ")).toMatch(
+      /тестовым расписанием и вымышленными/,
+    );
+  });
+
   it("ИИ-помощник пациента — концепция без пакетов, с согласием пациента", () => {
     const assistant = getSolutionById("patient-ai-assistant")!;
     expect(assistant.maturity).toBe("concept");
@@ -157,7 +183,7 @@ describe("качество карточек решений", () => {
 
   it("концепции и решения в разработке не имеют пакетов, цен и сроков", () => {
     const notReady = solutions.filter((s) => s.maturity !== "demo");
-    expect(notReady.length).toBe(10);
+    expect(notReady.length).toBe(11);
     for (const s of notReady) {
       expect(s.packages, s.id).toEqual([]);
       expect(getStartingPrice(s), s.id).toEqual({ kind: "on_request" });

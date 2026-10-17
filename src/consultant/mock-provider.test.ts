@@ -55,10 +55,13 @@ describe("сценарии диалога", () => {
     expect(r.text).toMatch(/Медицина и клиники/);
   });
 
-  it("обращения в почте → маршрутизация обращений", async () => {
-    expect((await ids("Обращения пациентов теряются в общей почте"))[0]).toBe(
-      "patient-request-routing",
+  it("обращения в почте → маршрутизация обращений с пометкой концепции", async () => {
+    const r = await provider.reply(
+      user("Обращения пациентов теряются в общей почте"),
     );
+    expect(r.recommendations[0].solutionId).toBe("patient-request-routing");
+    expect(r.recommendations[0].reason).toMatch(/^статус: концепция/);
+    expect(r.text).toContain("не готовые продукты");
   });
 
   it("документы пациента → концепция помощника с пометкой статуса", async () => {
