@@ -58,6 +58,7 @@
 | `npm run format`       | форматирование Prettier (изменяет файлы)           |
 | `npm run format:check` | проверка форматирования без изменений              |
 | `npm run bot:sim`      | симулятор VK-бота в терминале (без ВКонтакте)      |
+| `npm run bot:setup`    | первичная настройка VK-бота и выбор модели OpenAI  |
 | `npm run bot:check`    | проверка настроек VK-бота и ключей                 |
 | `npm run bot:vk`       | запуск VK-бота (Long Poll), см. docs/vk-bot-run.md |
 

@@ -79,6 +79,8 @@ OPENAI_API_KEY=sk-…ключ с platform.openai.com → API keys…
 ## 5. Проверить и запустить
 
 ```powershell
+npm run bot:setup      # включает сообщения и Long Poll (если хватает прав), определяет ваш VK ID
+                       # по сообщению «тест» в сообщество, выбирает модель OpenAI
 npm run bot:check      # переменные, ключ сообщества, Long Poll, ключ OpenAI
 npm run bot:vk         # запуск бота; остановка — Ctrl+C
 ```

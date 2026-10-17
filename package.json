@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "bot:sim": "tsx scripts/bot-sim.mts",
     "bot:vk": "tsx scripts/vk-bot.mts",
-    "bot:check": "tsx scripts/vk-check.mts"
+    "bot:check": "tsx scripts/vk-check.mts",
+    "bot:setup": "tsx scripts/vk-setup.mts"
   },
   "dependencies": {
     "next": "16.4.0",

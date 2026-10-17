@@ -150,6 +150,14 @@ export function sanitize(
 }
 
 /**
+ * Рассуждающие модели (gpt-5…, o…) по умолчанию думают долго и дорого —
+ * для разбора реплики хватает низкого уровня. Остальным параметр не передаётся.
+ */
+export function reasoningOptions(model: string) {
+  return /^(gpt-5|o\d)/.test(model) ? { reasoning: { effort: "low" } } : {};
+}
+
+/**
  * Разбор текста через OpenAI (Responses API, Structured Outputs).
  * Модель только понимает текст и отвечает по справке; запись делает расписание.
  * При любой ошибке, лимите или паузе — ответ запасного интерпретатора (правила).
@@ -243,13 +251,22 @@ export class OpenAiInterpreter implements TextInterpreter {
             },
           },
           max_output_tokens: 1500,
+          ...reasoningOptions(this.options.model),
           // Не хранить ответы на стороне OpenAI.
           store: false,
         }),
         signal: AbortSignal.timeout(this.options.timeoutMs ?? 15_000),
       },
     );
-    if (!response.ok) throw new Error(`http ${response.status}`);
+    if (!response.ok) {
+      // Код ошибки OpenAI (например, model_not_found) помогает настройке; текста запроса в нём нет.
+      const error = (await response.json().catch(() => undefined)) as
+        { error?: { code?: unknown } } | undefined;
+      const code = error?.error?.code;
+      throw new Error(
+        `http ${response.status}${typeof code === "string" ? ` (${code.slice(0, 60)})` : ""}`,
+      );
+    }
     const body = ResponseSchema.safeParse(await response.json());
     if (!body.success) throw new Error("unexpected response shape");
     if (body.data.status && body.data.status !== "completed") {
