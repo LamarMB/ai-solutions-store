@@ -1,4 +1,4 @@
-import type { Clinic } from "@/bot/clinic/types";
+import { resolveClinic, type ClinicSource } from "@/bot/clinic/types";
 import type {
   InfoTopic,
   InterpretContext,
@@ -68,7 +68,7 @@ const SPECIALTY_STEMS: Record<string, string[]> = {
 
 /** Правила на ключевых словах — не языковая модель. Работают без сети. */
 export class RuleInterpreter implements TextInterpreter {
-  constructor(private readonly clinic?: Clinic) {}
+  constructor(private readonly source?: ClinicSource) {}
 
   interpret(raw: string, context?: InterpretContext): Interpretation {
     const text = normalizeText(raw);
@@ -121,8 +121,9 @@ export class RuleInterpreter implements TextInterpreter {
       Interpretation,
       "specialtyId" | "doctorId" | "date" | "time"
     > = {};
-    if (this.clinic) {
-      const doctor = this.clinic.doctors.find((d) =>
+    if (this.source) {
+      const clinic = resolveClinic(this.source);
+      const doctor = clinic.doctors.find((d) =>
         d.name
           .toLowerCase()
           .replaceAll("ё", "е")

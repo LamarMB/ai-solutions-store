@@ -19,6 +19,8 @@ export type LongPollOptions = {
   /** Сколько секунд сервер держит запрос, если событий нет. */
   waitSeconds?: number;
   maxBackoffMs?: number;
+  /** Вызывается после каждого успешного ответа сервера — для отметки «бот на связи». */
+  onPoll?: () => void;
 };
 
 /**
@@ -82,6 +84,7 @@ export async function runLongPoll(
         continue;
       }
       backoff = 1000;
+      options.onPoll?.();
       for (const update of body.updates ?? []) {
         if (signal.aborted) break;
         await options.onUpdate(update);

@@ -1,4 +1,11 @@
-import type { Clinic, Doctor, Specialty } from "@/bot/clinic/types";
+import {
+  isActiveDoctor,
+  resolveClinic,
+  type Clinic,
+  type ClinicSource,
+  type Doctor,
+  type Specialty,
+} from "@/bot/clinic/types";
 import {
   addDays,
   fromMinutes,
@@ -8,7 +15,11 @@ import {
   toMinutes,
   weekday,
 } from "@/bot/schedule/time";
-import type { Booking, BookingRepository } from "@/bot/storage/types";
+import type {
+  Booking,
+  BookingRepository,
+  BookingSource,
+} from "@/bot/storage/types";
 
 export type BookResult =
   | { status: "ok"; booking: Booking }
@@ -18,6 +29,20 @@ export type BookResult =
   | { status: "unavailable" }
   /** У пациента уже максимум активных записей. */
   | { status: "limit" };
+
+export type MoveResult =
+  | { status: "ok"; booking: Booking }
+  | { status: "taken" }
+  | { status: "unavailable" }
+  /** Записи нет или она уже отменена/завершена. */
+  | { status: "missing" };
+
+/** Запись из админ-панели: дальше горизонт, без минимального запаса времени. */
+export type BookOptions = {
+  source?: BookingSource;
+  note?: string;
+  admin?: boolean;
+};
 
 /**
  * Расписание для диалога. Интерфейс не зависит от источника данных: сейчас —
@@ -49,6 +74,8 @@ export type ScheduleOptions = {
   minLeadMinutes: number;
   /** Максимум активных записей у одного собеседника. */
   maxActiveBookings: number;
+  /** Горизонт записи для администратора. */
+  adminHorizonDays: number;
 };
 
 export const DEFAULT_SCHEDULE_OPTIONS: ScheduleOptions = {
@@ -56,28 +83,45 @@ export const DEFAULT_SCHEDULE_OPTIONS: ScheduleOptions = {
   maxDays: 7,
   minLeadMinutes: 60,
   maxActiveBookings: 3,
+  adminHorizonDays: 90,
 };
 
-/** Тестовое расписание: часы приёма врачей минус занятые записи и прошедшее время. */
+/**
+ * Расписание клиники: часы приёма врачей минус выходные, недоступные интервалы,
+ * занятые записи и прошедшее время. Одна логика для бота и админ-панели;
+ * данные клиники читаются из общей базы при каждом обращении.
+ */
 export class ClinicSchedule implements ScheduleProvider {
+  private readonly options: ScheduleOptions;
+
   constructor(
-    private readonly clinic: Clinic,
+    private readonly source: ClinicSource,
     private readonly repo: BookingRepository,
     private readonly now: () => Date = () => new Date(),
-    private readonly options: ScheduleOptions = DEFAULT_SCHEDULE_OPTIONS,
-  ) {}
+    options: Partial<ScheduleOptions> = {},
+  ) {
+    this.options = { ...DEFAULT_SCHEDULE_OPTIONS, ...options };
+  }
+
+  get clinic(): Clinic {
+    return resolveClinic(this.source);
+  }
 
   listSpecialties() {
-    // Только направления, у которых есть врачи.
-    return this.clinic.specialties.filter((s) =>
-      this.clinic.doctors.some((d) => d.specialtyId === s.id),
+    const clinic = this.clinic;
+    // Только направления, у которых есть принимающие врачи.
+    return clinic.specialties.filter((s) =>
+      clinic.doctors.some((d) => d.specialtyId === s.id && isActiveDoctor(d)),
     );
   }
 
   listDoctors(specialtyId: string) {
-    return this.clinic.doctors.filter((d) => d.specialtyId === specialtyId);
+    return this.clinic.doctors.filter(
+      (d) => d.specialtyId === specialtyId && isActiveDoctor(d),
+    );
   }
 
+  /** Любой врач клиники, в том числе отключённый, — чтобы описать его записи. */
   getDoctor(doctorId: string) {
     return this.clinic.doctors.find((d) => d.id === doctorId);
   }
@@ -93,13 +137,48 @@ export class ClinicSchedule implements ScheduleProvider {
     return days;
   }
 
-  listFreeSlots(doctorId: string, date: string): string[] {
-    const doctor = this.getDoctor(doctorId);
-    if (!doctor || !isDate(date) || !this.inHorizon(date)) return [];
-    const booked = new Set(this.repo.listBookedTimes(doctorId, date));
-    return this.templateSlots(doctor, date).filter(
-      (time) => !booked.has(time) && this.isFuture(date, time),
+  listFreeSlots(
+    doctorId: string,
+    date: string,
+    { admin = false }: { admin?: boolean } = {},
+  ): string[] {
+    const doctor = this.clinic.doctors.find((d) => d.id === doctorId);
+    if (!doctor) return [];
+    const booked = this.repo.listBookedTimes(doctorId, date).map(toMinutes);
+    return this.scheduledSlots(doctorId, date, admin).filter(
+      (time) => !overlaps(booked, time, doctor.slotMinutes),
     );
+  }
+
+  /**
+   * Слоты по расписанию без учёта записей: часы приёма, выходные, перерывы,
+   * горизонт и прошедшее время. Врач должен принимать пациентов.
+   */
+  private scheduledSlots(doctorId: string, date: string, admin: boolean) {
+    const clinic = this.clinic;
+    const doctor = clinic.doctors.find((d) => d.id === doctorId);
+    if (!doctor || !isActiveDoctor(doctor) || !isDate(date)) return [];
+    if (!this.inHorizon(date, admin)) return [];
+    return this.templateSlots(doctor, date, clinic).filter((time) =>
+      this.isFuture(date, time, admin),
+    );
+  }
+
+  /** Свободен ли слот: «нет в расписании» и «занят» — разные ответы пациенту. */
+  private slotState(
+    doctorId: string,
+    date: string,
+    time: string,
+    admin: boolean,
+  ): "free" | "taken" | "unavailable" {
+    if (
+      !isTime(time) ||
+      !this.scheduledSlots(doctorId, date, admin).includes(time)
+    )
+      return "unavailable";
+    const doctor = this.clinic.doctors.find((d) => d.id === doctorId)!;
+    const booked = this.repo.listBookedTimes(doctorId, date).map(toMinutes);
+    return overlaps(booked, time, doctor.slotMinutes) ? "taken" : "free";
   }
 
   book(
@@ -107,29 +186,58 @@ export class ClinicSchedule implements ScheduleProvider {
     doctorId: string,
     date: string,
     time: string,
+    options: BookOptions = {},
   ): BookResult {
-    const doctor = this.getDoctor(doctorId);
+    const state = this.slotState(doctorId, date, time, options.admin ?? false);
+    if (state !== "free") return { status: state };
     if (
-      !doctor ||
-      !isDate(date) ||
-      !isTime(time) ||
-      !this.inHorizon(date) ||
-      !this.templateSlots(doctor, date).includes(time) ||
-      !this.isFuture(date, time)
+      !options.admin &&
+      this.listBookings(peerId).length >= this.options.maxActiveBookings
     ) {
-      return { status: "unavailable" };
-    }
-    if (this.listBookings(peerId).length >= this.options.maxActiveBookings) {
       return { status: "limit" };
     }
+    // Двойное бронирование исключает уникальный индекс базы, даже если
+    // бот и админ-панель записывают на один слот одновременно.
     const result = this.repo.insert({
       peerId,
       doctorId,
       date,
       time,
       createdAt: this.now().toISOString(),
+      source: options.source ?? "vk",
+      note: options.note,
     });
     return result.status === "ok" ? result : { status: "taken" };
+  }
+
+  /** Перенос записи (администратор): на свободный слот того же или другого врача. */
+  reschedule(
+    bookingId: number,
+    doctorId: string,
+    date: string,
+    time: string,
+  ): MoveResult {
+    const current = this.repo.getBooking(bookingId);
+    if (!current || current.status !== "confirmed")
+      return { status: "missing" };
+    if (
+      current.doctorId === doctorId &&
+      current.date === date &&
+      current.time === time
+    )
+      return { status: "ok", booking: current };
+    const state = this.slotState(doctorId, date, time, true);
+    if (state !== "free") return { status: state };
+    const result = this.repo.move(
+      bookingId,
+      doctorId,
+      date,
+      time,
+      this.now().toISOString(),
+    );
+    if (result === "conflict") return { status: "taken" };
+    if (result === "missing") return { status: "missing" };
+    return { status: "ok", booking: this.repo.getBooking(bookingId)! };
   }
 
   listBookings(peerId: number): Booking[] {
@@ -144,23 +252,46 @@ export class ClinicSchedule implements ScheduleProvider {
     return this.repo.cancel(peerId, bookingId, this.now().toISOString());
   }
 
+  /** Отмена любой подтверждённой записи (администратор). */
+  cancelById(bookingId: number): boolean {
+    return this.repo.cancelById(bookingId, this.now().toISOString());
+  }
+
+  /** Приём состоялся (администратор). */
+  complete(bookingId: number): boolean {
+    return this.repo.complete(bookingId, this.now().toISOString());
+  }
+
   private today() {
     return localDateTime(this.now(), this.clinic.timeZone);
   }
 
-  private inHorizon(date: string): boolean {
+  private inHorizon(date: string, admin: boolean): boolean {
     const today = this.today().date;
-    return date >= today && date < addDays(today, this.options.horizonDays);
+    const days = admin
+      ? this.options.adminHorizonDays
+      : this.options.horizonDays;
+    return date >= today && date < addDays(today, days);
   }
 
-  private isFuture(date: string, time: string): boolean {
+  private isFuture(date: string, time: string, admin: boolean): boolean {
     const now = this.today();
     if (date > now.date) return true;
     if (date < now.date) return false;
-    return toMinutes(time) >= toMinutes(now.time) + this.options.minLeadMinutes;
+    const lead = admin ? 0 : this.options.minLeadMinutes;
+    return toMinutes(time) >= toMinutes(now.time) + lead;
   }
 
-  private templateSlots(doctor: Doctor, date: string): string[] {
+  /** Слоты по часам приёма за вычетом выходных и недоступных интервалов. */
+  private templateSlots(
+    doctor: Doctor,
+    date: string,
+    clinic: Clinic,
+  ): string[] {
+    const exceptions = (clinic.exceptions ?? []).filter(
+      (e) => e.date === date && (!e.doctorId || e.doctorId === doctor.id),
+    );
+    if (exceptions.some((e) => !e.from || !e.to)) return [];
     const day = weekday(date);
     const slots: string[] = [];
     for (const hours of doctor.hours.filter((h) => h.weekday === day)) {
@@ -169,9 +300,23 @@ export class ClinicSchedule implements ScheduleProvider {
         m + doctor.slotMinutes <= toMinutes(hours.to);
         m += doctor.slotMinutes
       ) {
-        slots.push(fromMinutes(m));
+        const end = m + doctor.slotMinutes;
+        // Слот недоступен, если пересекается с перерывом.
+        const blocked = exceptions.some(
+          (e) => m < toMinutes(e.to!) && end > toMinutes(e.from!),
+        );
+        if (!blocked) slots.push(fromMinutes(m));
       }
     }
     return slots;
   }
+}
+
+/**
+ * Слот пересекается с записью: если администратор сменил длительность приёма,
+ * старые записи не накладываются на новые слоты.
+ */
+function overlaps(booked: number[], time: string, slotMinutes: number) {
+  const start = toMinutes(time);
+  return booked.some((b) => Math.abs(b - start) < slotMinutes);
 }

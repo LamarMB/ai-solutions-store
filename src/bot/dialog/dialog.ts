@@ -1,6 +1,7 @@
 import {
   addressText,
   doctorsText,
+  rubles,
   prepText,
   pricesText,
   routeText,
@@ -710,9 +711,11 @@ function describeBooking(
   booking: Pick<Booking, "doctorId" | "date" | "time">,
   ctx: DialogContext,
 ): string {
+  const price = ctx.schedule.getDoctor(booking.doctorId)?.priceRub;
   return [
     `Врач: ${doctorLabel(booking.doctorId, ctx)}`,
     `Дата и время: ${formatDayShort(booking.date)}, ${booking.time}`,
+    ...(price !== undefined ? [`Стоимость приёма: ${rubles(price)}`] : []),
     `Адрес: ${ctx.clinic.address}`,
   ].join("\n");
 }

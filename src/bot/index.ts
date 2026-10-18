@@ -3,8 +3,7 @@
  * Подробности и этапы — docs/vk-bot-plan.md.
  */
 import { createBot, type AdminNotifier } from "@/bot/bot";
-import { fictionalClinic } from "@/bot/clinic/fictional-clinic";
-import type { Clinic } from "@/bot/clinic/types";
+import type { ClinicSource } from "@/bot/clinic/types";
 import { RuleInterpreter } from "@/bot/dialog/rule-interpreter";
 import { OpenAiClient } from "@/bot/llm/openai-client";
 import { OpenAiConversationModel } from "@/bot/llm/openai-conversation";
@@ -17,7 +16,7 @@ export type { BotEvent, Reply, Button, Action } from "@/bot/dialog/types";
 /** Собирает бота вымышленной клиники с хранилищем SQLite по указанному пути. */
 export function createDemoBot({
   dbPath,
-  clinic = fictionalClinic,
+  clinic,
   now = () => new Date(),
   openai,
   notifier,
@@ -27,7 +26,8 @@ export function createDemoBot({
   log,
 }: {
   dbPath: string;
-  clinic?: Clinic;
+  /** По умолчанию — справочники клиники из той же базы (их меняет админ-панель). */
+  clinic?: ClinicSource;
   now?: () => Date;
   /** Без ключа — только правила: бот работает по кнопкам и ключевым словам. */
   openai?: { apiKey: string; model: string; dailyLimit?: number };
@@ -39,12 +39,13 @@ export function createDemoBot({
   log?: (message: string) => void;
 }) {
   const store = new SqliteStore(dbPath);
-  const schedule = new ClinicSchedule(clinic, store, now);
-  const rules = new RuleInterpreter(clinic);
+  const source: ClinicSource = clinic ?? (() => store.clinic.load());
+  const schedule = new ClinicSchedule(source, store, now);
+  const rules = new RuleInterpreter(source);
   // GPT ведёт разговор; правила — запасной режим и проверки безопасности.
   const model = openai
     ? new OpenAiConversationModel(
-        clinic,
+        source,
         new OpenAiClient({
           apiKey: openai.apiKey,
           model: openai.model,
@@ -56,7 +57,7 @@ export function createDemoBot({
       )
     : undefined;
   const bot = createBot({
-    clinic,
+    clinic: source,
     schedule,
     sessions: store,
     interpreter: rules,

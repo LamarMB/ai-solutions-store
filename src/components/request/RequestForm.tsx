@@ -10,7 +10,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { submitRequest } from "@/app/request/actions";
+import { submitRequest } from "@/app/(site)/request/actions";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import {

@@ -1,9 +1,15 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { fictionalClinic } from "@/bot/clinic/fictional-clinic";
+import type { Clinic } from "@/bot/clinic/types";
+import { AdminStore } from "@/bot/storage/admin-store";
+import { ClinicStore } from "@/bot/storage/clinic-store";
 import type {
   Booking,
   BookingRepository,
+  BookingSource,
+  BookingStatus,
   ChannelStore,
   NewBooking,
   SessionStore,
@@ -54,13 +60,165 @@ CREATE TABLE IF NOT EXISTS notices (
 );
 `;
 
+/** Версия 4: справочники клиники в базе вместо кода, статусы и источник записей. */
+const CLINIC_SCHEMA = `
+CREATE TABLE IF NOT EXISTS clinic_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS specialties (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  to_whom TEXT NOT NULL,
+  sort INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS doctors (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  specialty_id TEXT NOT NULL,
+  about TEXT NOT NULL DEFAULT '',
+  slot_minutes INTEGER NOT NULL,
+  price_rub INTEGER,
+  active INTEGER NOT NULL DEFAULT 1,
+  deleted_at TEXT,
+  sort INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS doctor_hours (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  doctor_id TEXT NOT NULL,
+  weekday INTEGER NOT NULL CHECK (weekday BETWEEN 1 AND 7),
+  from_time TEXT NOT NULL,
+  to_time TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS doctor_hours_doctor ON doctor_hours (doctor_id);
+CREATE TABLE IF NOT EXISTS services (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  specialty_id TEXT,
+  price_rub INTEGER NOT NULL,
+  sort INTEGER NOT NULL DEFAULT 0
+);
+-- Выходные и недоступные интервалы: без врача — для всей клиники, без времени — весь день.
+CREATE TABLE IF NOT EXISTS schedule_exceptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  doctor_id TEXT,
+  date TEXT NOT NULL,
+  from_time TEXT,
+  to_time TEXT,
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS schedule_exceptions_date ON schedule_exceptions (date);
+ALTER TABLE bookings ADD COLUMN status TEXT NOT NULL DEFAULT 'confirmed';
+ALTER TABLE bookings ADD COLUMN source TEXT NOT NULL DEFAULT 'vk';
+ALTER TABLE bookings ADD COLUMN note TEXT;
+ALTER TABLE bookings ADD COLUMN updated_at TEXT;
+ALTER TABLE bookings ADD COLUMN completed_at TEXT;
+UPDATE bookings SET status = 'cancelled' WHERE cancelled_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS bookings_date ON bookings (date, time);
+`;
+
+/** Версия 5: администраторы, сессии панели, журнал действий, состояние бота. */
+const ADMIN_SCHEMA = `
+CREATE TABLE IF NOT EXISTS admin_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  login TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  password_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  disabled_at TEXT
+);
+-- Хранится только SHA-256 токена сессии: утечка базы не даёт войти.
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS admin_sessions_user ON admin_sessions (user_id);
+-- Журнал действий администраторов: что и с какой сущностью, без персональных данных.
+CREATE TABLE IF NOT EXISTS admin_audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at TEXT NOT NULL,
+  user_id INTEGER,
+  action TEXT NOT NULL,
+  entity TEXT NOT NULL,
+  entity_id TEXT
+);
+CREATE TABLE IF NOT EXISTS bot_status (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+`;
+
+/** Начальные данные клиники — прежняя вымышленная клиника из кода. */
+export function seedClinic(db: DatabaseSync, clinic: Clinic, at: string) {
+  const hasData = db.prepare("SELECT COUNT(*) AS n FROM specialties").get() as {
+    n: number;
+  };
+  if (hasData.n > 0) return;
+  const setting = db.prepare(
+    "INSERT OR REPLACE INTO clinic_settings (key, value) VALUES (?, ?)",
+  );
+  for (const [key, value] of Object.entries({
+    name: clinic.name,
+    address: clinic.address,
+    phone: clinic.phone ?? "",
+    working_hours: clinic.workingHours,
+    route: clinic.route,
+    about: clinic.about ?? "",
+    visit_tips: clinic.visitTips.join("\n"),
+    time_zone: clinic.timeZone,
+  }))
+    setting.run(key, value);
+  const specialty = db.prepare(
+    "INSERT INTO specialties (id, title, to_whom, sort) VALUES (?, ?, ?, ?)",
+  );
+  clinic.specialties.forEach((s, i) =>
+    specialty.run(s.id, s.title, s.toWhom, i),
+  );
+  const doctor = db.prepare(
+    "INSERT INTO doctors (id, name, specialty_id, about, slot_minutes, price_rub, active, sort, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)",
+  );
+  const hours = db.prepare(
+    "INSERT INTO doctor_hours (doctor_id, weekday, from_time, to_time) VALUES (?, ?, ?, ?)",
+  );
+  clinic.doctors.forEach((d, i) => {
+    doctor.run(
+      d.id,
+      d.name,
+      d.specialtyId,
+      d.about,
+      d.slotMinutes,
+      d.priceRub ?? null,
+      i,
+      at,
+      at,
+    );
+    for (const h of d.hours) hours.run(d.id, h.weekday, h.from, h.to);
+  });
+  const service = db.prepare(
+    "INSERT INTO services (title, specialty_id, price_rub, sort) VALUES (?, ?, ?, ?)",
+  );
+  clinic.services.forEach((s, i) =>
+    service.run(s.title, s.specialtyId, s.priceRub, i),
+  );
+}
+
+type Migration = string | ((db: DatabaseSync) => void);
+
 /**
- * Миграции схемы. Версия 2: индекс для удаления устаревших разговоров;
- * версия 3: таблица счётчиков stats.
+ * Миграции схемы (номер версии — позиция в списке + 1):
+ * 1 — исходные таблицы; 2 — индекс для удаления устаревших разговоров;
+ * 3 — счётчики stats; 4 — справочники клиники, статусы и источник записей
+ * (с начальными данными прежней вымышленной клиники); 5 — администраторы.
  * Формат JSON в sessions.state сменился на v2 (шаг записи + память разговора);
  * старые значения читаются кодом (parseSession), переписывать их не нужно.
  */
-const MIGRATIONS = [
+const MIGRATIONS: Migration[] = [
   SCHEMA,
   "CREATE INDEX IF NOT EXISTS sessions_updated ON sessions (updated_at);",
   // Версия 3: дневные счётчики фильтров и обращений к модели (без текста).
@@ -70,7 +228,15 @@ const MIGRATIONS = [
     count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (day, key)
   );`,
+  (db) => {
+    db.exec(CLINIC_SCHEMA);
+    seedClinic(db, fictionalClinic, new Date().toISOString());
+  },
+  ADMIN_SCHEMA,
 ];
+
+/** Последняя версия схемы. */
+export const SCHEMA_VERSION = MIGRATIONS.length;
 
 type BookingRow = {
   id: number;
@@ -79,7 +245,13 @@ type BookingRow = {
   date: string;
   time: string;
   created_at: string;
+  status: BookingStatus;
+  source: BookingSource;
+  note: string | null;
 };
+
+const BOOKING_COLUMNS =
+  "id, peer_id, doctor_id, date, time, created_at, status, source, note";
 
 const toBooking = (row: BookingRow): Booking => ({
   id: row.id,
@@ -88,7 +260,22 @@ const toBooking = (row: BookingRow): Booking => ({
   date: row.date,
   time: row.time,
   createdAt: row.created_at,
+  status: row.status,
+  source: row.source,
+  ...(row.note ? { note: row.note } : {}),
 });
+
+/** Фильтр списка записей в админ-панели. */
+export type BookingFilter = {
+  from?: string;
+  to?: string;
+  doctorId?: string;
+  status?: BookingStatus;
+  source?: BookingSource;
+  /** Номер записи или текст пометки. */
+  query?: string;
+  limit?: number;
+};
 
 /**
  * Локальное хранилище прототипа на встроенном в Node.js модуле node:sqlite
@@ -98,12 +285,19 @@ export class SqliteStore
   implements BookingRepository, SessionStore, ChannelStore, StatsStore
 {
   private readonly db: DatabaseSync;
+  /** Справочники клиники: врачи, расписание, услуги, настройки. */
+  readonly clinic: ClinicStore;
+  /** Администраторы, сессии и журнал панели. */
+  readonly admin: AdminStore;
 
   constructor(path: string) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 2000;");
+    // Бот и панель — разные процессы с одной базой: WAL и ожидание блокировки.
+    this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
     this.migrate();
+    this.clinic = new ClinicStore(this.db);
+    this.admin = new AdminStore(this.db);
   }
 
   /** Версия схемы базы (PRAGMA user_version). */
@@ -119,12 +313,18 @@ export class SqliteStore
    * Базы этапа Б1–Б5 (версия 0) уже содержат таблицы версии 1: CREATE … IF NOT EXISTS.
    */
   private migrate(): void {
-    for (const [index, sql] of MIGRATIONS.entries()) {
+    for (const [index, migration] of MIGRATIONS.entries()) {
       const version = index + 1;
       if (this.schemaVersion >= version) continue;
-      this.db.exec("BEGIN");
+      // IMMEDIATE: второй процесс ждёт, а не применяет ту же миграцию параллельно.
+      this.db.exec("BEGIN IMMEDIATE");
       try {
-        this.db.exec(sql);
+        if (this.schemaVersion >= version) {
+          this.db.exec("COMMIT");
+          continue;
+        }
+        if (typeof migration === "string") this.db.exec(migration);
+        else migration(this.db);
         this.db.exec(`PRAGMA user_version = ${version}`);
         this.db.exec("COMMIT");
       } catch (error) {
@@ -140,7 +340,7 @@ export class SqliteStore
     try {
       const result = this.db
         .prepare(
-          "INSERT INTO bookings (peer_id, doctor_id, date, time, created_at) VALUES (?, ?, ?, ?, ?)",
+          "INSERT INTO bookings (peer_id, doctor_id, date, time, created_at, source, note) VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
         .run(
           booking.peerId,
@@ -148,10 +348,12 @@ export class SqliteStore
           booking.date,
           booking.time,
           booking.createdAt,
+          booking.source ?? "vk",
+          booking.note ?? null,
         );
       return {
         status: "ok",
-        booking: { ...booking, id: Number(result.lastInsertRowid) },
+        booking: this.getBooking(Number(result.lastInsertRowid))!,
       };
     } catch (error) {
       if (
@@ -166,7 +368,7 @@ export class SqliteStore
   listActiveByPeer(peerId: number, fromDate: string): Booking[] {
     const rows = this.db
       .prepare(
-        "SELECT id, peer_id, doctor_id, date, time, created_at FROM bookings WHERE peer_id = ? AND cancelled_at IS NULL AND date >= ? ORDER BY date, time",
+        `SELECT ${BOOKING_COLUMNS} FROM bookings WHERE peer_id = ? AND status = 'confirmed' AND date >= ? ORDER BY date, time`,
       )
       .all(peerId, fromDate) as BookingRow[];
     return rows.map(toBooking);
@@ -184,10 +386,140 @@ export class SqliteStore
   cancel(peerId: number, bookingId: number, cancelledAt: string): boolean {
     const result = this.db
       .prepare(
-        "UPDATE bookings SET cancelled_at = ? WHERE id = ? AND peer_id = ? AND cancelled_at IS NULL",
+        "UPDATE bookings SET cancelled_at = ?, updated_at = ?, status = 'cancelled' WHERE id = ? AND peer_id = ? AND status = 'confirmed'",
       )
-      .run(cancelledAt, bookingId, peerId);
+      .run(cancelledAt, cancelledAt, bookingId, peerId);
     return Number(result.changes) === 1;
+  }
+
+  cancelById(bookingId: number, cancelledAt: string): boolean {
+    const result = this.db
+      .prepare(
+        "UPDATE bookings SET cancelled_at = ?, updated_at = ?, status = 'cancelled' WHERE id = ? AND status = 'confirmed'",
+      )
+      .run(cancelledAt, cancelledAt, bookingId);
+    return Number(result.changes) === 1;
+  }
+
+  complete(bookingId: number, completedAt: string): boolean {
+    const result = this.db
+      .prepare(
+        "UPDATE bookings SET completed_at = ?, updated_at = ?, status = 'completed' WHERE id = ? AND status = 'confirmed'",
+      )
+      .run(completedAt, completedAt, bookingId);
+    return Number(result.changes) === 1;
+  }
+
+  move(
+    bookingId: number,
+    doctorId: string,
+    date: string,
+    time: string,
+    updatedAt: string,
+  ): "ok" | "conflict" | "missing" {
+    try {
+      const result = this.db
+        .prepare(
+          "UPDATE bookings SET doctor_id = ?, date = ?, time = ?, updated_at = ? WHERE id = ? AND status = 'confirmed'",
+        )
+        .run(doctorId, date, time, updatedAt, bookingId);
+      return Number(result.changes) === 1 ? "ok" : "missing";
+    } catch (error) {
+      if ((error as { errcode?: number }).errcode === SQLITE_CONSTRAINT_UNIQUE)
+        return "conflict";
+      throw error;
+    }
+  }
+
+  getBooking(bookingId: number): Booking | undefined {
+    const row = this.db
+      .prepare(`SELECT ${BOOKING_COLUMNS} FROM bookings WHERE id = ?`)
+      .get(bookingId) as BookingRow | undefined;
+    return row ? toBooking(row) : undefined;
+  }
+
+  /** Список записей для админ-панели (по дате и времени). */
+  searchBookings(filter: BookingFilter = {}): Booking[] {
+    const where: string[] = [];
+    const params: (string | number)[] = [];
+    if (filter.from) {
+      where.push("date >= ?");
+      params.push(filter.from);
+    }
+    if (filter.to) {
+      where.push("date <= ?");
+      params.push(filter.to);
+    }
+    if (filter.doctorId) {
+      where.push("doctor_id = ?");
+      params.push(filter.doctorId);
+    }
+    if (filter.status) {
+      where.push("status = ?");
+      params.push(filter.status);
+    }
+    if (filter.source) {
+      where.push("source = ?");
+      params.push(filter.source);
+    }
+    const query = filter.query?.trim();
+    if (query) {
+      const id = Number(query.replace(/^№/, ""));
+      if (Number.isInteger(id) && id > 0) {
+        where.push("id = ?");
+        params.push(id);
+      } else {
+        where.push("note LIKE ? ESCAPE '\\'");
+        params.push(`%${query.replace(/[\\%_]/g, "\\$&")}%`);
+      }
+    }
+    const rows = this.db
+      .prepare(
+        `SELECT ${BOOKING_COLUMNS} FROM bookings ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY date, time, id LIMIT ?`,
+      )
+      .all(...params, Math.min(filter.limit ?? 500, 2000)) as BookingRow[];
+    return rows.map(toBooking);
+  }
+
+  /** Количество записей по статусу и источнику за период (для главной панели). */
+  countBookings(from: string, to: string) {
+    return this.db
+      .prepare(
+        "SELECT status, source, COUNT(*) AS count FROM bookings WHERE date >= ? AND date <= ? GROUP BY status, source",
+      )
+      .all(from, to) as {
+      status: BookingStatus;
+      source: BookingSource;
+      count: number;
+    }[];
+  }
+
+  /** Активные будущие записи врача — удаление врача с ними запрещено. */
+  countUpcomingByDoctor(doctorId: string, fromDate: string): number {
+    const row = this.db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM bookings WHERE doctor_id = ? AND status = 'confirmed' AND date >= ?",
+      )
+      .get(doctorId, fromDate) as { n: number };
+    return row.n;
+  }
+
+  /** Отметка процесса бота: панель показывает, работает ли он. */
+  setBotStatus(key: string, value: string, at: string): void {
+    this.db
+      .prepare(
+        "INSERT INTO bot_status (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+      )
+      .run(key, value, at);
+  }
+
+  getBotStatus(): Record<string, { value: string; updatedAt: string }> {
+    const rows = this.db
+      .prepare("SELECT key, value, updated_at FROM bot_status")
+      .all() as { key: string; value: string; updated_at: string }[];
+    return Object.fromEntries(
+      rows.map((r) => [r.key, { value: r.value, updatedAt: r.updated_at }]),
+    );
   }
 
   load(peerId: number) {

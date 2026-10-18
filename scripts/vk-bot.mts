@@ -77,8 +77,25 @@ log(
 );
 
 try {
+  store.setBotStatus(
+    "started_at",
+    new Date().toISOString(),
+    new Date().toISOString(),
+  );
   await runLongPoll(
-    { api, groupId: config.vk.groupId, onUpdate: runner.onUpdate, log },
+    {
+      api,
+      groupId: config.vk.groupId,
+      onUpdate: runner.onUpdate,
+      log,
+      // Отметка для админ-панели: бот получает события ВКонтакте.
+      onPoll: () =>
+        store.setBotStatus(
+          "last_poll_at",
+          new Date().toISOString(),
+          new Date().toISOString(),
+        ),
+    },
     controller.signal,
   );
 } catch (error) {
@@ -88,6 +105,11 @@ try {
   );
   process.exitCode = 1;
 } finally {
+  store.setBotStatus(
+    "stopped_at",
+    new Date().toISOString(),
+    new Date().toISOString(),
+  );
   clearInterval(pruneTimer);
   store.close();
   log("бот остановлен");

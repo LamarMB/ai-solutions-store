@@ -161,7 +161,8 @@ describe("1–2. оффтоп и смена роли — без OpenAI", () => {
   it("без GPT оффтоп получает тот же шаблон", async () => {
     const t = setup();
     expect(text(await t.say("Расскажи анекдот"))).toBe(OUT_OF_SCOPE_TEXT);
-    expect(t.stats()).toEqual({ offtopic_rejected: 1 });
+    expect(t.stats()).toMatchObject({ offtopic_rejected: 1 });
+    expect(t.stats().model_requests_saved).toBeUndefined();
   });
 });
 

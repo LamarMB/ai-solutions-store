@@ -18,7 +18,9 @@
     "bot:vk": "tsx scripts/vk-bot.mts",
     "bot:check": "tsx scripts/vk-check.mts",
     "bot:setup": "tsx scripts/vk-setup.mts",
-    "bot:stats": "tsx scripts/bot-stats.mts"
+    "bot:stats": "tsx scripts/bot-stats.mts",
+    "admin:user": "tsx scripts/admin-user.mts",
+    "db:backup": "tsx scripts/db-backup.mts"
   },
   "dependencies": {
     "next": "16.4.0",

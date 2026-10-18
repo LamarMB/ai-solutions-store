@@ -1,5 +1,9 @@
 import { clinicReference } from "@/bot/clinic/knowledge";
-import type { Clinic } from "@/bot/clinic/types";
+import {
+  resolveClinic,
+  type Clinic,
+  type ClinicSource,
+} from "@/bot/clinic/types";
 import type { Conversation } from "@/bot/conversation/memory";
 import {
   decisionJsonSchema,
@@ -129,27 +133,37 @@ export function conversationInput(input: ConversationInput, clinic: Clinic) {
  * при ошибке, лимите или неожиданном JSON — undefined, и бот работает по правилам.
  */
 export class OpenAiConversationModel implements ConversationModel {
-  private readonly instructions: string;
-  private readonly schema: object;
+  /** Инструкции и схема пересобираются, когда меняются данные клиники. */
+  private prepared?: { clinic: Clinic; instructions: string; schema: object };
 
   constructor(
-    private readonly clinic: Clinic,
+    private readonly source: ClinicSource,
     private readonly client: OpenAiClient,
     private readonly onInvalid?: (message: string) => void,
-  ) {
-    this.instructions = conversationInstructions(clinic);
-    this.schema = decisionJsonSchema(clinic);
+  ) {}
+
+  private prepare(): { clinic: Clinic; instructions: string; schema: object } {
+    const clinic = resolveClinic(this.source);
+    if (this.prepared?.clinic !== clinic) {
+      this.prepared = {
+        clinic,
+        instructions: conversationInstructions(clinic),
+        schema: decisionJsonSchema(clinic),
+      };
+    }
+    return this.prepared;
   }
 
   async decide(input: ConversationInput): Promise<ModelDecision | undefined> {
+    const { clinic, instructions, schema } = this.prepare();
     const raw = await this.client.structured(input.peerId, {
-      instructions: this.instructions,
-      input: conversationInput(input, this.clinic),
+      instructions,
+      input: conversationInput(input, clinic),
       schemaName: "clinic_turn",
-      schema: this.schema,
+      schema,
     });
     if (raw === undefined) return undefined;
-    const decision = sanitizeDecision(raw, this.clinic);
+    const decision = sanitizeDecision(raw, clinic);
     if (!decision)
       this.onInvalid?.("openai decision rejected: schema mismatch");
     return decision;

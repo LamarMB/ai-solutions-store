@@ -20,6 +20,21 @@ export type Doctor = {
   /** Длительность приёма в минутах — шаг расписания. */
   slotMinutes: number;
   hours: readonly WorkingHours[];
+  /** Стоимость приёма в рублях (если задана администратором). */
+  priceRub?: number;
+  /** false — врач отключён: не показывается пациентам и не принимает записи. */
+  active?: boolean;
+};
+
+/**
+ * Недоступность в расписании на дату: весь день (выходной, отпуск) или
+ * интервал «ЧЧ:ММ»–«ЧЧ:ММ». Без doctorId — для всей клиники (праздник).
+ */
+export type ScheduleException = {
+  doctorId?: string;
+  date: string;
+  from?: string;
+  to?: string;
 };
 
 /** Услуга с ценой в рублях. Цены вымышленные. */
@@ -39,4 +54,21 @@ export type Clinic = {
   timeZone: string;
   specialties: readonly Specialty[];
   doctors: readonly Doctor[];
+  /** Телефон регистратуры (необязательно). */
+  phone?: string;
+  /** Описание клиники и услуг для пациентов. */
+  about?: string;
+  exceptions?: readonly ScheduleException[];
 };
+
+/**
+ * Источник данных клиники: готовый объект (тесты) или функция, которая читает
+ * актуальные данные из общей базы при каждом обращении (бот и админ-панель).
+ */
+export type ClinicSource = Clinic | (() => Clinic);
+
+export const resolveClinic = (source: ClinicSource): Clinic =>
+  typeof source === "function" ? source() : source;
+
+/** Врач принимает пациентов (не отключён администратором). */
+export const isActiveDoctor = (doctor: Doctor) => doctor.active !== false;

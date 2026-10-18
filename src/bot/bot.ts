@@ -1,4 +1,4 @@
-import type { Clinic } from "@/bot/clinic/types";
+import { resolveClinic, type ClinicSource } from "@/bot/clinic/types";
 import {
   newSession,
   parseSession,
@@ -30,7 +30,8 @@ export interface AdminNotifier {
 }
 
 export type BotDeps = {
-  clinic: Clinic;
+  /** Данные клиники; функция читает актуальные данные из общей базы. */
+  clinic: ClinicSource;
   schedule: ScheduleProvider;
   sessions: SessionStore;
   /** Правила — для работы без модели и при её ошибках. */
@@ -65,7 +66,7 @@ export function createBot(deps: BotDeps) {
 
   function count(keys: readonly StatKey[]) {
     if (!deps.stats || keys.length === 0) return;
-    const day = localDateTime(now(), deps.clinic.timeZone).date;
+    const day = localDateTime(now(), resolveClinic(deps.clinic).timeZone).date;
     for (const key of keys) deps.stats.incrementStat(day, key);
   }
 
@@ -101,6 +102,7 @@ export function createBot(deps: BotDeps) {
         event = { type: "action", payload: { a: "bot" } };
       }
       if (event.type === "text") {
+        count(["messages_received"]);
         // Частота и повторы — до разговора и модели. Тревожные признаки
         // пропускаются всегда: на них бот отвечает даже при ограничении.
         const verdict = flood.check(peerId, normalizeText(event.text));
@@ -117,16 +119,18 @@ export function createBot(deps: BotDeps) {
             : [];
         }
       }
+      // Снимок данных клиники на время хода: изменения из панели — со следующего сообщения.
+      const clinic = resolveClinic(deps.clinic);
       const { session, replies, effects, stats } = await handleTurn(
         loadSession(peerId),
         event,
         {
           peerId,
-          clinic: deps.clinic,
+          clinic,
           schedule: deps.schedule,
           interpreter: deps.interpreter,
           model: deps.model,
-          today: localDateTime(now(), deps.clinic.timeZone).date,
+          today: localDateTime(now(), clinic.timeZone).date,
           now: now(),
         },
       );

@@ -1,16 +1,31 @@
+/** Статус записи: подтверждена, приём состоялся, отменена. */
+export const BOOKING_STATUSES = [
+  "confirmed",
+  "completed",
+  "cancelled",
+] as const;
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+
+/** Откуда запись: бот ВКонтакте или админ-панель. */
+export type BookingSource = "vk" | "admin";
+
 /** Запись на приём. Только вымышленные данные: врач, слот и id диалога ВКонтакте. */
 export type Booking = {
   id: number;
-  /** Идентификатор собеседника (peer_id ВКонтакте или id симулятора). */
+  /** Идентификатор собеседника (peer_id ВКонтакте); 0 — запись из админ-панели. */
   peerId: number;
   doctorId: string;
   /** Дата «ГГГГ-ММ-ДД» и время «ЧЧ:ММ» — локальные для клиники. */
   date: string;
   time: string;
   createdAt: string;
+  status?: BookingStatus;
+  source?: BookingSource;
+  /** Пометка администратора (демо: без реальных персональных данных). */
+  note?: string;
 };
 
-export type NewBooking = Omit<Booking, "id">;
+export type NewBooking = Omit<Booking, "id" | "status">;
 
 /**
  * Хранилище записей. Защита от двойного бронирования — на уровне хранилища:
@@ -21,12 +36,25 @@ export interface BookingRepository {
   insert(
     booking: NewBooking,
   ): { status: "ok"; booking: Booking } | { status: "conflict" };
-  /** Активные записи собеседника, начиная с указанной даты, по возрастанию времени. */
+  /** Подтверждённые записи собеседника, начиная с указанной даты, по возрастанию времени. */
   listActiveByPeer(peerId: number, fromDate: string): Booking[];
   /** Занятые слоты врача на дату (только время). */
   listBookedTimes(doctorId: string, date: string): string[];
-  /** Отменяет активную запись собеседника; false — записи нет или она чужая. */
+  /** Отменяет подтверждённую запись собеседника; false — записи нет или она чужая. */
   cancel(peerId: number, bookingId: number, cancelledAt: string): boolean;
+  /** Отмена любой подтверждённой записи (администратор). */
+  cancelById(bookingId: number, cancelledAt: string): boolean;
+  /** Отметка «приём состоялся». */
+  complete(bookingId: number, completedAt: string): boolean;
+  /** Перенос подтверждённой записи; `conflict` — новый слот занят. */
+  move(
+    bookingId: number,
+    doctorId: string,
+    date: string,
+    time: string,
+    updatedAt: string,
+  ): "ok" | "conflict" | "missing";
+  getBooking(bookingId: number): Booking | undefined;
 }
 
 /** Состояние диалога по собеседнику — чтобы разговор переживал перезапуск. */

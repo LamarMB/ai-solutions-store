@@ -8,7 +8,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { askConsultant } from "@/app/consultant/actions";
+import { askConsultant } from "@/app/(site)/consultant/actions";
 import type { RecommendationView } from "@/consultant/recommendations";
 import { LIMITS, type ChatTurn } from "@/consultant/types";
 import { RecommendationCard } from "@/components/consultant/RecommendationCard";
