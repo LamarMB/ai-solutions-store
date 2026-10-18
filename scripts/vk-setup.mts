@@ -12,12 +12,13 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fictionalClinic } from "@/bot/clinic/fictional-clinic";
 import { createLogger } from "@/bot/config";
-import { RuleInterpreter } from "@/bot/dialog/rule-interpreter";
-import type { Interpretation } from "@/bot/dialog/types";
+import { newSession } from "@/bot/conversation/memory";
+import type { ModelDecision } from "@/bot/conversation/model";
 import { upsertEnv } from "@/bot/env-file";
 import { loadLocalEnv } from "@/bot/env";
 import { MODEL_PREFERENCE, pickModels } from "@/bot/llm/models";
-import { OpenAiInterpreter } from "@/bot/llm/openai-interpreter";
+import { OpenAiClient } from "@/bot/llm/openai-client";
+import { OpenAiConversationModel } from "@/bot/llm/openai-conversation";
 import { localDateTime } from "@/bot/schedule/time";
 import { sleep, VkApi, VkApiError } from "@/bot/vk/api";
 
@@ -194,42 +195,50 @@ if (apiKey.length < 20) {
 
   const today = localDateTime(new Date(), fictionalClinic.timeZone).date;
   const questions = [
-    "подскажите, сколько у вас стоит приём лора и где вы находитесь",
+    "Здравствуйте, у меня болит колено",
+    "сколько стоит приём лора и где вы находитесь?",
     "хочу записать ребёнка к педиатру на завтра",
-    "какие у вас есть стоматологи?",
   ];
   let chosen = "";
   for (const model of candidates) {
     const errors: string[] = [];
-    const interpreter = new OpenAiInterpreter(
+    const gpt = new OpenAiConversationModel(
       fictionalClinic,
-      { apiKey, model, timeoutMs: 30_000, onError: (m) => errors.push(m) },
-      new RuleInterpreter(fictionalClinic),
+      new OpenAiClient({
+        apiKey,
+        model,
+        timeoutMs: 30_000,
+        onError: (m) => errors.push(m),
+      }),
+      (m) => errors.push(m),
     );
-    const results: Interpretation[] = [];
+    const results: (ModelDecision | undefined)[] = [];
     for (const question of questions) {
+      const session = newSession();
       results.push(
-        await interpreter.interpret(question, {
+        await gpt.decide({
           peerId: 1,
           today,
-          step: "menu",
+          text: question,
+          flow: session.flow,
+          conv: session.conv,
         }),
       );
       if (errors.length) break;
     }
-    if (errors.length) {
-      warn(`модель ${model} не подошла: ${errors[0]}`);
+    if (errors.length || results.some((r) => !r)) {
+      warn(`модель ${model} не подошла: ${errors[0] ?? "пустой ответ"}`);
       continue;
     }
     chosen = model;
-    ok(`модель ${model} отвечает:`);
+    ok(`модель ${model} ведёт разговор:`);
     questions.forEach((q, i) => {
-      const r = results[i];
+      const r = results[i]!;
       log(
-        `     «${q}» → ${r.intent}${r.specialtyId ? `, ${r.specialtyId}` : ""}${r.date ? `, ${r.date}` : ""}`,
+        `     «${q}» → ${r.action}${r.specialtyId ? `, ${r.specialtyId}` : ""}${r.question ? `, вопрос ${r.question}` : ""}${r.date ? `, ${r.date}` : ""}`,
       );
-      if (r.answer)
-        log(`       ответ: ${r.answer.replace(/\s+/g, " ").slice(0, 200)}`);
+      if (r.reply)
+        log(`       ответ: ${r.reply.replace(/\s+/g, " ").slice(0, 200)}`);
     });
     break;
   }

@@ -66,8 +66,8 @@ describe("сценарий записи", () => {
   it("приветствие → направление → врач → дата → время → подтверждение", async () => {
     const { bot, schedule } = setup();
     const start = await send(bot, 1, { type: "start" });
-    expect(text(start)).toMatch(/демонстрационный бот/);
-    expect(text(start)).toMatch(/не отправляйте медицинские данные/);
+    expect(text(start)).toMatch(/автоматический помощник/);
+    expect(text(start)).toMatch(/не ставлю диагнозы/);
 
     const confirm = await toConfirm(bot, 1);
     expect(text(confirm)).toMatch(/Проверьте запись/);
@@ -231,28 +231,30 @@ describe("просмотр и отмена записей", () => {
 });
 
 describe("безопасность и данные", () => {
-  it("медицинские вопросы — отказ без советов, жалобы не сохраняются", async () => {
-    const { bot, store } = setup();
+  it("просьба о лекарствах — отказ без советов и предложение специалиста", async () => {
+    const { bot } = setup();
     const complaint = "У меня болит горло и температура, что принять?";
     const r = await send(bot, 1, { type: "text", text: complaint });
-    expect(text(r)).toMatch(/не даю медицинских советов/);
+    expect(text(r)).toMatch(/не ставлю диагнозы/);
     expect(text(r)).toMatch(/103 или 112/);
-    expect(JSON.stringify(store.load(1))).not.toMatch(/горло|температур/);
+    expect(text(r)).not.toMatch(/примите|таблетк|мг/i);
   });
 
-  it("сохраняется только шаг диалога, без текста сообщений", async () => {
+  it("телефон не сохраняется; история удаляется командой «сброс»", async () => {
     const { bot, store } = setup();
     await send(bot, 1, {
       type: "text",
       text: "Меня зовут Иван, телефон 89990001122, хочу записаться",
     });
-    expect(JSON.stringify(store.load(1)?.state)).not.toMatch(/Иван|8999/);
+    expect(JSON.stringify(store.load(1)?.state)).not.toMatch(/8999/);
+    await send(bot, 1, { type: "text", text: "сброс" });
+    expect(JSON.stringify(store.load(1)?.state)).not.toMatch(/Иван/);
   });
 
   it("неизвестный текст — подсказка и текущие кнопки", async () => {
     const { bot } = setup();
     const r = await send(bot, 1, { type: "text", text: "расскажите анекдот" });
-    expect(text(r)).toMatch(/помогаю записаться на приём/);
+    expect(text(r)).toMatch(/Не совсем понял/);
     expect(buttons(r).length).toBeGreaterThan(0);
   });
 
@@ -290,7 +292,7 @@ describe("сессии", () => {
       /подтверждена/,
     );
     expect(text(await send(bot, 2, { type: "resume" }))).toMatch(
-      /демонстрационный бот/,
+      /автоматический помощник/,
     );
   });
 
@@ -464,7 +466,7 @@ describe("понимание текста: подсказки проверяют
       1,
       { type: "text", text: "..." },
     );
-    expect(text(r)).toMatch(/На вт, 20 окт свободного времени нет/);
+    expect(text(r)).toMatch(/на вт, 20 окт свободного времени нет/);
     r = await send(
       withInterpreter(fixed({ intent: "book", doctorId: "dr-house" })).bot,
       1,
@@ -564,7 +566,7 @@ describe("передача администратору", () => {
     advance(2);
     expect(
       text(await send(bot, 1, { type: "text", text: "здравствуйте" })),
-    ).toMatch(/демонстрационный бот/);
+    ).toMatch(/автоматический помощник/);
   });
 
   it("сбой уведомления не ломает ответ пациенту", async () => {

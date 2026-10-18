@@ -35,6 +35,7 @@ const { bot, store } = createDemoBot({
   openai: config.openai,
   notifier,
   handoffHours: config.handoffHours,
+  historyHours: config.historyHours,
   log,
 });
 const runner = createVkRunner({
@@ -45,11 +46,17 @@ const runner = createVkRunner({
   log,
 });
 
-// Отметки об обработанных событиях старше трёх суток больше не нужны.
-const prune = () =>
+// Отметки об обработанных событиях старше трёх суток больше не нужны;
+// разговоры без активности дольше BOT_HISTORY_HOURS удаляются вместе с историей.
+const prune = () => {
   store.pruneProcessedEvents(
     new Date(Date.now() - 3 * 86_400_000).toISOString(),
   );
+  const removed = store.pruneSessions(
+    new Date(Date.now() - config.historyHours * 3_600_000).toISOString(),
+  );
+  if (removed > 0) log(`удалено устаревших разговоров: ${removed}`);
+};
 prune();
 const pruneTimer = setInterval(prune, 3_600_000);
 
@@ -64,7 +71,8 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 log(
   `сообщество ${config.vk.groupId}, тестовых аккаунтов: ${config.vk.allowedUserIds.size}, ` +
     `OpenAI: ${config.openai ? `да (${config.openai.model})` : "нет — работают кнопки и правила"}, ` +
-    `администратор: ${notifier ? "уведомления включены" : "не задан"}, база: ${config.dbPath}`,
+    `администратор: ${notifier ? "уведомления включены" : "не задан"}, база: ${config.dbPath} (схема v${store.schemaVersion}), ` +
+    `история разговора: ${config.historyHours} ч`,
 );
 
 try {

@@ -4,7 +4,12 @@ export type Weekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 /** Часы приёма в один из дней недели, время — «ЧЧ:ММ» по часовому поясу клиники. */
 export type WorkingHours = { weekday: Weekday; from: string; to: string };
 
-export type Specialty = { id: string; title: string };
+export type Specialty = {
+  id: string;
+  title: string;
+  /** «к терапевту» — для естественных ответов. */
+  toWhom: string;
+};
 
 export type Doctor = {
   id: string;

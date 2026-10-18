@@ -6,8 +6,8 @@ import { createBot, type AdminNotifier } from "@/bot/bot";
 import { fictionalClinic } from "@/bot/clinic/fictional-clinic";
 import type { Clinic } from "@/bot/clinic/types";
 import { RuleInterpreter } from "@/bot/dialog/rule-interpreter";
-import type { TextInterpreter } from "@/bot/dialog/types";
-import { OpenAiInterpreter } from "@/bot/llm/openai-interpreter";
+import { OpenAiClient } from "@/bot/llm/openai-client";
+import { OpenAiConversationModel } from "@/bot/llm/openai-conversation";
 import { ClinicSchedule } from "@/bot/schedule/schedule";
 import { SqliteStore } from "@/bot/storage/sqlite";
 
@@ -22,6 +22,7 @@ export function createDemoBot({
   openai,
   notifier,
   handoffHours,
+  historyHours,
   log,
 }: {
   dbPath: string;
@@ -31,31 +32,36 @@ export function createDemoBot({
   openai?: { apiKey: string; model: string; dailyLimit?: number };
   notifier?: AdminNotifier;
   handoffHours?: number;
+  /** Срок хранения разговора без активности, часов. */
+  historyHours?: number;
   log?: (message: string) => void;
 }) {
   const store = new SqliteStore(dbPath);
   const schedule = new ClinicSchedule(clinic, store, now);
   const rules = new RuleInterpreter(clinic);
-  const interpreter: TextInterpreter = openai
-    ? new OpenAiInterpreter(
+  // GPT ведёт разговор; правила — запасной режим и проверки безопасности.
+  const model = openai
+    ? new OpenAiConversationModel(
         clinic,
-        {
+        new OpenAiClient({
           apiKey: openai.apiKey,
           model: openai.model,
           dailyLimit: openai.dailyLimit,
           now,
           onError: log,
-        },
-        rules,
+        }),
+        log,
       )
-    : rules;
+    : undefined;
   const bot = createBot({
     clinic,
     schedule,
     sessions: store,
-    interpreter,
+    interpreter: rules,
+    model,
     notifier,
     handoffHours,
+    historyHours,
     now,
     onError: log,
   });

@@ -292,6 +292,32 @@ describe("VK: сценарий в сообщениях сообщества", ()
   });
 });
 
+describe("VK: разговор обычным текстом", () => {
+  it("«болит колено» → уточнения → запись; повтор события не даёт второго ответа и записи", async () => {
+    const t = setup();
+    for (const text of [
+      "Здравствуйте, у меня болит колено",
+      "Без травмы",
+      "Уже дня четыре",
+      "Нет, просто иногда ноет",
+    ])
+      await t.runner.onUpdate(t.message(PATIENT, text));
+    expect(String(t.sent(PATIENT).at(-1)!.params.message)).toMatch(
+      /травматологу-ортопеду/,
+    );
+    await t.runner.onUpdate(t.pressUpdate(PATIENT, "Ближайшее время"));
+    const confirm = t.pressUpdate(PATIENT, "Подтвердить");
+    await t.runner.onUpdate(confirm);
+    const sentAfterConfirm = t.sent(PATIENT).length;
+    // ВКонтакте доставил то же событие ещё раз.
+    await t.runner.onUpdate(confirm);
+    expect(t.sent(PATIENT)).toHaveLength(sentAfterConfirm);
+    expect(t.schedule.listBookings(PATIENT)).toMatchObject([
+      { doctorId: "maketov" },
+    ]);
+  });
+});
+
 describe("VK: ошибки", () => {
   it("сбой бота — короткое сообщение пациенту, детали только в логе", async () => {
     const t = setup();

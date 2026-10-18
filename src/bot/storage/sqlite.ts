@@ -53,6 +53,16 @@ CREATE TABLE IF NOT EXISTS notices (
 );
 `;
 
+/**
+ * Миграции схемы. Версия 2: индекс для удаления устаревших разговоров.
+ * Формат JSON в sessions.state сменился на v2 (шаг записи + память разговора);
+ * старые значения читаются кодом (parseSession), переписывать их не нужно.
+ */
+const MIGRATIONS = [
+  SCHEMA,
+  "CREATE INDEX IF NOT EXISTS sessions_updated ON sessions (updated_at);",
+];
+
 type BookingRow = {
   id: number;
   peer_id: number;
@@ -84,7 +94,35 @@ export class SqliteStore
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 2000;");
-    this.db.exec(SCHEMA);
+    this.migrate();
+  }
+
+  /** Версия схемы базы (PRAGMA user_version). */
+  get schemaVersion(): number {
+    const row = this.db.prepare("PRAGMA user_version").get() as {
+      user_version: number;
+    };
+    return row.user_version;
+  }
+
+  /**
+   * Миграции по PRAGMA user_version. Каждая выполняется один раз, в транзакции.
+   * Базы этапа Б1–Б5 (версия 0) уже содержат таблицы версии 1: CREATE … IF NOT EXISTS.
+   */
+  private migrate(): void {
+    for (const [index, sql] of MIGRATIONS.entries()) {
+      const version = index + 1;
+      if (this.schemaVersion >= version) continue;
+      this.db.exec("BEGIN");
+      try {
+        this.db.exec(sql);
+        this.db.exec(`PRAGMA user_version = ${version}`);
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
   }
 
   insert(
@@ -164,6 +202,17 @@ export class SqliteStore
         "INSERT INTO sessions (peer_id, state, updated_at) VALUES (?, ?, ?) ON CONFLICT(peer_id) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at",
       )
       .run(peerId, JSON.stringify(state), updatedAt);
+  }
+
+  delete(peerId: number): void {
+    this.db.prepare("DELETE FROM sessions WHERE peer_id = ?").run(peerId);
+  }
+
+  pruneSessions(before: string): number {
+    const result = this.db
+      .prepare("DELETE FROM sessions WHERE updated_at < ?")
+      .run(before);
+    return Number(result.changes);
   }
 
   getPausedUntil(peerId: number): string | undefined {

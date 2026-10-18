@@ -48,6 +48,7 @@ const BotEnvSchema = z.object({
   OPENAI_DAILY_REQUEST_LIMIT: z.coerce.number().int().positive().default(500),
   BOT_DB_PATH: z.string().default(".data/bot.sqlite"),
   BOT_HANDOFF_HOURS: z.coerce.number().positive().max(72).default(12),
+  BOT_HISTORY_HOURS: z.coerce.number().positive().max(168).default(24),
 });
 
 export type BotConfig = {
@@ -61,6 +62,8 @@ export type BotConfig = {
   openai?: { apiKey: string; model: string; dailyLimit: number };
   dbPath: string;
   handoffHours: number;
+  /** Срок хранения разговора без активности, часов. */
+  historyHours: number;
 };
 
 export type ConfigResult =
@@ -99,6 +102,7 @@ export function loadBotConfig(
         : undefined,
       dbPath: e.BOT_DB_PATH,
       handoffHours: e.BOT_HANDOFF_HOURS,
+      historyHours: e.BOT_HISTORY_HOURS,
     },
   };
 }

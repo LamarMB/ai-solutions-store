@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { upsertEnv } from "@/bot/env-file";
 import { pickModels } from "@/bot/llm/models";
-import { reasoningOptions } from "@/bot/llm/openai-interpreter";
+import { reasoningOptions } from "@/bot/llm/openai-client";
 
 describe("настройка бота", () => {
   it("upsertEnv меняет значения и сохраняет комментарии", () => {

@@ -33,6 +33,10 @@ export interface BookingRepository {
 export interface SessionStore {
   load(peerId: number): { state: unknown; updatedAt: string } | undefined;
   save(peerId: number, state: unknown, updatedAt: string): void;
+  /** Удаляет разговор собеседника (команда сброса). */
+  delete(peerId: number): void;
+  /** Удаляет разговоры без активности с указанного момента; возвращает их число. */
+  pruneSessions(before: string): number;
   /** Бот молчит в диалоге до этого момента (ISO): отвечает администратор. */
   getPausedUntil(peerId: number): string | undefined;
   setPausedUntil(peerId: number, until: string | undefined): void;

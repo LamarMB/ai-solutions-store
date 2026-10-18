@@ -4,7 +4,7 @@
  *   npm run bot:sim                 собеседник 1, база .data/bot.sqlite
  *   npm run bot:sim -- --peer=2     другой собеседник (проверка двойной записи)
  *   npm run bot:sim -- --db=путь    другой файл базы
- *   npm run bot:sim -- --openai     понимание текста через OpenAI (ключ из .env.local)
+ *   npm run bot:sim -- --openai     разговор через OpenAI (ключ из .env.local)
  *
  * Номер — нажать кнопку, любой другой текст — сообщение боту, «выход» — завершить.
  */

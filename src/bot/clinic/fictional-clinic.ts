@@ -33,6 +33,11 @@ export const fictionalClinic = {
       specialtyId: "ent",
       priceRub: 2100,
     },
+    {
+      title: "Приём травматолога-ортопеда",
+      specialtyId: "orthopedist",
+      priceRub: 2300,
+    },
   ],
   visitTips: [
     "Приходите за 10 минут до приёма, чтобы оформить карту в регистратуре.",
@@ -41,10 +46,19 @@ export const fictionalClinic = {
   ],
   timeZone: "Europe/Moscow",
   specialties: [
-    { id: "therapist", title: "Терапевт" },
-    { id: "dentist", title: "Стоматолог" },
-    { id: "pediatrician", title: "Педиатр" },
-    { id: "ent", title: "Оториноларинголог (ЛОР)" },
+    { id: "therapist", title: "Терапевт", toWhom: "к терапевту" },
+    { id: "dentist", title: "Стоматолог", toWhom: "к стоматологу" },
+    { id: "pediatrician", title: "Педиатр", toWhom: "к педиатру" },
+    {
+      id: "ent",
+      title: "Оториноларинголог (ЛОР)",
+      toWhom: "к ЛОРу (оториноларингологу)",
+    },
+    {
+      id: "orthopedist",
+      title: "Травматолог-ортопед",
+      toWhom: "к травматологу-ортопеду",
+    },
   ],
   doctors: [
     {
@@ -104,6 +118,20 @@ export const fictionalClinic = {
       hours: [
         { weekday: 2, from: "15:00", to: "19:00" },
         { weekday: 5, from: "09:00", to: "12:00" },
+      ],
+    },
+    {
+      id: "maketov",
+      about:
+        "Травматолог-ортопед: суставы, позвоночник, последствия травм; принимает взрослых.",
+      name: "Игорь Макетов",
+      specialtyId: "orthopedist",
+      slotMinutes: 30,
+      hours: [
+        { weekday: 1, from: "14:00", to: "18:00" },
+        { weekday: 2, from: "09:00", to: "13:00" },
+        { weekday: 4, from: "09:00", to: "13:00" },
+        { weekday: 6, from: "10:00", to: "14:00" },
       ],
     },
   ],

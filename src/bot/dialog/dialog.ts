@@ -48,10 +48,9 @@ const MENU: Button = { label: "В меню", action: { a: "menu" } };
 const BACK: Button = { label: "Назад", action: { a: "back" } };
 
 export const MEDICAL_REFUSAL =
-  "Я не даю медицинских советов, не ставлю диагнозы и не назначаю лечение. " +
-  "С вопросами о здоровье обратитесь к врачу — на приём можно записаться здесь. " +
-  "При угрозе жизни звоните 103 или 112.\n" +
-  "Пожалуйста, не присылайте жалобы и медицинские документы: бот их не принимает.";
+  "Я не ставлю диагнозы, не толкую анализы и не назначаю лечение — это может сделать только врач на приёме. " +
+  "Могу помочь подобрать специалиста и записаться. При угрозе жизни звоните 103 или 112.\n" +
+  "Пожалуйста, не присылайте медицинские документы, анализы и фото: бот их не принимает.";
 
 const chunk = <T>(items: readonly T[], size: number): T[][] => {
   const rows: T[][] = [];
@@ -99,7 +98,7 @@ export async function handleEvent(
   return handleMeaning(state, meaning, ctx);
 }
 
-function handleMeaning(
+export function handleMeaning(
   state: DialogState,
   meaning: Interpretation,
   ctx: DialogContext,
@@ -138,7 +137,7 @@ function handleMeaning(
       break;
   }
   return show(state, ctx, [
-    "Я помогаю записаться на приём, отвечаю на вопросы о ценах, врачах и адресе клиники. Выберите действие кнопкой или напишите, что нужно.",
+    "Не совсем понял. Могу подобрать специалиста, записать на приём, рассказать о ценах, врачах и адресе или позвать администратора. Напишите, что нужно, или выберите кнопку.",
   ]);
 }
 
@@ -146,33 +145,45 @@ function handleMeaning(
  * Переход к записи по подсказкам из текста. Каждая подсказка проверяется по
  * расписанию; неподходящие отбрасываются. До записи — всегда шаг подтверждения.
  */
-function startBooking(
+export function startBooking(
   meaning: Interpretation,
   ctx: DialogContext,
+  notes: string[] = [],
 ): DialogResult {
   const { schedule } = ctx;
-  const doctor = meaning.doctorId
-    ? schedule.getDoctor(meaning.doctorId)
-    : undefined;
-  const specialtyId = doctor?.specialtyId ?? meaning.specialtyId;
+  const specialtyId =
+    (meaning.doctorId && schedule.getDoctor(meaning.doctorId)?.specialtyId) ||
+    meaning.specialtyId;
   const specialty = schedule
     .listSpecialties()
     .find((s) => s.id === specialtyId);
-  if (!specialty) return show({ step: "specialty" }, ctx);
-  if (!doctor) return show({ step: "doctor", specialtyId: specialty.id }, ctx);
+  if (!specialty) return show({ step: "specialty" }, ctx, notes);
+  // Единственный врач направления выбирается сразу.
+  const doctors = schedule.listDoctors(specialty.id);
+  const doctor = meaning.doctorId
+    ? schedule.getDoctor(meaning.doctorId)
+    : doctors.length === 1
+      ? doctors[0]
+      : undefined;
+  if (!doctor)
+    return show({ step: "doctor", specialtyId: specialty.id }, ctx, notes);
 
   const base = { specialtyId: specialty.id, doctorId: doctor.id };
   const date = meaning.date && isDate(meaning.date) ? meaning.date : undefined;
   if (!date || !schedule.listAvailableDays(doctor.id).includes(date)) {
     return show({ step: "day", ...base }, ctx, [
-      ...(date ? [`На ${formatDayShort(date)} свободного времени нет.`] : []),
+      ...notes,
+      ...(date
+        ? [`${doctor.name}: на ${formatDayShort(date)} свободного времени нет.`]
+        : []),
     ]);
   }
   const time = meaning.time && isTime(meaning.time) ? meaning.time : undefined;
   if (time && schedule.listFreeSlots(doctor.id, date).includes(time)) {
-    return show({ step: "confirm", ...base, date, time }, ctx);
+    return show({ step: "confirm", ...base, date, time }, ctx, notes);
   }
   return show({ step: "time", ...base, date, page: 0 }, ctx, [
+    ...notes,
     ...(time ? [`Время ${time} недоступно. Выберите другое.`] : []),
   ]);
 }
@@ -214,6 +225,13 @@ function handleAction(
       };
     case "bot":
       return show({ step: "menu" }, ctx, ["Снова на связи бот."]);
+
+    // Ответы на вопросы о жалобе, ближайшее время и сброс обрабатывает
+    // разговорный слой (conversation/orchestrator); здесь они устарели.
+    case "ans":
+    case "near":
+    case "reset":
+      return stale(state, ctx);
 
     case "spec":
       if (
@@ -318,6 +336,7 @@ function confirm(
       // Запись уже сохранена; всё, что ниже, — необязательно.
       return {
         state: { step: "menu" },
+        effects: [{ type: "booked" }],
         replies: [
           {
             text:
@@ -356,11 +375,12 @@ function confirm(
   }
 }
 
-function greet(ctx: DialogContext): DialogResult {
+export function greet(ctx: DialogContext): DialogResult {
   return show({ step: "menu" }, ctx, [
-    `Здравствуйте! Это демонстрационный бот: ${ctx.clinic.name}.\n` +
-      "Врачи, цены и расписание вымышленные, запись — тестовая.\n" +
-      "Пожалуйста, не отправляйте медицинские данные: жалобы, диагнозы, документы.",
+    `Здравствуйте! Я автоматический помощник администратора: ${ctx.clinic.name}.\n` +
+      "Это демонстрация: врачи, цены и расписание вымышленные, запись — тестовая.\n" +
+      "Можно коротко написать, что беспокоит, — помогу выбрать специалиста и время. " +
+      "Я не ставлю диагнозы и не назначаю лечение; документы и анализы не присылайте.",
   ]);
 }
 
@@ -414,8 +434,28 @@ function previous(state: DialogState): DialogState {
   }
 }
 
+/** Ближайший свободный слот врача (или любого врача направления). */
+export function nearestSlot(
+  schedule: ScheduleProvider,
+  specialtyId: string,
+  doctorId?: string,
+): { doctorId: string; date: string; time: string } | undefined {
+  const doctors = doctorId
+    ? schedule.listDoctors(specialtyId).filter((d) => d.id === doctorId)
+    : schedule.listDoctors(specialtyId);
+  let best: { doctorId: string; date: string; time: string } | undefined;
+  for (const doctor of doctors) {
+    const date = schedule.listAvailableDays(doctor.id)[0];
+    const time = date && schedule.listFreeSlots(doctor.id, date)[0];
+    if (!date || !time) continue;
+    if (!best || `${date} ${time}` < `${best.date} ${best.time}`)
+      best = { doctorId: doctor.id, date, time };
+  }
+  return best;
+}
+
 /** Показывает шаг; если данных для него больше нет — ближайший осмысленный шаг. */
-function show(
+export function show(
   state: DialogState,
   ctx: DialogContext,
   notes: string[] = [],
@@ -463,14 +503,27 @@ function show(
         .listSpecialties()
         .find((s) => s.id === state.specialtyId);
       if (!specialty) return show({ step: "specialty" }, ctx, notes);
-      return reply(`${specialty.title}. Выберите врача:`, [
-        ...schedule
-          .listDoctors(specialty.id)
-          .map((d) => [
+      const doctors = schedule.listDoctors(specialty.id);
+      const lines = doctors.map((d) => {
+        const slot = nearestSlot(schedule, specialty.id, d.id);
+        return `• ${d.name} — ${slot ? `ближайшее время: ${formatDayShort(slot.date)}, ${slot.time}` : "в ближайшие две недели мест нет"}`;
+      });
+      return reply(
+        `${specialty.title}:\n${lines.join("\n")}\n\nВыберите врача или ближайшее время:`,
+        [
+          ...doctors.map((d) => [
             { label: d.name, action: { a: "doc", d: d.id } as Action },
           ]),
-        [BACK, MENU],
-      ]);
+          [
+            {
+              label: "Ближайшее время",
+              action: { a: "near", s: specialty.id },
+              color: "primary",
+            },
+          ],
+          [BACK, MENU],
+        ],
+      );
     }
 
     case "day": {
@@ -665,7 +718,7 @@ function describeBooking(
 }
 
 /** Текст, совпадающий с подписью кнопки текущего шага (без учёта регистра). */
-function matchOption(
+export function matchOption(
   state: DialogState,
   text: string,
   ctx: DialogContext,

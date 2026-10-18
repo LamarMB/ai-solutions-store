@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { QUESTION_KEYS } from "@/bot/conversation/triage";
 
 /** Темы справки: ответы строятся только из данных клиники. */
 export const INFO_TOPICS = [
@@ -35,6 +36,16 @@ export const ActionSchema = z.discriminatedUnion("a", [
   z.strictObject({ a: z.literal("hoff") }),
   /** Вернуться к боту после передачи администратору. */
   z.strictObject({ a: z.literal("bot") }),
+  /** Ответ кнопкой на уточняющий вопрос о жалобе (только на текущий вопрос). */
+  z.strictObject({
+    a: z.literal("ans"),
+    q: z.enum(QUESTION_KEYS),
+    v: z.enum(["yes", "no"]),
+  }),
+  /** Ближайшее свободное время направления — на подтверждение, не запись. */
+  z.strictObject({ a: z.literal("near"), s: z.string().max(40) }),
+  /** Удалить историю разговора и начать заново. */
+  z.strictObject({ a: z.literal("reset") }),
 ]);
 export type Action = z.infer<typeof ActionSchema>;
 
@@ -135,5 +146,8 @@ export interface TextInterpreter {
   ): Interpretation | Promise<Interpretation>;
 }
 
-/** Побочные эффекты шага, которые выполняет обёртка бота, а не диалог. */
-export type Effect = { type: "handoff" };
+/**
+ * Побочные эффекты шага, которые выполняет обёртка бота, а не диалог:
+ * передача администратору и отметка о созданной записи.
+ */
+export type Effect = { type: "handoff" } | { type: "booked" };

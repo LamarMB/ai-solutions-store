@@ -1,20 +1,20 @@
 import type { Clinic } from "@/bot/clinic/types";
-import { handleEvent } from "@/bot/dialog/dialog";
-import { normalizeText } from "@/bot/dialog/rule-interpreter";
 import {
-  DialogStateSchema,
-  INITIAL_STATE,
-  type BotEvent,
-  type DialogState,
-  type Reply,
-  type TextInterpreter,
-} from "@/bot/dialog/types";
+  newSession,
+  parseSession,
+  serializeSession,
+  type Session,
+} from "@/bot/conversation/memory";
+import type { ConversationModel } from "@/bot/conversation/model";
+import { handleTurn } from "@/bot/conversation/orchestrator";
+import { normalizeText } from "@/bot/dialog/rule-interpreter";
+import type { BotEvent, Reply, TextInterpreter } from "@/bot/dialog/types";
 import type { ScheduleProvider } from "@/bot/schedule/schedule";
 import { localDateTime } from "@/bot/schedule/time";
 import type { SessionStore } from "@/bot/storage/types";
 
-/** Через сколько неактивности диалог начинается заново. */
-const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+/** Через сколько часов неактивности разговор и его история забываются. */
+export const DEFAULT_HISTORY_HOURS = 24;
 /** Слова, которыми пациент возвращает бота после передачи администратору. */
 const RESUME_WORDS = ["бот", "вернуться к боту", "/bot"];
 
@@ -27,8 +27,13 @@ export type BotDeps = {
   clinic: Clinic;
   schedule: ScheduleProvider;
   sessions: SessionStore;
+  /** Правила — для работы без модели и при её ошибках. */
   interpreter: TextInterpreter;
+  /** Разговорная модель (OpenAI); без неё — правила и кнопки. */
+  model?: ConversationModel;
   notifier?: AdminNotifier;
+  /** Срок хранения разговора без активности, часов. */
+  historyHours?: number;
   /** Сколько часов бот молчит после передачи администратору. */
   handoffHours?: number;
   now?: () => Date;
@@ -45,13 +50,14 @@ export function createBot(deps: BotDeps) {
   const now = deps.now ?? (() => new Date());
   const handoffMs = (deps.handoffHours ?? 12) * 60 * 60 * 1000;
 
-  function loadState(peerId: number): DialogState {
+  const historyMs = (deps.historyHours ?? DEFAULT_HISTORY_HOURS) * 3_600_000;
+
+  function loadSession(peerId: number): Session {
     const saved = deps.sessions.load(peerId);
-    if (!saved) return INITIAL_STATE;
-    if (now().getTime() - Date.parse(saved.updatedAt) > SESSION_TTL_MS)
-      return INITIAL_STATE;
-    const parsed = DialogStateSchema.safeParse(saved.state);
-    return parsed.success ? parsed.data : INITIAL_STATE;
+    if (!saved) return newSession();
+    if (now().getTime() - Date.parse(saved.updatedAt) > historyMs)
+      return newSession();
+    return parseSession(saved.state);
   }
 
   function isPaused(peerId: number): boolean {
@@ -77,20 +83,25 @@ export function createBot(deps: BotDeps) {
         deps.sessions.setPausedUntil(peerId, undefined);
         event = { type: "action", payload: { a: "bot" } };
       }
-      const { state, replies, effects } = await handleEvent(
-        loadState(peerId),
+      const { session, replies, effects } = await handleTurn(
+        loadSession(peerId),
         event,
         {
           peerId,
           clinic: deps.clinic,
           schedule: deps.schedule,
           interpreter: deps.interpreter,
+          model: deps.model,
           today: localDateTime(now(), deps.clinic.timeZone).date,
         },
       );
-      deps.sessions.save(peerId, state, now().toISOString());
+      deps.sessions.save(
+        peerId,
+        serializeSession(session),
+        now().toISOString(),
+      );
 
-      for (const effect of effects ?? []) {
+      for (const effect of effects) {
         if (effect.type === "handoff") {
           deps.sessions.setPausedUntil(
             peerId,
@@ -115,6 +126,11 @@ export function createBot(deps: BotDeps) {
     },
 
     isPaused,
+
+    /** Удаляет разговор собеседника (команда «сброс» делает то же из диалога). */
+    forget(peerId: number): void {
+      deps.sessions.delete(peerId);
+    },
   };
 }
 

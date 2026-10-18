@@ -20,7 +20,7 @@ export function hasStem(text: string, stems: readonly string[]): boolean {
   );
 }
 
-/** Вопросы о здоровье: бот не даёт медицинских советов и не собирает жалобы. */
+/** Медицинские темы для правил: бот не даёт советов (жалобы разбирает conversation/triage). */
 export const MEDICAL_STEMS = [
   "диагноз",
   "болит",
@@ -63,6 +63,7 @@ const SPECIALTY_STEMS: Record<string, string[]> = {
   dentist: ["стоматолог", "зуб", "дантист"],
   pediatrician: ["педиатр", "ребен", "детск", "дет"],
   ent: ["лор", "отоларинголог", "оториноларинголог", "ухо", "горл", "нос"],
+  orthopedist: ["ортопед", "травматолог"],
 };
 
 /** Правила на ключевых словах — не языковая модель. Работают без сети. */
@@ -93,13 +94,20 @@ export class RuleInterpreter implements TextInterpreter {
 
     const booking = this.bookingHints(text, context);
     // Явная просьба записаться важнее вопроса («запишите, сколько стоит?» — запись).
-    if (hasStem(text, ["запис", "попасть"]))
+    if (hasStem(text, ["запис", "запиш", "попасть"]))
       return { intent: "book", ...booking };
     // «Сколько стоит приём терапевта?» — вопрос о цене, а не запись.
     for (const [topic, stems] of TOPICS) {
       if (hasStem(text, stems)) return { intent: "question", topic };
     }
-    if (hasStem(text, ["прием"]) || booking.doctorId || booking.specialtyId) {
+    // «Давай на завтра», «в 10:30» — продолжение записи: бот дополнит выбранным врачом.
+    if (
+      hasStem(text, ["прием"]) ||
+      booking.doctorId ||
+      booking.specialtyId ||
+      booking.date ||
+      booking.time
+    ) {
       return { intent: "book", ...booking };
     }
     if (hasStem(text, ["привет", "здравств", "добрый"]))
