@@ -7,6 +7,7 @@ import type {
   ChannelStore,
   NewBooking,
   SessionStore,
+  StatsStore,
 } from "@/bot/storage/types";
 
 /** Код SQLite «нарушено ограничение уникальности» (SQLITE_CONSTRAINT_UNIQUE). */
@@ -54,13 +55,21 @@ CREATE TABLE IF NOT EXISTS notices (
 `;
 
 /**
- * Миграции схемы. Версия 2: индекс для удаления устаревших разговоров.
+ * Миграции схемы. Версия 2: индекс для удаления устаревших разговоров;
+ * версия 3: таблица счётчиков stats.
  * Формат JSON в sessions.state сменился на v2 (шаг записи + память разговора);
  * старые значения читаются кодом (parseSession), переписывать их не нужно.
  */
 const MIGRATIONS = [
   SCHEMA,
   "CREATE INDEX IF NOT EXISTS sessions_updated ON sessions (updated_at);",
+  // Версия 3: дневные счётчики фильтров и обращений к модели (без текста).
+  `CREATE TABLE IF NOT EXISTS stats (
+    day TEXT NOT NULL,
+    key TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, key)
+  );`,
 ];
 
 type BookingRow = {
@@ -86,7 +95,7 @@ const toBooking = (row: BookingRow): Booking => ({
  * (без нативных зависимостей). `:memory:` — для тестов.
  */
 export class SqliteStore
-  implements BookingRepository, SessionStore, ChannelStore
+  implements BookingRepository, SessionStore, ChannelStore, StatsStore
 {
   private readonly db: DatabaseSync;
 
@@ -262,6 +271,22 @@ export class SqliteStore
         "INSERT INTO notices (peer_id, kind, sent_at) VALUES (?, ?, ?) ON CONFLICT(peer_id, kind) DO UPDATE SET sent_at = excluded.sent_at",
       )
       .run(peerId, kind, at);
+  }
+
+  incrementStat(day: string, key: string, by = 1): void {
+    this.db
+      .prepare(
+        "INSERT INTO stats (day, key, count) VALUES (?, ?, ?) ON CONFLICT(day, key) DO UPDATE SET count = count + excluded.count",
+      )
+      .run(day, key, by);
+  }
+
+  readStats(fromDay: string): { day: string; key: string; count: number }[] {
+    return this.db
+      .prepare(
+        "SELECT day, key, count FROM stats WHERE day >= ? ORDER BY day, key",
+      )
+      .all(fromDay) as { day: string; key: string; count: number }[];
   }
 
   close(): void {

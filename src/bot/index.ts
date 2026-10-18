@@ -23,6 +23,7 @@ export function createDemoBot({
   notifier,
   handoffHours,
   historyHours,
+  messagesPerMinute,
   log,
 }: {
   dbPath: string;
@@ -34,6 +35,7 @@ export function createDemoBot({
   handoffHours?: number;
   /** Срок хранения разговора без активности, часов. */
   historyHours?: number;
+  messagesPerMinute?: number;
   log?: (message: string) => void;
 }) {
   const store = new SqliteStore(dbPath);
@@ -62,6 +64,8 @@ export function createDemoBot({
     notifier,
     handoffHours,
     historyHours,
+    messagesPerMinute,
+    stats: store,
     now,
     onError: log,
   });

@@ -52,3 +52,10 @@ export interface ChannelStore {
   getNoticeAt(peerId: number, kind: string): string | undefined;
   setNoticeAt(peerId: number, kind: string, at: string): void;
 }
+
+/** Дневные счётчики бота: только ключ и количество, без текста и идентификаторов. */
+export interface StatsStore {
+  incrementStat(day: string, key: string, by?: number): void;
+  /** Счётчики начиная с дня «ГГГГ-ММ-ДД». */
+  readStats(fromDay: string): { day: string; key: string; count: number }[];
+}

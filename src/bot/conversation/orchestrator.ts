@@ -21,7 +21,16 @@ import {
   normalizeForRules,
   SOON_TEXT,
   urgencyOf,
+  type RedFlag,
 } from "@/bot/conversation/safety";
+import {
+  MAX_MESSAGE_CHARS,
+  OFFTOPIC_MUTE_MS,
+  OFFTOPIC_REPLIES_BEFORE_MUTE,
+  TOO_LONG_TEXT,
+  type StatKey,
+} from "@/bot/conversation/guard";
+import { classifyScope, OUT_OF_SCOPE_TEXT } from "@/bot/conversation/scope";
 import {
   AREA_SPECIALTY,
   complaintSummary,
@@ -57,13 +66,20 @@ import { redactContacts } from "@/consultant/privacy";
 export type TurnContext = DialogContext & {
   /** Разговорная модель; без неё бот работает по правилам и кнопкам. */
   model?: ConversationModel;
+  /** Текущий момент — для паузы после повторного оффтопа. */
+  now?: Date;
 };
 
 export type TurnResult = {
   session: Session;
   replies: Reply[];
   effects: Effect[];
+  /** Счётчики хода (без текста): отклонённые запросы, обращения к модели. */
+  stats: StatKey[];
 };
+
+export const THANKS_TEXT =
+  "Пожалуйста! Если понадобится помощь с записью или вопросом о клинике — пишите.";
 
 /** Команды сброса разговора и удаления его истории. */
 export const RESET_WORDS = [
@@ -93,7 +109,7 @@ const MILD_RE =
   /(?:просто|иногда|немного|слегка|чуть|терпимо|несильно|не\s+сильно|ноет|побаливает)/;
 
 /** Результат шага с обновлённой памятью разговора. */
-type Step = DialogResult & { conv: Conversation };
+type Step = DialogResult & { conv: Conversation; stats?: StatKey[] };
 const step = (conv: Conversation, result: DialogResult): Step => ({
   ...result,
   conv,
@@ -169,27 +185,43 @@ async function handleText(
 ): Promise<Step> {
   const { flow } = session;
   const text = normalizeText(raw);
-  const safeText = redactContacts(raw).text;
-  let conv = addTurn(session.conv, "patient", safeText);
-  if (!text) return step(conv, show(flow, ctx));
+  if (!text) return step(session.conv, show(flow, ctx));
+  // Сэкономленный вызов модели считается, только если модель подключена.
+  const saved = (key: StatKey): StatKey[] =>
+    ctx.model ? [key, "model_requests_saved"] : [key];
+
+  // Длинное сообщение в модель не уходит; тревожные признаки всё равно проверяются.
+  if (raw.length > MAX_MESSAGE_CHARS) {
+    if (urgencyOf({ redFlags: detectRedFlags(raw) }) === "emergency")
+      return emergency(session.conv);
+    return {
+      state: flow,
+      conv: session.conv,
+      replies: [{ text: TOO_LONG_TEXT, buttons: [] }],
+      stats: saved("too_long_rejected"),
+    };
+  }
   if (RESET_WORDS.includes(text)) return reset(ctx);
 
   // Подпись кнопки текущего шага работает как нажатие — без модели.
+  const withTurn = (t: string) =>
+    addTurn(session.conv, "patient", redactContacts(t).text);
   const option =
     text === "назад" ? { a: "back" } : matchOption(flow, text, ctx);
-  if (option) return handleAction({ flow, conv }, option, ctx);
+  if (option) return handleAction({ flow, conv: withTurn(raw) }, option, ctx);
   // «Да/нет» на шагах подтверждения — тоже без модели.
   if (
     ["confirm", "cancel", "handoff"].includes(flow.step) &&
     (YES_RE.test(text) || NO_RE.test(text) || text === "подтверждаю")
   ) {
     return step(
-      conv,
+      withTurn(raw),
       await handleFlowEvent(flow, { type: "text", text: raw }, ctx),
     );
   }
 
-  // 1. Правила безопасности — до модели и независимо от неё.
+  // 1. Правила безопасности — по всему тексту, до фильтра темы и модели:
+  //    тревожный признак внутри постороннего текста не теряется.
   const wasEmergency = session.conv.urgency === "emergency";
   const flags = detectRedFlags(raw);
   if (
@@ -197,33 +229,107 @@ async function handleText(
     flags.length === 0 &&
     YES_RE.test(text)
   )
-    return emergency(conv);
-  conv = applyRules(conv, raw, text, flags.length > 0);
+    return emergency(withTurn(raw));
+
+  // 2. Фильтр темы — до модели. Оффтоп и смена роли отклоняются без API.
+  const verdict = classifyScope(raw, {
+    clinic: ctx.clinic,
+    pending: session.conv.pending !== undefined,
+    inDialog: flow.step !== "menu" || session.conv.complaint !== undefined,
+  });
+  if (flags.length === 0) {
+    if (verdict.kind === "rejected") {
+      return offTopic(
+        session,
+        verdict.reason === "role_change"
+          ? saved("role_change_rejected")
+          : saved("offtopic_rejected"),
+        ctx,
+      );
+    }
+    if (verdict.kind === "greeting")
+      return {
+        ...step(session.conv, greet(ctx)),
+        stats: saved("smalltalk_local"),
+      };
+    if (verdict.kind === "thanks")
+      return {
+        ...step(session.conv, show(flow, ctx, [THANKS_TEXT])),
+        stats: saved("smalltalk_local"),
+      };
+  }
+  // Дальше идёт только разрешённая часть сообщения.
+  const allowed = verdict.kind === "allowed" ? verdict.text : raw;
+  const allowedNorm = normalizeText(allowed);
+  const safeText = redactContacts(allowed).text;
+  let conv: Conversation = {
+    ...addTurn(session.conv, "patient", safeText),
+    offtopicStreak: 0,
+    mutedUntil: undefined,
+  };
+  conv = applyRules(conv, allowed, allowedNorm, flags);
   if (conv.urgency === "emergency" && (!wasEmergency || flags.length > 0))
     return emergency(conv);
-  const adviceRequest = isMedicalAdviceRequest(raw);
+  const adviceRequest = isMedicalAdviceRequest(allowed);
 
-  // 2. Модель ведёт разговор; её решение уже проверено по справочнику.
-  const decision = ctx.model
-    ? await ctx.model.decide({
-        peerId: ctx.peerId,
-        today: ctx.today,
-        text: safeText,
-        flow,
-        conv,
-      })
-    : undefined;
-  if (decision)
-    return execute(
+  // 3. Модель ведёт разговор; её решение уже проверено по справочнику.
+  if (ctx.model) {
+    const decision = await ctx.model.decide({
+      peerId: ctx.peerId,
+      today: ctx.today,
+      text: safeText,
       flow,
       conv,
-      decision,
-      { adviceRequest, wasEmergency, raw },
-      ctx,
-    );
+    });
+    const result = decision
+      ? await execute(
+          { flow, conv: session.conv },
+          conv,
+          decision,
+          { adviceRequest, wasEmergency, raw: allowed },
+          ctx,
+        )
+      : await fallback(flow, conv, allowed, allowedNorm, adviceRequest, ctx);
+    return { ...result, stats: [...(result.stats ?? []), "model_requests"] };
+  }
 
-  // 3. Без модели — правила.
-  return fallback(flow, conv, raw, text, adviceRequest, ctx);
+  // 4. Без модели — правила.
+  return fallback(flow, conv, allowed, allowedNorm, adviceRequest, ctx);
+}
+
+/**
+ * Посторонняя тема: точный шаблон без модели. После нескольких повторов подряд
+ * бот на время перестаёт отвечать на оффтоп — медицинские вопросы работают.
+ * Текст постороннего сообщения в историю не записывается.
+ */
+function offTopic(session: Session, stats: StatKey[], ctx: TurnContext): Step {
+  const now = (ctx.now ?? new Date()).getTime();
+  const conv: Conversation = { ...session.conv };
+  if (conv.mutedUntil && Date.parse(conv.mutedUntil) > now) {
+    const silenced: StatKey[] = stats.includes("model_requests_saved")
+      ? ["offtopic_silenced", "model_requests_saved"]
+      : ["offtopic_silenced"];
+    return { state: session.flow, conv, replies: [], stats: silenced };
+  }
+  if (conv.mutedUntil) {
+    // Пауза закончилась — счёт начинается заново.
+    conv.mutedUntil = undefined;
+    conv.offtopicStreak = 0;
+  }
+  conv.offtopicStreak += 1;
+  if (conv.offtopicStreak >= OFFTOPIC_REPLIES_BEFORE_MUTE)
+    conv.mutedUntil = new Date(now + OFFTOPIC_MUTE_MS).toISOString();
+  return {
+    state: session.flow,
+    conv,
+    replies: [
+      {
+        text: OUT_OF_SCOPE_TEXT,
+        buttons: show({ step: "menu" }, ctx).replies[0].buttons,
+      },
+    ],
+    stats,
+  };
 }
 
 /** Факты по правилам: новая жалоба, ответы на последний вопрос, травма, срок, признаки. */
@@ -231,8 +337,9 @@ function applyRules(
   conv: Conversation,
   raw: string,
   text: string,
-  hasFlags: boolean,
+  flags: RedFlag[],
 ): Conversation {
+  const hasFlags = flags.length > 0;
   let next = { ...conv };
   const found = detectComplaint(raw);
   // Новая жалоба — только если область названа прямо: «без травмы» или
@@ -256,8 +363,7 @@ function applyRules(
   }
   next.trauma = trauma ?? next.trauma;
   next.duration = detectDuration(raw) ?? next.duration;
-  if (hasFlags)
-    next.redFlags = [...new Set([...next.redFlags, ...detectRedFlags(raw)])];
+  if (hasFlags) next.redFlags = [...new Set([...next.redFlags, ...flags])];
   next.urgency = keepEmergency(next);
   return next;
 }
@@ -309,7 +415,7 @@ function mergeDecision(conv: Conversation, d: ModelDecision): Conversation {
 }
 
 async function execute(
-  flow: DialogState,
+  { flow, conv: original }: Session,
   before: Conversation,
   decision: ModelDecision,
   {
@@ -327,7 +433,14 @@ async function execute(
     return emergency(conv);
   }
 
-  const notes = decision.reply ? [decision.reply] : [];
+  if (decision.action === "out_of_scope") {
+    // Модель отклонила тему: ответ — тот же шаблон, текст сообщения не хранится.
+    return offTopic({ flow, conv: original }, ["model_out_of_scope"], ctx);
+  }
+  // Короткая реплика по ходу разговора; длинный «ответ на всё» не показывается.
+  const replyAllowed =
+    decision.action !== "small_talk" || decision.reply.length <= 200;
+  const notes = decision.reply && replyAllowed ? [decision.reply] : [];
   if (adviceRequest || decision.action === "decline_medical_advice") {
     return conv.complaint
       ? continueComplaint(flow, conv, ctx, { prefix: [MEDICAL_ADVICE_REFUSAL] })
@@ -730,5 +843,6 @@ function finish(result: Step): TurnResult {
     session: { flow: result.state, conv },
     replies: result.replies,
     effects: (result.effects ?? []).filter((e) => e.type !== "booked"),
+    stats: result.stats ?? [],
   };
 }

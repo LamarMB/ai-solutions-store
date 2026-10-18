@@ -295,10 +295,12 @@ const UNIT = String.raw`(?:минут\S*|час\S*|дн\S*|день|сут\S*|н
 export function detectDuration(text: string): string | undefined {
   const norm = normalizeForRules(text);
   const m =
-    norm.match(new RegExp(String.raw`${NUMBER_WORD}\s*${UNIT}`)) ??
-    norm.match(new RegExp(String.raw`${UNIT}\s+${NUMBER_WORD}`)) ??
+    norm.match(new RegExp(String.raw`(?<![а-я])${NUMBER_WORD}\s*${UNIT}`)) ??
     norm.match(
-      /(?:со\s+)?вчера\S*|с\s+утра|сегодня\s+утром|с\s+вечера|позавчера|(?:уже\s+)?(?:неделю|месяц|год)|давно|недавно|пару\s+дней/,
+      new RegExp(String.raw`(?<![а-я])${UNIT}\s+${NUMBER_WORD}(?![а-я])`),
+    ) ??
+    norm.match(
+      /(?<![а-я])(?:(?:со\s+)?вчера\S*|с\s+утра|сегодня\s+утром|с\s+вечера|позавчера|(?:уже\s+)?(?:неделю|месяц|год)(?![а-я])|давно|недавно|пару\s+дней)/,
     );
   return m
     ? m[0]

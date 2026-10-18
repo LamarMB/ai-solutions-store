@@ -44,6 +44,10 @@ export const ConversationSchema = z.object({
   /** Направление, предложенное или выбранное в разговоре. */
   specialtyId: z.string().max(40).optional(),
   history: z.array(TurnSchema).max(HISTORY_TURNS).default([]),
+  /** Сколько посторонних сообщений подряд (без их текста). */
+  offtopicStreak: z.number().int().nonnegative().default(0),
+  /** До этого момента бот не отвечает на повторный оффтоп (ISO). */
+  mutedUntil: z.string().optional(),
 });
 export type Conversation = z.infer<typeof ConversationSchema>;
 

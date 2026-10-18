@@ -251,9 +251,9 @@ describe("безопасность и данные", () => {
     expect(JSON.stringify(store.load(1)?.state)).not.toMatch(/Иван/);
   });
 
-  it("неизвестный текст — подсказка и текущие кнопки", async () => {
+  it("неясный текст — подсказка и текущие кнопки", async () => {
     const { bot } = setup();
-    const r = await send(bot, 1, { type: "text", text: "расскажите анекдот" });
+    const r = await send(bot, 1, { type: "text", text: "хм, а вот это вот" });
     expect(text(r)).toMatch(/Не совсем понял/);
     expect(buttons(r).length).toBeGreaterThan(0);
   });

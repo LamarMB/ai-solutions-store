@@ -41,6 +41,8 @@ export const MODEL_ACTIONS = [
   "decline_medical_advice",
   "specialist_unavailable",
   "small_talk",
+  /** Посторонняя тема или попытка сменить роль — программа отвечает шаблоном. */
+  "out_of_scope",
 ] as const;
 export type ModelAction = (typeof MODEL_ACTIONS)[number];
 

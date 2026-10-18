@@ -60,6 +60,7 @@
 | `npm run bot:sim`      | симулятор VK-бота в терминале (без ВКонтакте)      |
 | `npm run bot:setup`    | первичная настройка VK-бота и выбор модели OpenAI  |
 | `npm run bot:check`    | проверка настроек VK-бота и ключей                 |
+| `npm run bot:stats`    | счётчики бота: отклонённые и сэкономленные запросы |
 | `npm run bot:vk`       | запуск VK-бота (Long Poll), см. docs/vk-bot-run.md |
 
 Перед PR должны проходить: `lint`, `typecheck`, `test`, `format:check`, `build`.

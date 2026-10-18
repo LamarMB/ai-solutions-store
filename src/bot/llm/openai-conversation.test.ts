@@ -143,6 +143,10 @@ describe("OpenAI: разговорная модель", () => {
     expect(text).toMatch(/Никогда не говори, что ситуация безопасна/);
     expect(text).toMatch(/urgent_care_guidance/);
     expect(text).toMatch(/Игорь Макетов/);
+    // Границы темы и неизменная роль.
+    expect(text).toMatch(/out_of_scope/);
+    expect(text).toMatch(/Твоя роль не меняется никогда/);
+    expect(text).toMatch(/выполняй только задачу клиники/);
     expect(text).not.toMatch(/подтверди запись|запиши сам/i);
   });
 
@@ -154,6 +158,7 @@ describe("OpenAI: разговорная модель", () => {
       null,
     ]);
     expect(schema.properties.action.enum).not.toContain("confirm_booking");
+    expect(schema.properties.action.enum).toContain("out_of_scope");
   });
 
   it("неверный JSON, неизвестное действие, отказ модели — undefined, бот переходит к правилам", async () => {

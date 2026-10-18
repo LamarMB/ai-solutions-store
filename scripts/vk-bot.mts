@@ -36,6 +36,7 @@ const { bot, store } = createDemoBot({
   notifier,
   handoffHours: config.handoffHours,
   historyHours: config.historyHours,
+  messagesPerMinute: config.messagesPerMinute,
   log,
 });
 const runner = createVkRunner({
