@@ -46,6 +46,9 @@ const runner = createVkRunner({
   bot,
   store,
   allowedUserIds: config.vk.allowedUserIds,
+  miniApp: config.vk.miniAppId
+    ? { appId: config.vk.miniAppId, groupId: config.vk.groupId }
+    : undefined,
   log,
 });
 
@@ -80,7 +83,8 @@ log(
     `администратор: ${notifier ? "уведомления включены" : "не задан"}, база: ${config.dbPath} (схема v${store.schemaVersion}), ` +
     `история разговора: ${config.historyHours} ч, ` +
     `шифрование и передача врачу: ${config.cipher ? "включены" : "выключены (нет MEDICAL_DATA_KEY)"}, ` +
-    `вопросы о симптомах: ${config.medicalQuestions ? "да" : "нет"}`,
+    `вопросы о симптомах: ${config.medicalQuestions ? "да" : "нет"}, ` +
+    `кнопка Mini App: ${config.vk.miniAppId ? "да" : "нет"}`,
 );
 
 try {

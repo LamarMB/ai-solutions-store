@@ -8,6 +8,7 @@ import {
   FULL_CAPABILITIES,
   toVkKeyboard,
   type ClientCapabilities,
+  type MiniAppButton,
 } from "@/bot/vk/keyboard";
 import type { VkUpdate } from "@/bot/vk/longpoll";
 
@@ -17,6 +18,8 @@ const MESSAGE_LIMIT = 4000;
 const NOTICE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 /** peer_id бесед начинаются с 2e9 — бот работает только в личных сообщениях. */
 const CHAT_PEER_START = 2_000_000_000;
+/** Ошибки ВКонтакте о формате клавиатуры. */
+const KEYBOARD_ERRORS = new Set([911, 912, 913]);
 
 export const NOT_ALLOWED_TEXT =
   "Это демонстрационный бот тестовой клиники. Сейчас он доступен только тестовым аккаунтам.";
@@ -30,6 +33,8 @@ export type VkRunnerOptions = {
   bot: Bot;
   store: ChannelStore;
   allowedUserIds: ReadonlySet<number>;
+  /** VK Mini App клиники: кнопка «Записаться онлайн» рядом с записью в боте. */
+  miniApp?: MiniAppButton;
   now?: () => Date;
   log?: (message: string) => void;
 };
@@ -83,13 +88,32 @@ export function createVkRunner(options: VkRunnerOptions) {
       const parts = splitText(reply.text);
       for (let i = 0; i < parts.length; i++) {
         const last = i === parts.length - 1;
-        await api.call("messages.send", {
+        const params = {
           peer_id: peerId,
           random_id: randomIdFor(`${key}:${index++}`),
           message: parts[i],
-          keyboard: last ? toVkKeyboard(reply.buttons, caps) : undefined,
+          keyboard: last
+            ? toVkKeyboard(reply.buttons, caps, options.miniApp)
+            : undefined,
           dont_parse_links: 1,
-        });
+        };
+        try {
+          await api.call("messages.send", params);
+        } catch (error) {
+          // Клавиатуру с кнопкой Mini App ВКонтакте отклонил (911–913 — ошибки
+          // формата клавиатуры): отправляем то же сообщение без неё.
+          const plain = last
+            ? toVkKeyboard(reply.buttons, caps)
+            : params.keyboard;
+          if (
+            !(error instanceof VkApiError) ||
+            !KEYBOARD_ERRORS.has(error.code) ||
+            plain === params.keyboard
+          )
+            throw error;
+          log(`open_app keyboard rejected: vk ${error.code}`);
+          await api.call("messages.send", { ...params, keyboard: plain });
+        }
       }
     }
   }

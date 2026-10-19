@@ -24,7 +24,15 @@ const ADMIN = 555;
 
 type Call = { method: string; params: Record<string, unknown> };
 
-function setup({ failOnSend }: { failOnSend?: boolean } = {}) {
+function setup({
+  failOnSend,
+  rejectOpenApp,
+  miniApp,
+}: {
+  failOnSend?: boolean;
+  rejectOpenApp?: boolean;
+  miniApp?: boolean;
+} = {}) {
   let now = NOW;
   const clock = () => now;
   const store = new SqliteStore(":memory:");
@@ -35,6 +43,12 @@ function setup({ failOnSend }: { failOnSend?: boolean } = {}) {
       calls.push({ method, params });
       if (failOnSend && method === "messages.send")
         throw new VkApiError(901, "Can't send messages", method);
+      if (
+        rejectOpenApp &&
+        method === "messages.send" &&
+        String(params.keyboard ?? "").includes("open_app")
+      )
+        throw new VkApiError(911, "Keyboard format is invalid", method);
       return 1;
     },
   } as unknown as VkApi;
@@ -52,6 +66,7 @@ function setup({ failOnSend }: { failOnSend?: boolean } = {}) {
     bot,
     store,
     allowedUserIds: new Set([PATIENT, OTHER]),
+    miniApp: miniApp ? { appId: 54834865, groupId: 242364009 } : undefined,
     now: clock,
     log: (m) => logs.push(m),
   });
@@ -74,7 +89,7 @@ function setup({ failOnSend }: { failOnSend?: boolean } = {}) {
       client_info: {
         keyboard: true,
         inline_keyboard: true,
-        button_actions: ["text", "callback"],
+        button_actions: ["text", "callback", ...(miniApp ? ["open_app"] : [])],
       },
     },
   });
@@ -349,5 +364,49 @@ describe("VK: ошибки", () => {
       t.runner.onUpdate(t.message(PATIENT, "начать")),
     ).resolves.toBeUndefined();
     expect(t.logs.some((l) => l.includes("vk 901"))).toBe(true);
+  });
+});
+
+describe("VK: кнопка Mini App", () => {
+  const openAppButtons = (keyboard: unknown) =>
+    (
+      JSON.parse(String(keyboard)) as {
+        buttons: { action: { type: string; owner_id?: number } }[][];
+      }
+    ).buttons
+      .flat()
+      .filter((b) => b.action.type === "open_app");
+
+  it("главное меню содержит кнопку open_app сообщества", async () => {
+    const t = setup({ miniApp: true });
+    await t.runner.onUpdate(t.message(PATIENT, "меню"));
+    const last = t
+      .sent(PATIENT)
+      .filter((c) => c.params.keyboard)
+      .at(-1)!;
+    const buttons = openAppButtons(last.params.keyboard);
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].action.owner_id).toBe(-242364009);
+  });
+
+  it("без VK_MINIAPP_ID кнопки нет", async () => {
+    const t = setup();
+    await t.runner.onUpdate(t.message(PATIENT, "меню"));
+    for (const c of t.sent(PATIENT).filter((c) => c.params.keyboard))
+      expect(openAppButtons(c.params.keyboard)).toHaveLength(0);
+  });
+
+  it("ВКонтакте отклонил клавиатуру с open_app — то же сообщение уходит без неё", async () => {
+    const t = setup({ miniApp: true, rejectOpenApp: true });
+    await t.runner.onUpdate(t.message(PATIENT, "меню"));
+    expect(
+      t.logs.some((l) => l.includes("open_app keyboard rejected: vk 911")),
+    ).toBe(true);
+    const delivered = t
+      .sent(PATIENT)
+      .filter((c) => !String(c.params.keyboard ?? "").includes("open_app"));
+    const last = delivered.at(-1)!;
+    expect(String(last.params.message)).toContain("Чем могу помочь");
+    expect(String(last.params.keyboard)).toContain("Записаться на приём");
   });
 });

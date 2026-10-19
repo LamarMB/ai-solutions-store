@@ -38,6 +38,8 @@ const BotEnvSchema = z.object({
     message: "нужен хотя бы один тестовый VK ID",
   }),
   VK_ADMIN_USER_ID: optional(positiveId),
+  /** VK Mini App клиники: в меню бота появляется кнопка «Записаться онлайн». */
+  VK_MINIAPP_ID: optional(positiveId),
   VK_API_VERSION: z.string().default("5.199"),
   OPENAI_API_KEY: optional(
     z
@@ -87,6 +89,8 @@ export type BotConfig = {
     allowedUserIds: ReadonlySet<number>;
     adminUserId?: number;
     apiVersion: string;
+    /** ID VK Mini App клиники для кнопки open_app. */
+    miniAppId?: number;
   };
   openai?: { apiKey: string; model: string; dailyLimit: number };
   dbPath: string;
@@ -127,6 +131,7 @@ export function loadBotConfig(
         allowedUserIds: new Set(e.VK_ALLOWED_USER_IDS),
         adminUserId: e.VK_ADMIN_USER_ID as number | undefined,
         apiVersion: e.VK_API_VERSION,
+        miniAppId: e.VK_MINIAPP_ID as number | undefined,
       },
       openai: e.OPENAI_API_KEY
         ? {
