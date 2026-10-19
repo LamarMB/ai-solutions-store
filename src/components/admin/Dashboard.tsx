@@ -125,7 +125,11 @@ export function Dashboard() {
           value={data.week.confirmed + data.week.completed}
           hint={`отменено: ${data.week.cancelled}`}
         />
-        <Metric label="Через бота" value={data.week.fromBot} hint="за 7 дней" />
+        <Metric
+          label="Через ВКонтакте"
+          value={data.week.fromBot + data.week.fromMiniApp}
+          hint={`за 7 дней: бот ${data.week.fromBot}, Mini App ${data.week.fromMiniApp}`}
+        />
         <Metric label="Вручную" value={data.week.fromAdmin} hint="за 7 дней" />
       </div>
 

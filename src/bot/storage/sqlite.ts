@@ -331,6 +331,8 @@ export type BookingFilter = {
   from?: string;
   to?: string;
   doctorId?: string;
+  /** Записи одного пациента (VK ID) — для Mini App. */
+  peerId?: number;
   status?: BookingStatus;
   source?: BookingSource;
   /** Номер записи или текст пометки. */
@@ -524,6 +526,10 @@ export class SqliteStore
     if (filter.doctorId) {
       where.push("doctor_id = ?");
       params.push(filter.doctorId);
+    }
+    if (filter.peerId !== undefined) {
+      where.push("peer_id = ?");
+      params.push(filter.peerId);
     }
     if (filter.status) {
       where.push("status = ?");

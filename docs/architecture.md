@@ -23,9 +23,11 @@
                                     │  SQLite (BOT_DB_PATH, WAL) — SqliteStore   │
                                     └─────────────▲──────────────────────────────┘
                                                   │
-              next start (процесс панели) ── src/admin/server.ts (adminDeps)
+              next start (процесс панели) ── adminDeps / miniAppDeps (тот же процесс)
                                                   │
-   Сотрудник ── https ── nginx ── /admin (страницы) и /api/admin/* ── src/admin/api.ts
+   Сотрудник ── https ── nginx ── /admin и /api/admin/* ── src/admin/api.ts
+   Пациент в приложении ВКонтакте ── https ── nginx ── /miniapp и /api/miniapp/*
+        (заголовок X-VK-Launch-Params, подпись) ── src/miniapp/api.ts
 ```
 
 Бот и панель — **разные процессы** с одним файлом SQLite. Отдельных хранилищ записей и
@@ -80,6 +82,22 @@
   попыток (`auth.ts`). Учётные записи — `npm run admin:user` или приглашения.
 - Интерфейс: `src/components/admin/` (клиент ходит в API через `client.ts`).
 
+## VK Mini App
+
+- Страница `/miniapp` (`src/app/miniapp/`, клиент `src/components/miniapp/`): светлая
+  тема `.theme-miniapp` (токены в `globals.css`), нижняя навигация, экраны — главная,
+  врачи, запись, мои записи, услуги, о клинике. `VKWebAppInit` — официальный VK Bridge.
+  Вне ВКонтакте — пояснение без запросов данных.
+- Клиент отправляет строку параметров запуска как есть в заголовке `X-VK-Launch-Params`;
+  `handleMiniAppApi` проверяет подпись (`launch-params.ts`), приложение, срок `vk_ts`,
+  список тестовых аккаунтов и частоту; пациент — `vk_user_id` подписи. Cookie нет.
+- `MiniAppService` (`src/miniapp/service.ts`) — над `ClinicSchedule` и `SqliteStore` с
+  правилами пациента: свободные дни и слоты, запись (`source: miniapp`, повтор
+  возвращает ту же запись), отмена и перенос только своей записи. Ответы — только
+  организационные поля.
+- Встраивание во фрейм: `/miniapp` — только домены ВКонтакте (CSP `frame-ancestors`),
+  всё остальное — `DENY` (`next.config.ts`).
+
 ## Роли и доступ
 
 - Таблица прав — `src/admin/permissions.ts` (`PERMISSIONS`, `can`, `homeFor`).
@@ -104,7 +122,7 @@ Next.js App Router, группа `src/app/(site)`: каталог (`src/catalog/
 | Бот ВКонтакте          | `npm run bot:vk` → `scripts/vk-bot.mts`                       |
 | Проверка настроек бота | `npm run bot:check` → `scripts/vk-check.mts`                  |
 | Симулятор бота         | `npm run bot:sim` → `scripts/bot-sim.mts`                     |
-| Панель и сайт          | `npm run build` + `next start`                                |
+| Панель, Mini App, сайт | `npm run build` + `next start`                                |
 | Сотрудники             | `npm run admin:user` → `scripts/admin-user.mts`               |
 | Резервная копия базы   | `npm run db:backup` → `scripts/db-backup.mts`                 |
 | Счётчики бота          | `npm run bot:stats` → `scripts/bot-stats.mts`                 |

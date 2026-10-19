@@ -210,12 +210,17 @@ export class ClinicSchedule implements ScheduleProvider {
     return result.status === "ok" ? result : { status: "taken" };
   }
 
-  /** Перенос записи (администратор): на свободный слот того же или другого врача. */
+  /**
+   * Перенос записи на свободный слот того же или другого врача. По умолчанию —
+   * правила администратора; `admin: false` — правила пациента (горизонт и запас
+   * времени, как при записи).
+   */
   reschedule(
     bookingId: number,
     doctorId: string,
     date: string,
     time: string,
+    { admin = true }: { admin?: boolean } = {},
   ): MoveResult {
     const current = this.repo.getBooking(bookingId);
     if (!current || current.status !== "confirmed")
@@ -226,7 +231,7 @@ export class ClinicSchedule implements ScheduleProvider {
       current.time === time
     )
       return { status: "ok", booking: current };
-    const state = this.slotState(doctorId, date, time, true);
+    const state = this.slotState(doctorId, date, time, admin);
     if (state !== "free") return { status: state };
     const result = this.repo.move(
       bookingId,

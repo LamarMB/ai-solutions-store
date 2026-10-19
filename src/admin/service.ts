@@ -176,6 +176,9 @@ export class AdminService {
         completed: sum((r) => r.status === "completed"),
         fromBot: sum((r) => r.source === "vk" && r.status !== "cancelled"),
         fromAdmin: sum((r) => r.source === "admin" && r.status !== "cancelled"),
+        fromMiniApp: sum(
+          (r) => r.source === "miniapp" && r.status !== "cancelled",
+        ),
       },
       requests: {
         days: days.map((day) => ({ day, messages: messagesByDay[day] ?? 0 })),

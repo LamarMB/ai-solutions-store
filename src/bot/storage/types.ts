@@ -6,8 +6,8 @@ export const BOOKING_STATUSES = [
 ] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
-/** Откуда запись: бот ВКонтакте или админ-панель. */
-export type BookingSource = "vk" | "admin";
+/** Откуда запись: бот ВКонтакте, админ-панель или VK Mini App. */
+export type BookingSource = "vk" | "admin" | "miniapp";
 
 /** Запись на приём. Только вымышленные данные: врач, слот и id диалога ВКонтакте. */
 export type Booking = {

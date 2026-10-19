@@ -7,8 +7,9 @@ export const STATUS_LABELS = {
 } as const;
 
 export const SOURCE_LABELS = {
-  vk: "ВКонтакте",
+  vk: "Бот ВКонтакте",
   admin: "Администратор",
+  miniapp: "VK Mini App",
 } as const;
 
 export const WEEKDAYS = [

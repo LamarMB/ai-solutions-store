@@ -42,6 +42,74 @@
   color-scheme: dark;
 }
 
+/*
+ * Светлая тема VK Mini App клиники («качественный медицинский сервис»).
+ * Включается на странице, где есть элемент .theme-miniapp; сайт и панель не меняются.
+ * Контраст текста к фону — не ниже 4.5:1.
+ */
+:root:has(.theme-miniapp) {
+  --bg: #f3f6f9;
+  --surface: #ffffff;
+  --surface-2: #eaf0f4;
+  --border: rgb(15 23 42 / 0.08);
+  --border-strong: rgb(15 23 42 / 0.16);
+  --ink: #0f1b2d;
+  --muted: #536173;
+  --accent: #0b7a72;
+  --accent-hover: #09645e;
+  --accent-ink: #ffffff;
+  --accent-soft: #dff2ef;
+  --demo-bg: #fff3dc;
+  --demo-ink: #7a4600;
+  --success: #17803d;
+  --warning: #9a5a00;
+  --danger: #c0262d;
+  --glass-fill: rgb(255 255 255 / 0.82);
+  --glass-sheen: rgb(255 255 255 / 0.6);
+  --glass-sheen-hover: rgb(255 255 255 / 0.9);
+  --glass-edge: rgb(15 23 42 / 0.08);
+  --glass-edge-hover: rgb(15 23 42 / 0.16);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+  --glass-shadow: 0 8px 24px -14px rgb(15 23 42 / 0.25);
+  --primary-top: #0f8a81;
+  --primary-bottom: #0b7a72;
+
+  color-scheme: light;
+}
+
+:root:has(.theme-miniapp) body::before {
+  display: none;
+}
+
+/* Плавные переходы Mini App; prefers-reduced-motion их отключает (ниже). */
+@keyframes miniapp-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes miniapp-sheet {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@keyframes miniapp-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+.miniapp-screen {
+  animation: miniapp-in 220ms ease-out;
+}
+.miniapp-sheet {
+  animation: miniapp-sheet 220ms ease-out;
+}
+.miniapp-pop {
+  animation: miniapp-pop 320ms cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+
 @theme {
   --color-*: initial;
   --color-transparent: transparent;

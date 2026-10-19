@@ -10,15 +10,33 @@ import { getSeoConfig } from "./src/lib/seo-config";
 const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "X-Frame-Options", value: "DENY" },
   {
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
   },
+];
+
+/** Встраивание запрещено везде, кроме страницы VK Mini App. */
+const NO_FRAMING = [
+  { key: "X-Frame-Options", value: "DENY" },
   {
     key: "Content-Security-Policy",
     value:
       "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+  },
+];
+
+/**
+ * VK Mini App открывается во фрейме веб-версии ВКонтакте (vk.com, m.vk.com,
+ * vk.ru); мобильные клиенты — во встроенном браузере. Разрешаются только эти
+ * источники. X-Frame-Options не задаётся: он не умеет списка доменов.
+ */
+export const MINIAPP_FRAME_ANCESTORS =
+  "https://vk.com https://*.vk.com https://vk.ru https://*.vk.ru";
+const MINIAPP_FRAMING = [
+  {
+    key: "Content-Security-Policy",
+    value: `frame-ancestors ${MINIAPP_FRAME_ANCESTORS}; base-uri 'self'; form-action 'self'; object-src 'none'`,
   },
 ];
 
@@ -51,7 +69,13 @@ const nextConfig: NextConfig = {
     if (!getSeoConfig().indexing) {
       headers.push({ key: "X-Robots-Tag", value: "noindex, nofollow" });
     }
-    return [{ source: "/:path*", headers }];
+    return [
+      { source: "/:path*", headers },
+      // Всё, кроме /miniapp и /miniapp/…, нельзя встраивать во фреймы.
+      { source: "/:path((?!miniapp(?:/|$)).*)", headers: NO_FRAMING },
+      { source: "/miniapp", headers: MINIAPP_FRAMING },
+      { source: "/miniapp/:path*", headers: MINIAPP_FRAMING },
+    ];
   },
 };
 

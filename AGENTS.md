@@ -21,14 +21,15 @@
 7. В память и документы не записывать секреты, токены, пароли, ключи, медицинские
    сведения и персональные данные.
 
-| Задача касается                                                   | Обязательно перед изменениями                              | Подробности по необходимости                                                      |
-| ----------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| VK-бот, GPT, SQLite, админ-панель, скрипты                        | [docs/rules/bot-and-panel.md](docs/rules/bot-and-panel.md) | [docs/architecture.md](docs/architecture.md), `docs/conversational-bot-deploy.md` |
-| Роли, доступ, медицинские сведения, согласия                      | раздел «Роли и медицинская конфиденциальность» ниже        | [docs/medical-privacy.md](docs/medical-privacy.md)                                |
-| Обновление VPS, развёртывание, откат                              | [docs/current-status.md](docs/current-status.md)           | `docs/privacy-update-vps.md`, `docs/admin-panel-deploy.md`, `docs/vk-bot-run.md`  |
-| Публичный сайт: каталог, заявки, консультант, SEO, дизайн, тексты | [docs/rules/site.md](docs/rules/site.md)                   | `docs/requests.md`, `docs/consultant.md`, `docs/seo.md`                           |
-| Почему так устроено, что отклонено                                | —                                                          | [docs/decisions.md](docs/decisions.md)                                            |
-| Этапы и планы                                                     | —                                                          | `docs/roadmap.md` (длинный — искать нужный этап поиском)                          |
+| Задача касается                                                   | Обязательно перед изменениями                                                    | Подробности по необходимости                                                      |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| VK-бот, GPT, SQLite, админ-панель, скрипты                        | [docs/rules/bot-and-panel.md](docs/rules/bot-and-panel.md)                       | [docs/architecture.md](docs/architecture.md), `docs/conversational-bot-deploy.md` |
+| Роли, доступ, медицинские сведения, согласия                      | раздел «Роли и медицинская конфиденциальность» ниже                              | [docs/medical-privacy.md](docs/medical-privacy.md)                                |
+| Обновление VPS, развёртывание, откат                              | [docs/current-status.md](docs/current-status.md)                                 | `docs/privacy-update-vps.md`, `docs/admin-panel-deploy.md`, `docs/vk-bot-run.md`  |
+| VK Mini App (`/miniapp`, `/api/miniapp`)                          | [docs/rules/bot-and-panel.md](docs/rules/bot-and-panel.md), раздел «VK Mini App» | [docs/vk-mini-app-deploy.md](docs/vk-mini-app-deploy.md)                          |
+| Публичный сайт: каталог, заявки, консультант, SEO, дизайн, тексты | [docs/rules/site.md](docs/rules/site.md)                                         | `docs/requests.md`, `docs/consultant.md`, `docs/seo.md`                           |
+| Почему так устроено, что отклонено                                | —                                                                                | [docs/decisions.md](docs/decisions.md)                                            |
+| Этапы и планы                                                     | —                                                                                | `docs/roadmap.md` (длинный — искать нужный этап поиском)                          |
 
 ## Цель
 
@@ -99,6 +100,9 @@
 - Бот и панель — одна база SQLite (`BOT_DB_PATH`); миграции — только добавлением в
   `MIGRATIONS` (`src/bot/storage/sqlite.ts`), без изменения прежних.
 - В журналы — без текста сообщений, ключей и персональных данных.
+- VK Mini App: пациент — только `vk_user_id` из параметров запуска с проверенной
+  подписью; запись — только через `ClinicSchedule` в общей базе; в ответах — без
+  медицинских сведений, пометок и VK ID. Обходов авторизации не создавать.
 
 ## Роли и медицинская конфиденциальность
 

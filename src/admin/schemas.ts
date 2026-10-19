@@ -43,7 +43,7 @@ export const BookingFilterSchema = z.object({
   to: date.optional(),
   doctorId: id.optional(),
   status: z.enum(BOOKING_STATUSES).optional(),
-  source: z.enum(["vk", "admin"]).optional(),
+  source: z.enum(["vk", "admin", "miniapp"]).optional(),
   query: z.string().trim().max(60).optional(),
 });
 

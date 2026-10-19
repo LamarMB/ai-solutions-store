@@ -23,6 +23,7 @@
     "db:backup": "tsx scripts/db-backup.mts"
   },
   "dependencies": {
+    "@vkontakte/vk-bridge": "3.0.2",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
