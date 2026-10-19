@@ -2,6 +2,7 @@
 
 Сайт-каталог решений по внедрению ИИ и автоматизации для бизнеса.
 **Статус: демо-версия, в разработке.** Правила проекта — [AGENTS.md](AGENTS.md),
+краткая память проекта — [docs/project-memory.md](docs/project-memory.md),
 этапы — [docs/roadmap.md](docs/roadmap.md).
 
 Стек: Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Zod · Vitest · ESLint · Prettier · npm.
@@ -61,7 +62,7 @@
 | `npm run bot:setup`    | первичная настройка VK-бота и выбор модели OpenAI  |
 | `npm run bot:check`    | проверка настроек VK-бота и ключей                 |
 | `npm run bot:stats`    | счётчики бота: отклонённые и сэкономленные запросы |
-| `npm run admin:user`   | администраторы панели: create, password, list      |
+| `npm run admin:user`   | сотрудники панели: create, password, role, list    |
 | `npm run db:backup`    | резервная копия базы бота и панели без остановки   |
 | `npm run bot:vk`       | запуск VK-бота (Long Poll), см. docs/vk-bot-run.md |
 

@@ -18,7 +18,7 @@
 | Состояние формы для интерфейса                                        | `src/requests/state.ts`                  |
 | Хранилище: интерфейс `RequestStore` и `TestRequestStore`              | `src/requests/store.ts`                  |
 | Ограничение частоты и защита от повторной отправки                    | `src/requests/rate-limit.ts`             |
-| Server Action                                                         | `src/app/request/actions.ts`             |
+| Server Action                                                         | `src/app/(site)/request/actions.ts`      |
 | Форма                                                                 | `src/components/request/RequestForm.tsx` |
 
 - **Данные заявки (минимум):** имя, компания (необязательно), способ связи и контакт,

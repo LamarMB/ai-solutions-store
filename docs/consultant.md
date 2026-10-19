@@ -9,16 +9,16 @@
 
 ## Как устроено
 
-| Часть                                                                                 | Файл                                |
-| ------------------------------------------------------------------------------------- | ----------------------------------- |
-| Интерфейс `ChatProvider`, проверка истории (Zod)                                      | `src/consultant/types.ts`           |
-| Mock-провайдер (правила, примеры задач)                                               | `src/consultant/mock-provider.ts`   |
-| Выбор провайдера                                                                      | `src/consultant/provider.ts`        |
-| Обработка: проверка → частота → скрытие контактов → провайдер → проверка рекомендаций | `src/consultant/service.ts`         |
-| Скрытие email и телефонов                                                             | `src/consultant/privacy.ts`         |
-| Карточки рекомендаций из каталога                                                     | `src/consultant/recommendations.ts` |
-| Server Action                                                                         | `src/app/consultant/actions.ts`     |
-| Интерфейс чата                                                                        | `src/components/consultant/`        |
+| Часть                                                                                 | Файл                                   |
+| ------------------------------------------------------------------------------------- | -------------------------------------- |
+| Интерфейс `ChatProvider`, проверка истории (Zod)                                      | `src/consultant/types.ts`              |
+| Mock-провайдер (правила, примеры задач)                                               | `src/consultant/mock-provider.ts`      |
+| Выбор провайдера                                                                      | `src/consultant/provider.ts`           |
+| Обработка: проверка → частота → скрытие контактов → провайдер → проверка рекомендаций | `src/consultant/service.ts`            |
+| Скрытие email и телефонов                                                             | `src/consultant/privacy.ts`            |
+| Карточки рекомендаций из каталога                                                     | `src/consultant/recommendations.ts`    |
+| Server Action                                                                         | `src/app/(site)/consultant/actions.ts` |
+| Интерфейс чата                                                                        | `src/components/consultant/`           |
 
 Гарантии не зависят от провайдера:
 
