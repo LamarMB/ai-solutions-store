@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MedicalCipher } from "@/bot/storage/medical-crypto";
 
 const positiveId = z.coerce
   .number({ error: "нужно число" })
@@ -50,7 +51,34 @@ const BotEnvSchema = z.object({
   BOT_HANDOFF_HOURS: z.coerce.number().positive().max(72).default(12),
   BOT_HISTORY_HOURS: z.coerce.number().positive().max(168).default(24),
   BOT_MESSAGES_PER_MINUTE: z.coerce.number().int().min(3).max(120).default(12),
+  /** Уточняющие вопросы о симптомах (травма, длительность, тревожные признаки). */
+  BOT_MEDICAL_QUESTIONS: z
+    .enum(["true", "false"], { error: "true или false" })
+    .default("true"),
+  MEDICAL_DATA_KEY: optional(
+    z.string().refine(validKey, "нужен ключ 32 байта в base64"),
+  ),
 });
+
+function validKey(value: string): boolean {
+  try {
+    MedicalCipher.fromBase64(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Шифр медицинских сведений из MEDICAL_DATA_KEY. Без ключа разговоры
+ * хранятся без шифрования (как раньше), а передача сведений врачу выключена.
+ */
+export function medicalCipherFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): MedicalCipher | undefined {
+  const key = env.MEDICAL_DATA_KEY?.trim();
+  return key ? MedicalCipher.fromBase64(key) : undefined;
+}
 
 export type BotConfig = {
   vk: {
@@ -67,6 +95,10 @@ export type BotConfig = {
   historyHours: number;
   /** Текстовых сообщений в минуту от одного собеседника. */
   messagesPerMinute: number;
+  /** false — бот не задаёт вопросов о симптомах, только маршрутизирует и записывает. */
+  medicalQuestions: boolean;
+  /** Шифрование разговоров и согласий (MEDICAL_DATA_KEY). */
+  cipher?: MedicalCipher;
 };
 
 export type ConfigResult =
@@ -107,6 +139,10 @@ export function loadBotConfig(
       handoffHours: e.BOT_HANDOFF_HOURS,
       historyHours: e.BOT_HISTORY_HOURS,
       messagesPerMinute: e.BOT_MESSAGES_PER_MINUTE,
+      medicalQuestions: e.BOT_MEDICAL_QUESTIONS === "true",
+      cipher: e.MEDICAL_DATA_KEY
+        ? MedicalCipher.fromBase64(e.MEDICAL_DATA_KEY as string)
+        : undefined,
     },
   };
 }

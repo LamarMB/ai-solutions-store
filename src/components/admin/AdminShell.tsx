@@ -3,27 +3,84 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { can, ROLE_TITLES, type Permission } from "@/admin/permissions";
+import type { StaffRole } from "@/bot/storage/admin-store";
 import { api } from "@/components/admin/client";
 import { ToastProvider } from "@/components/admin/ui";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 
-const NAV: { href: string; label: string; icon: IconName }[] = [
-  { href: "/admin", label: "Главная", icon: "chart" },
-  { href: "/admin/bookings", label: "Записи", icon: "calendar" },
-  { href: "/admin/doctors", label: "Врачи", icon: "users" },
-  { href: "/admin/schedule", label: "Расписание", icon: "clock" },
-  { href: "/admin/settings", label: "Настройки", icon: "wrench" },
+/**
+ * Разделы и права на них. Скрытие раздела — только удобство: страницу и API
+ * проверяет сервер (requirePage, handleAdminApi).
+ */
+const NAV: {
+  href: string;
+  label: string;
+  icon: IconName;
+  permission: Permission;
+}[] = [
+  {
+    href: "/admin",
+    label: "Главная",
+    icon: "chart",
+    permission: "dashboard.read",
+  },
+  {
+    href: "/admin/my",
+    label: "Мои приёмы",
+    icon: "calendar",
+    permission: "own_bookings.read",
+  },
+  {
+    href: "/admin/bookings",
+    label: "Записи",
+    icon: "calendar",
+    permission: "bookings.read",
+  },
+  {
+    href: "/admin/doctors",
+    label: "Врачи",
+    icon: "users",
+    permission: "doctors.read",
+  },
+  {
+    href: "/admin/schedule",
+    label: "Расписание",
+    icon: "clock",
+    permission: "schedule.read",
+  },
+  {
+    href: "/admin/settings",
+    label: "Настройки",
+    icon: "wrench",
+    permission: "settings.read",
+  },
+  {
+    href: "/admin/staff",
+    label: "Сотрудники",
+    icon: "briefcase",
+    permission: "staff.manage",
+  },
+  {
+    href: "/admin/access-log",
+    label: "Журнал доступа",
+    icon: "shield",
+    permission: "medical_log.read",
+  },
 ];
 
 /** Каркас панели: меню слева на компьютере, вкладки сверху на телефоне. */
 export function AdminShell({
   login,
+  role,
   children,
 }: {
   login: string;
+  role: StaffRole;
   children: ReactNode;
 }) {
+  const nav = NAV.filter((item) => can(role, item.permission));
   const pathname = usePathname();
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
@@ -60,7 +117,7 @@ export function AdminShell({
             className="overflow-x-auto px-2 pb-2 lg:px-3"
           >
             <ul className="flex gap-1 lg:flex-col">
-              {NAV.map((item) => (
+              {nav.map((item) => (
                 <li key={item.href}>
                   <Link
                     href={item.href}
@@ -82,6 +139,7 @@ export function AdminShell({
           <div className="border-border mt-auto hidden border-t px-5 py-4 lg:block">
             <p className="text-caption text-muted">Вы вошли как</p>
             <p className="text-small truncate font-medium">{login}</p>
+            <p className="text-caption text-muted">{ROLE_TITLES[role]}</p>
             <button
               type="button"
               onClick={logout}

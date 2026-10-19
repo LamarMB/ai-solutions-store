@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { homeFor } from "@/admin/permissions";
+import type { StaffRole } from "@/bot/storage/admin-store";
 import { api, ApiError } from "@/components/admin/client";
 import { ErrorNote, Field, Input } from "@/components/admin/ui";
 import { Button } from "@/components/ui/Button";
@@ -17,11 +19,11 @@ export function LoginForm() {
     setBusy(true);
     setError(undefined);
     try {
-      await api("login", {
+      const result = await api<{ role: StaffRole }>("login", {
         method: "POST",
         body: { login: form.get("login"), password: form.get("password") },
       });
-      router.replace("/admin");
+      router.replace(homeFor(result.role));
       router.refresh();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Не удалось войти.");

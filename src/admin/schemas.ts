@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { BOOKING_STATUSES } from "@/bot/storage/types";
 import { isDate, isTime, toMinutes } from "@/bot/schedule/time";
+import { STAFF_ROLES } from "@/bot/storage/admin-store";
+import {
+  detectRedFlags,
+  detectTrauma,
+  isMedicalAdviceRequest,
+} from "@/bot/conversation/safety";
+import { detectComplaint } from "@/bot/conversation/triage";
 
 /**
  * Проверка всех данных из админ-панели на сервере. Сообщения — по-русски,
@@ -40,11 +47,36 @@ export const BookingFilterSchema = z.object({
   query: z.string().trim().max(60).optional(),
 });
 
+/**
+ * Пометка записи — организационная («перезвонить», «первичный приём»).
+ * Жалобы, симптомы, контакты сюда не пишутся: пометку видят все
+ * администраторы, а медицинские сведения — только врач по согласию пациента.
+ * Проверка эвристическая, она ловит очевидное, но не всё — правило
+ * дублируется подсказкой в интерфейсе.
+ */
+export function noteProblem(note: string): string | undefined {
+  if (/@|\d[\d\s()+-]{6,}\d/.test(note))
+    return "Пометка: без телефонов и адресов почты";
+  if (
+    detectComplaint(note) ||
+    detectRedFlags(note).length > 0 ||
+    detectTrauma(note) === "yes" ||
+    isMedicalAdviceRequest(note)
+  )
+    return "Пометка: без жалоб и медицинских сведений — их видят все администраторы";
+  return undefined;
+}
+
 export const BookingCreateSchema = z.object({
   doctorId: id,
   date,
   time,
-  note: text(0, 120, "Пометка").optional(),
+  note: text(0, 120, "Пометка")
+    .superRefine((note, ctx) => {
+      const problem = noteProblem(note);
+      if (problem) ctx.addIssue({ code: "custom", message: problem });
+    })
+    .optional(),
 });
 
 export const BookingUpdateSchema = z.discriminatedUnion("action", [
@@ -152,6 +184,43 @@ export const SettingsSchema = z.object({
       }),
     )
     .max(50, "Не больше 50 услуг"),
+});
+
+const staffLogin = z
+  .string({ error: "Укажите логин" })
+  .trim()
+  .regex(
+    /^[a-zA-Z0-9._-]{3,64}$/,
+    "Логин: латиница, цифры, точка, дефис, подчёркивание (3–64 символа)",
+  );
+
+export const InviteSchema = z
+  .object({
+    login: staffLogin,
+    role: z.enum(STAFF_ROLES, { error: "Выберите роль" }),
+    doctorId: id.nullable().default(null),
+  })
+  .refine((v) => v.role !== "doctor" || v.doctorId !== null, {
+    message: "Для роли «Врач» выберите врача расписания",
+    path: ["doctorId"],
+  });
+
+export const StaffPatchSchema = z.union([
+  z
+    .object({
+      role: z.enum(STAFF_ROLES, { error: "Выберите роль" }),
+      doctorId: id.nullable().default(null),
+    })
+    .refine((v) => v.role !== "doctor" || v.doctorId !== null, {
+      message: "Для роли «Врач» выберите врача расписания",
+      path: ["doctorId"],
+    }),
+  z.object({ disabled: z.boolean() }),
+]);
+
+export const InviteAcceptSchema = z.object({
+  token: z.string().trim().min(20).max(100),
+  password: z.string().min(1, "Введите пароль").max(200),
 });
 
 /** Первое понятное сообщение об ошибке и ошибки по полям. */

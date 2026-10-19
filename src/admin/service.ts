@@ -16,17 +16,17 @@ import {
   SettingsSchema,
   SpecialtySchema,
 } from "@/admin/schemas";
+import { AdminError } from "@/admin/errors";
+import { StaffService } from "@/admin/staff";
+import type { AdminSession } from "@/bot/storage/admin-store";
+import type { RedFlag } from "@/bot/conversation/safety";
+import type { ComplaintArea } from "@/bot/conversation/triage";
+import {
+  MEDICAL_AREA_TITLES,
+  RED_FLAG_TITLES,
+} from "@/bot/conversation/medical-labels";
 
-/** Ошибка для администратора: HTTP-статус и понятный текст. */
-export class AdminError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-    readonly fields?: Record<string, string>,
-  ) {
-    super(message);
-  }
-}
+export { AdminError };
 
 function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {
   const result = schema.safeParse(input);
@@ -69,12 +69,14 @@ const BOOK_ERRORS: Record<string, string> = {
  */
 export class AdminService {
   readonly schedule: ClinicSchedule;
+  readonly staff: StaffService;
 
   constructor(
     private readonly store: SqliteStore,
     private readonly now: () => Date = () => new Date(),
   ) {
     this.schedule = new ClinicSchedule(() => store.clinic.load(), store, now);
+    this.staff = new StaffService(store, now);
   }
 
   private get clinic() {
@@ -254,6 +256,13 @@ export class AdminService {
       if (result.status !== "ok")
         throw new AdminError(409, BOOK_ERRORS[result.status]);
     }
+    // Согласие пациента дано врачу конкретной записи: при отмене или передаче
+    // записи другому врачу оно прекращается, сведения удаляются.
+    if (
+      data.action === "cancel" ||
+      (data.action === "reschedule" && data.doctorId !== booking.doctorId)
+    )
+      this.store.consents.revokeForBooking(id, this.now().toISOString());
     this.audit(userId, data.action, "booking", id);
     return this.view(
       this.store.getBooking(id)!,
@@ -411,6 +420,107 @@ export class AdminService {
     if (!this.store.clinic.deleteException(id))
       throw new AdminError(404, "Запись в расписании не найдена.");
     this.audit(userId, "delete", "exception", id);
+  }
+
+  // --- Врач: свои приёмы и сведения по согласию ---------------------------
+
+  private requireDoctor(session: AdminSession): string {
+    if (session.role !== "doctor" || !session.doctorId)
+      throw new AdminError(403, "Раздел доступен только врачу.");
+    return session.doctorId;
+  }
+
+  /**
+   * Записи к врачу этой учётной записи — только организационные данные и
+   * отметка, дал ли пациент согласие (без содержания сведений).
+   */
+  myBookings(session: AdminSession, input: unknown) {
+    const doctorId = this.requireDoctor(session);
+    const filter = parse(BookingFilterSchema, input);
+    const today = this.today();
+    const now = this.now().toISOString();
+    const names = this.store.clinic.doctorNames();
+    return {
+      doctorName: names.get(doctorId) ?? doctorId,
+      consentsEnabled: this.store.consents.enabled,
+      bookings: this.store
+        .searchBookings({
+          from: filter.from ?? addDays(today, -7),
+          to: filter.to ?? addDays(today, 30),
+          doctorId,
+          status: filter.status,
+        })
+        .map((b) => ({
+          // Пометка администратора врачу не нужна: не расширяем круг читающих.
+          ...this.view({ ...b, note: undefined }, names),
+          medicalShared:
+            b.status !== "cancelled" &&
+            this.store.consents.hasActiveForDoctor(b.id, doctorId, now),
+        })),
+    };
+  }
+
+  /**
+   * Сведения, которые пациент разрешил передать врачу этой записи. Выдаются,
+   * только если: роль doctor, запись к его врачу расписания, запись не
+   * отменена, есть действующее согласие именно для этого врача. Любая
+   * попытка — в журнал доступа (без содержания сведений).
+   */
+  readMedical(session: AdminSession, bookingId: number) {
+    const doctorId = this.requireDoctor(session);
+    const at = this.now().toISOString();
+    const log = (result: string, consentId: number | null = null) =>
+      this.store.consents.logAccess({
+        userId: session.userId,
+        consentId,
+        bookingId,
+        action: "read_summary",
+        result,
+        at,
+      });
+    const booking = this.store.getBooking(bookingId);
+    if (
+      !booking ||
+      booking.doctorId !== doctorId ||
+      booking.status === "cancelled"
+    ) {
+      log("denied_not_own_booking");
+      // Один ответ для «нет записи» и «чужая запись»: не раскрываем существование.
+      throw new AdminError(404, "Запись не найдена среди ваших приёмов.");
+    }
+    const consent = this.store.consents.readForDoctor(bookingId, doctorId, at);
+    if (!consent) {
+      log("denied_no_consent");
+      throw new AdminError(
+        404,
+        "Пациент не передавал сведения врачу по этой записи (или отозвал согласие).",
+      );
+    }
+    log("granted", consent.consentId);
+    const s = consent.summary;
+    return {
+      bookingId,
+      source:
+        "Со слов собеседника в сообщениях ВКонтакте. Личность не подтверждена. Это не медицинский документ.",
+      area: MEDICAL_AREA_TITLES[s.area as ComplaintArea] ?? s.area,
+      summary: s.summary,
+      trauma: s.trauma ?? null,
+      duration: s.duration ?? null,
+      redFlags: s.redFlags.map((f) => RED_FLAG_TITLES[f as RedFlag] ?? f),
+      redFlagsDenied: s.redFlagsDenied,
+    };
+  }
+
+  /** Журнал доступа к медицинским сведениям — только метаданные (owner). */
+  medicalAccessLog() {
+    return {
+      consentsEnabled: this.store.consents.enabled,
+      activeConsents: this.store.consents.countActive(
+        "doctor",
+        this.now().toISOString(),
+      ),
+      entries: this.store.consents.listAccessLog(200),
+    };
   }
 
   // --- Настройки клиники ---------------------------------------------------

@@ -7,6 +7,10 @@ import {
   routeText,
 } from "@/bot/clinic/knowledge";
 import type { Clinic } from "@/bot/clinic/types";
+import {
+  MEDICAL_AREA_TITLES,
+  RED_FLAG_TITLES,
+} from "@/bot/conversation/medical-labels";
 import { normalizeText } from "@/bot/dialog/rule-interpreter";
 import {
   ActionSchema,
@@ -14,11 +18,13 @@ import {
   type Action,
   type BotEvent,
   type Button,
+  type ConsentPort,
   type DialogState,
   type Effect,
   type InfoTopic,
   type Interpretation,
   type Reply,
+  type ShareSummary,
   type TextInterpreter,
 } from "@/bot/dialog/types";
 import type { ScheduleProvider } from "@/bot/schedule/schedule";
@@ -32,6 +38,8 @@ export type DialogContext = {
   interpreter: TextInterpreter;
   /** Сегодняшняя дата клиники «ГГГГ-ММ-ДД» — для «сегодня/завтра». */
   today: string;
+  /** Согласия на передачу сведений врачу; нет — передача не предлагается. */
+  consents?: ConsentPort;
 };
 
 export type DialogResult = {
@@ -303,9 +311,44 @@ function handleAction(
       return show({ step: "cancel", bookingId: booking.id }, ctx);
     }
 
+    // Предложение передачи открывает разговорный слой (из памяти разговора).
+    case "shr":
+      return stale(state, ctx);
+
+    case "shrok": {
+      if (state.step !== "share" || !ctx.consents) return stale(state, ctx);
+      const shared = ctx.consents.share(
+        ctx.peerId,
+        state.bookingId,
+        state.summary,
+      );
+      return show({ step: "menu" }, ctx, [
+        shared
+          ? `Описание жалобы передано врачу записи №${state.bookingId}. ` +
+            "Отозвать согласие можно в «Мои записи» — сведения сразу удалятся."
+          : "Запись не найдена или уже отменена — ничего не передано.",
+      ]);
+    }
+
+    case "shrno":
+      return show({ step: "menu" }, ctx, [
+        "Хорошо, врачу ничего не передаём. Описание жалобы удалено из памяти бота.",
+      ]);
+
+    case "rv": {
+      const revoked = ctx.consents?.revoke(ctx.peerId, action.b) ?? false;
+      return show({ step: "bookings" }, ctx, [
+        revoked
+          ? `Согласие по записи №${action.b} отозвано, переданные врачу сведения удалены.`
+          : "Действующего согласия по этой записи нет.",
+      ]);
+    }
+
     case "cxok": {
       if (state.step !== "cancel") return stale(state, ctx);
       const cancelled = schedule.cancel(ctx.peerId, state.bookingId);
+      // Отменённая запись — согласие на передачу сведений врачу прекращается.
+      if (cancelled) ctx.consents?.revoke(ctx.peerId, state.bookingId);
       return show({ step: "bookings" }, ctx, [
         cancelled
           ? `Запись №${state.bookingId} отменена.`
@@ -337,7 +380,7 @@ function confirm(
       // Запись уже сохранена; всё, что ниже, — необязательно.
       return {
         state: { step: "menu" },
-        effects: [{ type: "booked" }],
+        effects: [{ type: "booked", bookingId: result.booking.id }],
         replies: [
           {
             text:
@@ -376,12 +419,21 @@ function confirm(
   }
 }
 
+/**
+ * Честное предупреждение: сообщения сообществу ВКонтакте видят руководители
+ * сообщества в интерфейсе ВКонтакте — панель клиники это не ограничивает.
+ */
+export const PRIVACY_NOTICE =
+  "Важно: переписку в сообщениях сообщества могут читать администраторы сообщества ВКонтакте. " +
+  "Не пишите подробностей о здоровье, которые не готовы им показать, — для записи достаточно пары слов.";
+
 export function greet(ctx: DialogContext): DialogResult {
   return show({ step: "menu" }, ctx, [
     `Здравствуйте! Я автоматический помощник администратора: ${ctx.clinic.name}.\n` +
       "Это демонстрация: врачи, цены и расписание вымышленные, запись — тестовая.\n" +
       "Можно коротко написать, что беспокоит, — помогу выбрать специалиста и время. " +
-      "Я не ставлю диагнозы и не назначаю лечение; документы и анализы не присылайте.",
+      "Я не ставлю диагнозы и не назначаю лечение; документы и анализы не присылайте.\n" +
+      PRIVACY_NOTICE,
   ]);
 }
 
@@ -411,6 +463,7 @@ function previous(state: DialogState): DialogState {
     case "bookings":
     case "menu":
     case "handoff":
+    case "share":
       return { step: "menu" };
     case "doctor":
       return { step: "specialty" };
@@ -640,21 +693,34 @@ export function show(
           ],
         ]);
       }
+      const shared = ctx.consents?.sharedBookingIds(ctx.peerId) ?? new Set();
       return reply(
         "Ваши записи:\n" +
           bookings
             .map(
               (b) =>
-                `№${b.id}: ${formatDayShort(b.date)}, ${b.time} — ${doctorLabel(b.doctorId, ctx)}`,
+                `№${b.id}: ${formatDayShort(b.date)}, ${b.time} — ${doctorLabel(b.doctorId, ctx)}` +
+                (shared.has(b.id)
+                  ? "\n   врачу передано описание жалобы (можно отозвать)"
+                  : ""),
             )
             .join("\n"),
         [
-          ...bookings.map((b) => [
+          // Отзыв согласия — в одном ряду с отменой: лимит рядов ВКонтакте.
+          ...bookings.map((b): Button[] => [
             {
               label: `Отменить №${b.id}`,
-              action: { a: "cx", b: b.id } as Action,
-              color: "negative" as const,
+              action: { a: "cx", b: b.id },
+              color: "negative",
             },
+            ...(shared.has(b.id)
+              ? [
+                  {
+                    label: `Отозвать сведения №${b.id}`,
+                    action: { a: "rv", b: b.id } as Action,
+                  },
+                ]
+              : []),
           ]),
           [{ label: "Записаться ещё", action: { a: "book" } }, MENU],
         ],
@@ -681,21 +747,60 @@ export function show(
       );
     }
 
-    case "handoff":
-      return reply(
-        "Позвать администратора клиники? Он ответит в этом диалоге, бот на это время замолчит.",
+    case "share":
+      return reply(sharePreview(state.bookingId, state.summary), [
         [
-          [
-            {
-              label: "Да, позвать",
-              action: { a: "hoff" },
-              color: "primary",
-            },
-            { label: "Нет", action: { a: "back" } },
-          ],
+          { label: "Передать врачу", action: { a: "shrok" }, color: "primary" },
+          { label: "Не передавать", action: { a: "shrno" } },
         ],
-      );
+      ]);
+
+    case "handoff":
+      return reply(HANDOFF_QUESTION, [
+        [
+          {
+            label: "Да, позвать",
+            action: { a: "hoff" },
+            color: "primary",
+          },
+          { label: "Нет", action: { a: "back" } },
+        ],
+      ]);
   }
+}
+
+/**
+ * Предупреждение перед передачей администратору. Честно: администратор
+ * отвечает в сообщениях сообщества ВКонтакте и видит там всю переписку
+ * диалога, включая сообщения боту, — наша панель этого не ограничивает.
+ */
+export const HANDOFF_QUESTION =
+  "Позвать администратора клиники? Он ответит в этом диалоге, бот на это время замолчит.\n" +
+  "Важно: администратор увидит всю переписку этого диалога ВКонтакте, включая то, что вы писали боту о самочувствии.";
+
+/** Что именно уйдёт врачу — показывается до согласия, дословно. */
+export function sharePreview(bookingId: number, s: ShareSummary): string {
+  const lines = [
+    `Область: ${MEDICAL_AREA_TITLES[s.area]}`,
+    `Как вы описали: «${s.summary}»`,
+    ...(s.trauma ? [`Травма: ${s.trauma === "yes" ? "была" : "не было"}`] : []),
+    ...(s.duration ? [`Как давно: ${s.duration}`] : []),
+    ...(s.redFlags.length > 0
+      ? [
+          `Тревожные признаки: ${s.redFlags.map((f) => RED_FLAG_TITLES[f]).join(", ")}`,
+        ]
+      : s.redFlagsDenied
+        ? ["Тревожные признаки: отметили, что их нет"]
+        : []),
+  ];
+  return [
+    `Передать врачу записи №${bookingId} краткое описание жалобы? Это необязательно: на запись не влияет.`,
+    "Будет передано только это:",
+    lines.map((l) => `• ${l}`).join("\n"),
+    "Получатель — только врач этой записи, цель — подготовка к приёму. " +
+      "Сведения хранятся зашифрованно и удаляются через неделю после приёма, при отмене записи или по вашему отзыву в «Мои записи». " +
+      "Переписка целиком врачу не передаётся.",
+  ].join("\n\n");
 }
 
 function doctorLabel(doctorId: string, ctx: DialogContext): string {

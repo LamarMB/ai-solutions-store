@@ -5,6 +5,8 @@ import { fictionalClinic } from "@/bot/clinic/fictional-clinic";
 import type { Clinic } from "@/bot/clinic/types";
 import { AdminStore } from "@/bot/storage/admin-store";
 import { ClinicStore } from "@/bot/storage/clinic-store";
+import { ConsentStore } from "@/bot/storage/consent-store";
+import { isEncrypted, type MedicalCipher } from "@/bot/storage/medical-crypto";
 import type {
   Booking,
   BookingRepository,
@@ -208,13 +210,71 @@ export function seedClinic(db: DatabaseSync, clinic: Clinic, at: string) {
   );
 }
 
+/**
+ * Версия 6: роли сотрудников и медицинская конфиденциальность.
+ * Существующие учётные записи панели получают роль owner (сохраняют доступ к
+ * сотрудникам и настройкам; медицинских данных роль не открывает). Новые записи
+ * по умолчанию — admin: роль всегда задаётся явно.
+ */
+const PRIVACY_SCHEMA = `
+ALTER TABLE admin_users ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'
+  CHECK (role IN ('owner', 'admin', 'doctor'));
+ALTER TABLE admin_users ADD COLUMN doctor_id TEXT;
+UPDATE admin_users SET role = 'owner';
+-- Учётная запись врача связана ровно с одним врачом расписания.
+CREATE UNIQUE INDEX IF NOT EXISTS admin_users_doctor
+  ON admin_users (doctor_id) WHERE doctor_id IS NOT NULL;
+-- Приглашения сотрудников: в базе только SHA-256 одноразового токена.
+CREATE TABLE IF NOT EXISTS staff_invites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token_hash TEXT NOT NULL UNIQUE,
+  login TEXT NOT NULL COLLATE NOCASE,
+  role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'doctor')),
+  doctor_id TEXT,
+  created_by INTEGER,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  revoked_at TEXT
+);
+-- Согласие пациента на передачу строго определённых сведений конкретному
+-- получателю с конкретной целью. Нет строки — нет доступа. payload зашифрован.
+CREATE TABLE IF NOT EXISTS disclosure_consents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  booking_id INTEGER NOT NULL,
+  peer_id INTEGER NOT NULL,
+  recipient_role TEXT NOT NULL CHECK (recipient_role IN ('doctor', 'admin')),
+  recipient_doctor_id TEXT,
+  scope TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  payload TEXT,
+  status TEXT NOT NULL CHECK (status IN ('granted', 'revoked', 'expired')),
+  granted_at TEXT NOT NULL,
+  revoked_at TEXT,
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS disclosure_consents_booking ON disclosure_consents (booking_id);
+CREATE INDEX IF NOT EXISTS disclosure_consents_peer ON disclosure_consents (peer_id);
+-- Журнал доступа к медицинским сведениям: кто, когда, к какой записи (без содержания).
+CREATE TABLE IF NOT EXISTS medical_access_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  consent_id INTEGER,
+  booking_id INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  result TEXT NOT NULL
+);
+`;
+
 type Migration = string | ((db: DatabaseSync) => void);
 
 /**
  * Миграции схемы (номер версии — позиция в списке + 1):
  * 1 — исходные таблицы; 2 — индекс для удаления устаревших разговоров;
  * 3 — счётчики stats; 4 — справочники клиники, статусы и источник записей
- * (с начальными данными прежней вымышленной клиники); 5 — администраторы.
+ * (с начальными данными прежней вымышленной клиники); 5 — администраторы;
+ * 6 — роли сотрудников, приглашения, согласия пациентов, журнал медицинского доступа.
  * Формат JSON в sessions.state сменился на v2 (шаг записи + память разговора);
  * старые значения читаются кодом (parseSession), переписывать их не нужно.
  */
@@ -233,6 +293,7 @@ const MIGRATIONS: Migration[] = [
     seedClinic(db, fictionalClinic, new Date().toISOString());
   },
   ADMIN_SCHEMA,
+  PRIVACY_SCHEMA,
 ];
 
 /** Последняя версия схемы. */
@@ -290,7 +351,16 @@ export class SqliteStore
   /** Администраторы, сессии и журнал панели. */
   readonly admin: AdminStore;
 
-  constructor(path: string) {
+  /** Согласия пациентов на передачу сведений и журнал доступа к ним. */
+  readonly consents: ConsentStore;
+  private readonly cipher?: MedicalCipher;
+
+  /**
+   * `cipher` — ключ MEDICAL_DATA_KEY: память разговоров (жалобы, ответы,
+   * реплики) хранится зашифрованной; без ключа передача сведений врачу выключена.
+   */
+  constructor(path: string, { cipher }: { cipher?: MedicalCipher } = {}) {
+    this.cipher = cipher;
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     // Бот и панель — разные процессы с одной базой: WAL и ожидание блокировки.
@@ -298,6 +368,7 @@ export class SqliteStore
     this.migrate();
     this.clinic = new ClinicStore(this.db);
     this.admin = new AdminStore(this.db);
+    this.consents = new ConsentStore(this.db, cipher);
   }
 
   /** Версия схемы базы (PRAGMA user_version). */
@@ -527,14 +598,21 @@ export class SqliteStore
       .prepare("SELECT state, updated_at FROM sessions WHERE peer_id = ?")
       .get(peerId) as { state: string; updated_at: string } | undefined;
     if (!row) return undefined;
+    // Зашифрованное без ключа (или чужим ключом) не читается: разговор начнётся заново.
+    const text = isEncrypted(row.state)
+      ? this.cipher?.decrypt(row.state, `session:${peerId}`)
+      : row.state;
+    if (text === undefined) return undefined;
     try {
-      return {
-        state: JSON.parse(row.state) as unknown,
-        updatedAt: row.updated_at,
-      };
+      return { state: JSON.parse(text) as unknown, updatedAt: row.updated_at };
     } catch {
       return undefined;
     }
+  }
+
+  /** Хранится ли память разговоров зашифрованной. */
+  get encryptsSessions(): boolean {
+    return this.cipher !== undefined;
   }
 
   save(peerId: number, state: unknown, updatedAt: string): void {
@@ -542,7 +620,13 @@ export class SqliteStore
       .prepare(
         "INSERT INTO sessions (peer_id, state, updated_at) VALUES (?, ?, ?) ON CONFLICT(peer_id) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at",
       )
-      .run(peerId, JSON.stringify(state), updatedAt);
+      .run(
+        peerId,
+        this.cipher
+          ? this.cipher.encrypt(JSON.stringify(state), `session:${peerId}`)
+          : JSON.stringify(state),
+        updatedAt,
+      );
   }
 
   delete(peerId: number): void {

@@ -13,7 +13,12 @@ import {
 import type { ConversationModel } from "@/bot/conversation/model";
 import { handleTurn } from "@/bot/conversation/orchestrator";
 import { normalizeText } from "@/bot/dialog/rule-interpreter";
-import type { BotEvent, Reply, TextInterpreter } from "@/bot/dialog/types";
+import type {
+  BotEvent,
+  ConsentPort,
+  Reply,
+  TextInterpreter,
+} from "@/bot/dialog/types";
 import { detectRedFlags, urgencyOf } from "@/bot/conversation/safety";
 import type { ScheduleProvider } from "@/bot/schedule/schedule";
 import { localDateTime } from "@/bot/schedule/time";
@@ -24,7 +29,11 @@ export const DEFAULT_HISTORY_HOURS = 24;
 /** Слова, которыми пациент возвращает бота после передачи администратору. */
 const RESUME_WORDS = ["бот", "вернуться к боту", "/bot"];
 
-/** Уведомление администратора — реализует канал (ВКонтакте, позже другие). */
+/**
+ * Уведомление администратора — реализует канал (ВКонтакте, позже другие).
+ * Получает только id диалога: ни жалобы, ни текста сообщений в уведомление
+ * не попадает.
+ */
 export interface AdminNotifier {
   notifyHandoff(peerId: number): Promise<void>;
 }
@@ -47,6 +56,10 @@ export type BotDeps = {
   stats?: StatsStore;
   /** Сколько часов бот молчит после передачи администратору. */
   handoffHours?: number;
+  /** Согласия на передачу сведений врачу (нужен MEDICAL_DATA_KEY). */
+  consents?: ConsentPort;
+  /** false — без уточняющих вопросов о симптомах. */
+  medicalQuestions?: boolean;
   now?: () => Date;
   /** Ошибки уведомлений — без персональных данных. */
   onError?: (message: string) => void;
@@ -132,6 +145,8 @@ export function createBot(deps: BotDeps) {
           model: deps.model,
           today: localDateTime(now(), clinic.timeZone).date,
           now: now(),
+          consents: deps.consents,
+          medicalQuestions: deps.medicalQuestions,
         },
       );
       count(stats);

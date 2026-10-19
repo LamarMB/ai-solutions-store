@@ -37,6 +37,8 @@ const { bot, store } = createDemoBot({
   handoffHours: config.handoffHours,
   historyHours: config.historyHours,
   messagesPerMinute: config.messagesPerMinute,
+  cipher: config.cipher,
+  medicalQuestions: config.medicalQuestions,
   log,
 });
 const runner = createVkRunner({
@@ -57,6 +59,9 @@ const prune = () => {
     new Date(Date.now() - config.historyHours * 3_600_000).toISOString(),
   );
   if (removed > 0) log(`удалено устаревших разговоров: ${removed}`);
+  // Истёкшие согласия: статус expired, переданные врачу сведения удаляются.
+  const expired = store.consents.purgeExpired(new Date().toISOString());
+  if (expired > 0) log(`истекло согласий на передачу врачу: ${expired}`);
 };
 prune();
 const pruneTimer = setInterval(prune, 3_600_000);
@@ -73,7 +78,9 @@ log(
   `сообщество ${config.vk.groupId}, тестовых аккаунтов: ${config.vk.allowedUserIds.size}, ` +
     `OpenAI: ${config.openai ? `да (${config.openai.model})` : "нет — работают кнопки и правила"}, ` +
     `администратор: ${notifier ? "уведомления включены" : "не задан"}, база: ${config.dbPath} (схема v${store.schemaVersion}), ` +
-    `история разговора: ${config.historyHours} ч`,
+    `история разговора: ${config.historyHours} ч, ` +
+    `шифрование и передача врачу: ${config.cipher ? "включены" : "выключены (нет MEDICAL_DATA_KEY)"}, ` +
+    `вопросы о симптомах: ${config.medicalQuestions ? "да" : "нет"}`,
 );
 
 try {

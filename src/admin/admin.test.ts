@@ -40,6 +40,7 @@ async function setup(store = new SqliteStore(":memory:")) {
     "admin",
     await hashPassword(PASSWORD),
     NOW.toISOString(),
+    "owner",
   );
   const deps: AdminApiDeps = {
     service: new AdminService(store, clock),
@@ -127,7 +128,11 @@ describe("авторизация и защита API", () => {
     const token = header.split(";")[0].split("=")[1];
     const db = JSON.stringify(t.store.admin.listUsers());
     expect(db).not.toContain(PASSWORD);
-    expect((await t.call("GET", "me")).json.data).toEqual({ login: "admin" });
+    expect((await t.call("GET", "me")).json.data).toEqual({
+      login: "admin",
+      role: "owner",
+      doctorId: null,
+    });
     // Токен в базе не хранится.
     expect(t.deps.auth.verify(token)).toBeDefined();
     expect(t.deps.auth.verify(`${token}x`)).toBeUndefined();

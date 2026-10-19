@@ -9,6 +9,7 @@ import {
   type AdminAuth,
   type AuthConfig,
 } from "@/admin/auth";
+import { can, type Permission } from "@/admin/permissions";
 import { LoginSchema, describeZodError } from "@/admin/schemas";
 import { AdminError, type AdminService } from "@/admin/service";
 
@@ -71,6 +72,13 @@ export async function handleAdminApi(
 
     if (route === "login" && method === "POST")
       return await login(request, deps);
+    // Приглашение сотрудника: без сессии, по одноразовому токену.
+    if (route === "invite/info" && method === "POST") {
+      const body = (await readJson(request)) as { token?: unknown };
+      return ok(deps.service.staff.inviteInfo(String(body.token ?? "")));
+    }
+    if (route === "invite/accept" && method === "POST")
+      return ok(await deps.service.staff.acceptInvite(await readJson(request)));
 
     const token = readCookie(
       request.headers.get("cookie"),
@@ -111,7 +119,7 @@ async function login(request: Request, deps: AdminApiDeps): Promise<Response> {
       : fail(401, "Неверный логин или пароль.");
   }
   return ok(
-    { login: result.session.login },
+    { login: result.session.login, role: result.session.role },
     {
       "Set-Cookie": sessionCookie(
         deps.config,
@@ -122,6 +130,39 @@ async function login(request: Request, deps: AdminApiDeps): Promise<Response> {
   );
 }
 
+/**
+ * Маршрут → право. Маршрута нет в таблице — 404; права нет — 403. Проверка
+ * для каждого запроса, независимо от того, что показывает интерфейс.
+ */
+const ROUTES: Record<string, Permission | null> = {
+  "GET me": null,
+  "GET dashboard": "dashboard.read",
+  "GET bookings": "bookings.read",
+  "POST bookings": "bookings.write",
+  "PATCH bookings/:id": "bookings.write",
+  "GET slots": "bookings.read",
+  "GET doctors": "doctors.read",
+  "POST doctors": "doctors.write",
+  "PATCH doctors/:id": "doctors.write",
+  "DELETE doctors/:id": "doctors.write",
+  "POST specialties": "doctors.write",
+  "PATCH specialties/:id": "doctors.write",
+  "GET schedule/:id": "schedule.read",
+  "PUT schedule/:id/hours": "schedule.write",
+  "GET exceptions": "schedule.read",
+  "POST exceptions": "schedule.write",
+  "DELETE exceptions/:id": "schedule.write",
+  "GET settings": "settings.read",
+  "PUT settings": "settings.write",
+  "GET staff": "staff.manage",
+  "PATCH staff/:id": "staff.manage",
+  "POST invites": "staff.manage",
+  "DELETE invites/:id": "staff.manage",
+  "GET medical-log": "medical_log.read",
+  "GET my/bookings": "own_bookings.read",
+  "GET my/:id/medical": "own_medical.request",
+};
+
 async function dispatch(
   request: Request,
   method: string,
@@ -130,12 +171,27 @@ async function dispatch(
   service: AdminService,
 ): Promise<Response> {
   const [section, id, sub] = path;
+  if (path.length > 3) return fail(404, "Не найдено.");
   const user = session.userId;
   const query = Object.fromEntries(new URL(request.url).searchParams);
+  // «my/bookings» — отдельный раздел; «my/<номер>/medical» — сведения записи.
+  const key =
+    section === "my" && id === "bookings" && !sub
+      ? `${method} my/bookings`
+      : `${method} ${section}${id ? "/:id" : ""}${sub ? `/${sub}` : ""}`;
 
-  switch (`${method} ${section}${id ? "/:id" : ""}${sub ? `/${sub}` : ""}`) {
+  if (!(key in ROUTES)) return fail(404, "Не найдено.");
+  const permission = ROUTES[key];
+  if (permission && !can(session.role, permission))
+    return fail(403, "Недостаточно прав для этого раздела.");
+
+  switch (key) {
     case "GET me":
-      return ok({ login: session.login });
+      return ok({
+        login: session.login,
+        role: session.role,
+        doctorId: session.doctorId,
+      });
     case "GET dashboard":
       return ok(service.dashboard());
 
@@ -185,6 +241,24 @@ async function dispatch(
       return ok(service.getSettings());
     case "PUT settings":
       return ok(service.updateSettings(await readJson(request), user));
+
+    case "GET staff":
+      return ok(service.staff.list());
+    case "PATCH staff/:id":
+      return ok(
+        service.staff.update(intId(id), await readJson(request), session),
+      );
+    case "POST invites":
+      return ok(service.staff.createInvite(await readJson(request), session));
+    case "DELETE invites/:id":
+      return ok(service.staff.revokeInvite(intId(id), session));
+
+    case "GET medical-log":
+      return ok(service.medicalAccessLog());
+    case "GET my/bookings":
+      return ok(service.myBookings(session, query));
+    case "GET my/:id/medical":
+      return ok(service.readMedical(session, intId(id)));
   }
   return fail(404, "Не найдено.");
 }

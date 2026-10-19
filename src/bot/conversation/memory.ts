@@ -4,6 +4,7 @@ import { COMPLAINT_AREAS, QUESTION_KEYS } from "@/bot/conversation/triage";
 import {
   DialogStateSchema,
   INITIAL_STATE,
+  ShareSummarySchema,
   type DialogState,
 } from "@/bot/dialog/types";
 
@@ -48,6 +49,13 @@ export const ConversationSchema = z.object({
   offtopicStreak: z.number().int().nonnegative().default(0),
   /** До этого момента бот не отвечает на повторный оффтоп (ISO). */
   mutedUntil: z.string().optional(),
+  /**
+   * Предложение передать врачу описание жалобы после записи. Ничего не
+   * передаётся, пока пациент сам не нажмёт «Передать врачу».
+   */
+  shareOffer: z
+    .object({ bookingId: z.int().positive(), summary: ShareSummarySchema })
+    .optional(),
 });
 export type Conversation = z.infer<typeof ConversationSchema>;
 

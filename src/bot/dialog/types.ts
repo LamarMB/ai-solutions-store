@@ -1,5 +1,34 @@
 import { z } from "zod";
-import { QUESTION_KEYS } from "@/bot/conversation/triage";
+import { RED_FLAGS } from "@/bot/conversation/safety";
+import { COMPLAINT_AREAS, QUESTION_KEYS } from "@/bot/conversation/triage";
+
+/**
+ * Что пациент может разрешить передать врачу своей записи: краткое описание
+ * жалобы из разговора — не переписка. Хранится только в разговоре пациента
+ * до его решения, после согласия — зашифрованно в disclosure_consents.
+ */
+export const ShareSummarySchema = z.strictObject({
+  area: z.enum(COMPLAINT_AREAS),
+  summary: z.string().max(160),
+  trauma: z.enum(["yes", "no"]).optional(),
+  duration: z.string().max(60).optional(),
+  redFlags: z.array(z.enum(RED_FLAGS)),
+  redFlagsDenied: z.boolean(),
+});
+export type ShareSummary = z.infer<typeof ShareSummarySchema>;
+
+/**
+ * Согласия пациента на передачу сведений врачу (src/bot/consent.ts). Без
+ * порта (нет MEDICAL_DATA_KEY) бот передачу не предлагает.
+ */
+export interface ConsentPort {
+  /** false — запись не найдена среди активных записей собеседника. */
+  share(peerId: number, bookingId: number, summary: ShareSummary): boolean;
+  /** Отзыв: сведения удаляются сразу. */
+  revoke(peerId: number, bookingId: number): boolean;
+  /** Записи собеседника с действующим согласием. */
+  sharedBookingIds(peerId: number): Set<number>;
+}
 
 /** Темы справки: ответы строятся только из данных клиники. */
 export const INFO_TOPICS = [
@@ -46,6 +75,15 @@ export const ActionSchema = z.discriminatedUnion("a", [
   z.strictObject({ a: z.literal("near"), s: z.string().max(40) }),
   /** Удалить историю разговора и начать заново. */
   z.strictObject({ a: z.literal("reset") }),
+  /**
+   * Необязательная передача описания жалобы врачу записи: показать, что уйдёт
+   * (shr), согласиться (shrok), отказаться (shrno). Данные — из сохранённого
+   * разговора, не из кнопки. Отзыв согласия по записи — rv.
+   */
+  z.strictObject({ a: z.literal("shr") }),
+  z.strictObject({ a: z.literal("shrok") }),
+  z.strictObject({ a: z.literal("shrno") }),
+  z.strictObject({ a: z.literal("rv"), b: z.int().positive() }),
 ]);
 export type Action = z.infer<typeof ActionSchema>;
 
@@ -76,6 +114,11 @@ export const DialogStateSchema = z.discriminatedUnion("step", [
   z.strictObject({ step: z.literal("bookings") }),
   z.strictObject({ step: z.literal("cancel"), bookingId: z.int().positive() }),
   z.strictObject({ step: z.literal("handoff") }),
+  z.strictObject({
+    step: z.literal("share"),
+    bookingId: z.int().positive(),
+    summary: ShareSummarySchema,
+  }),
 ]);
 export type DialogState = z.infer<typeof DialogStateSchema>;
 
@@ -150,4 +193,5 @@ export interface TextInterpreter {
  * Побочные эффекты шага, которые выполняет обёртка бота, а не диалог:
  * передача администратору и отметка о созданной записи.
  */
-export type Effect = { type: "handoff" } | { type: "booked" };
+export type Effect =
+  { type: "handoff" } | { type: "booked"; bookingId: number };

@@ -68,6 +68,8 @@ export type TurnContext = DialogContext & {
   model?: ConversationModel;
   /** Текущий момент — для паузы после повторного оффтопа. */
   now?: Date;
+  /** false — без уточняющих вопросов о симптомах (BOT_MEDICAL_QUESTIONS). */
+  medicalQuestions?: boolean;
 };
 
 export type TurnResult = {
@@ -130,15 +132,16 @@ export async function handleTurn(
 ): Promise<TurnResult> {
   switch (event.type) {
     case "start":
-      return finish(step(newSession().conv, greet(ctx)));
+      return finish(step(newSession().conv, greet(ctx)), ctx);
     case "resume":
       return finish(
         step(session.conv, await handleFlowEvent(session.flow, event, ctx)),
+        ctx,
       );
     case "action":
-      return finish(await handleAction(session, event.payload, ctx));
+      return finish(await handleAction(session, event.payload, ctx), ctx);
     case "text":
-      return finish(await handleText(session, event.text, ctx));
+      return finish(await handleText(session, event.text, ctx), ctx);
   }
 }
 
@@ -165,6 +168,21 @@ async function handleAction(
         return continueComplaint(session.flow, conv, ctx);
       case "near":
         return step(conv, offerNearest(action.s, undefined, ctx));
+      case "shr":
+        // Предпросмотр передачи врачу — из памяти разговора, не из кнопки.
+        if (!conv.shareOffer || !ctx.consents)
+          return step(
+            conv,
+            show(session.flow, ctx, [
+              "Предложение устарело: описания жалобы для передачи нет.",
+            ]),
+          );
+        return step(conv, show({ step: "share", ...conv.shareOffer }, ctx));
+      case "shrok":
+      case "shrno":
+        // После решения пациента предложение больше не хранится.
+        conv = { ...conv, shareOffer: undefined, pending: undefined };
+        break;
       case "spec":
         conv = { ...conv, specialtyId: action.s, pending: undefined };
         break;
@@ -666,9 +684,10 @@ function continueComplaint(
     (key === "trauma" && conv.trauma !== undefined) ||
     (key === "duration" && conv.duration !== undefined) ||
     (key === "red_flags" && conv.redFlagsDenied);
-  // После экстренных признаков расспросы не продолжаются.
+  // После экстренных признаков расспросы не продолжаются; в режиме без
+  // медицинских вопросов (BOT_MEDICAL_QUESTIONS=false) их нет совсем.
   const open =
-    conv.urgency === "emergency"
+    conv.urgency === "emergency" || ctx.medicalQuestions === false
       ? []
       : QUESTION_PLAN[complaint.area].filter((k) => !answered(k));
 
@@ -833,15 +852,52 @@ function reset(ctx: TurnContext): Step {
   return step(emptyConversation(), show({ step: "menu" }, ctx, [RESET_TEXT]));
 }
 
-/** Запоминает ответ бота; после записи забывает жалобу. */
-function finish(result: Step): TurnResult {
+/**
+ * Запоминает ответ бота; после записи забывает жалобу. Если жалоба была и
+ * передача сведений настроена, к подтверждению записи добавляется
+ * необязательная кнопка — без неё (и без нажатия «Передать врачу») ничего
+ * не передаётся.
+ */
+function finish(result: Step, ctx: TurnContext): TurnResult {
   let conv = result.conv;
-  if (result.effects?.some((e) => e.type === "booked"))
-    conv = withoutComplaint(conv);
-  for (const reply of result.replies) conv = addTurn(conv, "bot", reply.text);
+  let replies = result.replies;
+  const booked = result.effects?.find((e) => e.type === "booked");
+  if (booked) {
+    const offer =
+      ctx.consents && conv.complaint && conv.urgency !== "emergency"
+        ? {
+            bookingId: booked.bookingId,
+            summary: {
+              area: conv.complaint.area,
+              summary: conv.complaint.summary.slice(0, 160),
+              ...(conv.trauma ? { trauma: conv.trauma } : {}),
+              ...(conv.duration ? { duration: conv.duration } : {}),
+              redFlags: conv.redFlags,
+              redFlagsDenied: conv.redFlagsDenied,
+            },
+          }
+        : undefined;
+    conv = { ...withoutComplaint(conv), shareOffer: offer };
+    if (offer && replies.length > 0) {
+      const [first, ...rest] = replies;
+      replies = [
+        {
+          text:
+            first.text +
+            "\n\nЕщё можно (необязательно) передать врачу краткое описание жалобы — сначала покажу, что именно уйдёт.",
+          buttons: [
+            [{ label: "Передать врачу описание", action: { a: "shr" } }],
+            ...first.buttons,
+          ],
+        },
+        ...rest,
+      ];
+    }
+  }
+  for (const reply of replies) conv = addTurn(conv, "bot", reply.text);
   return {
     session: { flow: result.state, conv },
-    replies: result.replies,
+    replies,
     effects: (result.effects ?? []).filter((e) => e.type !== "booked"),
     stats: result.stats ?? [],
   };

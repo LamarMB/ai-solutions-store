@@ -8,5 +8,9 @@ export const dynamic = "force-dynamic";
 export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
   const admin = await currentAdmin();
   if (!admin) redirect("/admin/login");
-  return <AdminShell login={admin.login}>{children}</AdminShell>;
+  return (
+    <AdminShell login={admin.login} role={admin.role}>
+      {children}
+    </AdminShell>
+  );
 }

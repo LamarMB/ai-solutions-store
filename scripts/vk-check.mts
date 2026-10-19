@@ -117,6 +117,14 @@ if (!config.vk.adminUserId) {
     "INFO VK_ADMIN_USER_ID не задан — запросы администратора не будут пересылаться",
   );
 }
+if (!config.cipher) {
+  log(
+    "INFO MEDICAL_DATA_KEY не задан — разговоры хранятся без шифрования, передача описания жалобы врачу выключена (docs/medical-privacy.md)",
+  );
+} else ok("MEDICAL_DATA_KEY: шифрование разговоров и согласий включено");
+log(
+  "INFO сообщения сообщества видят руководители сообщества ВКонтакте — панель это не ограничивает (docs/medical-privacy.md)",
+);
 log(
   process.exitCode
     ? "есть ошибки — исправьте и запустите проверку снова"

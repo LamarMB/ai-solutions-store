@@ -8,6 +8,8 @@ import { RuleInterpreter } from "@/bot/dialog/rule-interpreter";
 import { OpenAiClient } from "@/bot/llm/openai-client";
 import { OpenAiConversationModel } from "@/bot/llm/openai-conversation";
 import { ClinicSchedule } from "@/bot/schedule/schedule";
+import { createConsentPort } from "@/bot/consent";
+import type { MedicalCipher } from "@/bot/storage/medical-crypto";
 import { SqliteStore } from "@/bot/storage/sqlite";
 
 export { createBot, type Bot } from "@/bot/bot";
@@ -23,6 +25,8 @@ export function createDemoBot({
   handoffHours,
   historyHours,
   messagesPerMinute,
+  cipher,
+  medicalQuestions,
   log,
 }: {
   dbPath: string;
@@ -36,9 +40,16 @@ export function createDemoBot({
   /** Срок хранения разговора без активности, часов. */
   historyHours?: number;
   messagesPerMinute?: number;
+  /**
+   * MEDICAL_DATA_KEY: шифрует разговоры в базе и включает необязательную
+   * передачу описания жалобы врачу записи. Без ключа передачи нет.
+   */
+  cipher?: MedicalCipher;
+  /** false — бот не задаёт вопросов о симптомах (BOT_MEDICAL_QUESTIONS). */
+  medicalQuestions?: boolean;
   log?: (message: string) => void;
 }) {
-  const store = new SqliteStore(dbPath);
+  const store = new SqliteStore(dbPath, { cipher });
   const source: ClinicSource = clinic ?? (() => store.clinic.load());
   const schedule = new ClinicSchedule(source, store, now);
   const rules = new RuleInterpreter(source);
@@ -66,6 +77,8 @@ export function createDemoBot({
     handoffHours,
     historyHours,
     messagesPerMinute,
+    consents: createConsentPort(store.consents, schedule, now),
+    medicalQuestions,
     stats: store,
     now,
     onError: log,

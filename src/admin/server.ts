@@ -1,7 +1,10 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { can, homeFor, type Permission } from "@/admin/permissions";
 import { AdminAuth, authConfigFromEnv, cookieName } from "@/admin/auth";
 import type { AdminApiDeps } from "@/admin/api";
 import { AdminService } from "@/admin/service";
+import { medicalCipherFromEnv } from "@/bot/config";
 import { SqliteStore } from "@/bot/storage/sqlite";
 import { createClientKeyHasher } from "@/lib/client-key";
 
@@ -14,8 +17,10 @@ let deps: AdminApiDeps | undefined;
 
 export function adminDeps(): AdminApiDeps {
   if (!deps) {
+    // Ключ нужен панели только для чтения сведений врачом по согласию пациента.
     const store = new SqliteStore(
       process.env.BOT_DB_PATH || ".data/bot.sqlite",
+      { cipher: medicalCipherFromEnv() },
     );
     const hashClient = createClientKeyHasher();
     deps = {
@@ -29,9 +34,20 @@ export function adminDeps(): AdminApiDeps {
   return deps;
 }
 
-/** Сессия администратора для серверных страниц панели. */
+/** Сессия сотрудника для серверных страниц панели (с ролью). */
 export async function currentAdmin() {
   const { auth, config } = adminDeps();
   const token = (await cookies()).get(cookieName(config))?.value;
   return auth.verify(token);
+}
+
+/**
+ * Страница панели только для роли с правом `permission`. Без сессии — вход,
+ * без права — своя первая страница. Данные страницы всё равно проверяет API.
+ */
+export async function requirePage(permission: Permission) {
+  const session = await currentAdmin();
+  if (!session) redirect("/admin/login");
+  if (!can(session.role, permission)) redirect(homeFor(session.role));
+  return session;
 }
