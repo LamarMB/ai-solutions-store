@@ -41,6 +41,7 @@ import {
   type QuestionKey,
 } from "@/bot/conversation/triage";
 import {
+  composedRequest,
   greet,
   handleEvent as handleFlowEvent,
   handleMeaning,
@@ -48,6 +49,7 @@ import {
   nearestSlot,
   show,
   startBooking,
+  startHandoff,
   type DialogContext,
   type DialogResult,
 } from "@/bot/dialog/dialog";
@@ -94,6 +96,10 @@ export const RESET_WORDS = [
   "очисти историю",
   "удалить историю",
 ];
+
+/** Команда отзыва передачи обращений администратору через нашу систему. */
+export const REVOKE_RE =
+  /^(отозвать|отзыв|отозвать (передачу|обращение|согласие|разрешение)|отзываю (согласие|разрешение))$/;
 
 export const RESET_TEXT =
   "История разговора удалена. Начнём заново — расскажите, что нужно, или выберите действие.";
@@ -220,6 +226,11 @@ async function handleText(
     };
   }
   if (RESET_WORDS.includes(text)) return reset(ctx);
+  if (REVOKE_RE.test(text) && ctx.requests)
+    return step(
+      addTurn(session.conv, "patient", text),
+      revokeRequests(flow, ctx),
+    );
 
   // Подпись кнопки текущего шага работает как нажатие — без модели.
   const withTurn = (t: string) =>
@@ -227,6 +238,25 @@ async function handleText(
   const option =
     text === "назад" ? { a: "back" } : matchOption(flow, text, ctx);
   if (option) return handleAction({ flow, conv: withTurn(raw) }, option, ctx);
+  // Что передать администратору: сообщение пациента — черновик обращения.
+  // Тревожные признаки и здесь проверяются первыми. Модель не участвует.
+  if (flow.step === "handoff_compose") {
+    if (urgencyOf({ redFlags: detectRedFlags(raw) }) === "emergency")
+      return emergency(withTurn(raw));
+    const composed = composedRequest(raw);
+    if (composed === "too_long")
+      return step(
+        session.conv,
+        show(flow, ctx, [
+          "Слишком длинно для обращения — напишите коротко, до 500 знаков.",
+        ]),
+      );
+    if (composed)
+      return step(
+        withTurn(raw),
+        show({ step: "handoff_consent", ...composed }, ctx),
+      );
+  }
   // «Да/нет» на шагах подтверждения — тоже без модели.
   if (
     ["confirm", "cancel", "handoff"].includes(flow.step) &&
@@ -546,7 +576,8 @@ async function execute(
       return step(conv, show({ step: "bookings" }, ctx, notes));
 
     case "handoff_to_admin":
-      return step(conv, show({ step: "handoff" }, ctx, notes));
+      // Текст обращения — слова пациента, не формулировка модели.
+      return step(conv, startHandoff(ctx, raw));
 
     case "specialist_unavailable":
       // Модель ошиблась, а направление в клинике есть — показываем его врачей.
@@ -617,7 +648,20 @@ async function fallback(
   ) {
     return continueComplaint(flow, conv, ctx);
   }
+  if (meaning.intent === "admin") return step(conv, startHandoff(ctx, raw));
   return step(conv, handleMeaning(flow, meaning, ctx));
+}
+
+/** Отзыв всех действующих передач собеседника (команда «отозвать передачу»). */
+function revokeRequests(flow: DialogState, ctx: TurnContext): DialogResult {
+  const revoked = ctx.requests?.revoke(ctx.peerId) ?? [];
+  return show(flow, ctx, [
+    revoked.length > 0
+      ? `Передача ${revoked.length > 1 ? "обращений" : "обращения"} ${revoked.map((id) => `№${id}`).join(", ")} отозвана: ` +
+        "текст удалён из панели клиники. Если сотрудник уже прочитал его, это не отменить. " +
+        "Переписку в сообщениях сообщества это не затрагивает."
+      : "Действующих передач обращений нет.",
+  ]);
 }
 
 function bookFromText(

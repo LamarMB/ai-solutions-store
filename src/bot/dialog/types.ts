@@ -17,6 +17,21 @@ export const ShareSummarySchema = z.strictObject({
 });
 export type ShareSummary = z.infer<typeof ShareSummarySchema>;
 
+/** Длина текста обращения к администратору. */
+export const REQUEST_TEXT_MAX = 500;
+
+/**
+ * Обращения к администратору с согласием пациента (src/bot/requests.ts). Без
+ * порта (нет MEDICAL_DATA_KEY) бот зовёт администратора без передачи текста.
+ */
+export interface RequestPort {
+  /** Сохраняет утверждённый пациентом текст; повтор — то же обращение. */
+  create(peerId: number, text: string): { id: number; repeated: boolean };
+  /** Отзыв: без id — все действующие обращения собеседника. */
+  revoke(peerId: number, requestId?: number): number[];
+  activeIds(peerId: number): number[];
+}
+
 /**
  * Согласия пациента на передачу сведений врачу (src/bot/consent.ts). Без
  * порта (нет MEDICAL_DATA_KEY) бот передачу не предлагает.
@@ -84,6 +99,24 @@ export const ActionSchema = z.discriminatedUnion("a", [
   z.strictObject({ a: z.literal("shrok") }),
   z.strictObject({ a: z.literal("shrno") }),
   z.strictObject({ a: z.literal("rv"), b: z.int().positive() }),
+  /**
+   * Открыть VK Mini App клиники. Канал ВКонтакте рисует её кнопкой open_app;
+   * если приложение недоступно, кнопка заменяется записью через бота.
+   */
+  z.strictObject({ a: z.literal("app") }),
+  /**
+   * Обращение к администратору с согласием: разрешить передачу показанного
+   * текста (hok), не разрешить (hno), написать заново (hedit), отозвать (hrv).
+   * Текст — только из сохранённого шага, не из кнопки.
+   */
+  /** h — первые 12 знаков SHA-256 показанного текста: согласие на него и только на него. */
+  z.strictObject({
+    a: z.literal("hok"),
+    h: z.string().regex(/^[0-9a-f]{12}$/),
+  }),
+  z.strictObject({ a: z.literal("hno") }),
+  z.strictObject({ a: z.literal("hedit") }),
+  z.strictObject({ a: z.literal("hrv"), r: z.int().positive() }),
 ]);
 export type Action = z.infer<typeof ActionSchema>;
 
@@ -114,6 +147,15 @@ export const DialogStateSchema = z.discriminatedUnion("step", [
   z.strictObject({ step: z.literal("bookings") }),
   z.strictObject({ step: z.literal("cancel"), bookingId: z.int().positive() }),
   z.strictObject({ step: z.literal("handoff") }),
+  /** Пациент пишет, что передать администратору. */
+  z.strictObject({ step: z.literal("handoff_compose") }),
+  /** Предпросмотр текста обращения и вопрос о согласии. */
+  z.strictObject({
+    step: z.literal("handoff_consent"),
+    draft: z.string().min(1).max(REQUEST_TEXT_MAX),
+    /** Телефоны и почта убраны из текста. */
+    redacted: z.boolean(),
+  }),
   z.strictObject({
     step: z.literal("share"),
     bookingId: z.int().positive(),
@@ -194,4 +236,6 @@ export interface TextInterpreter {
  * передача администратору и отметка о созданной записи.
  */
 export type Effect =
-  { type: "handoff" } | { type: "booked"; bookingId: number };
+  /** Позвать администратора; requestId — обращение с согласием, если есть. */
+  | { type: "handoff"; requestId?: number }
+  | { type: "booked"; bookingId: number };

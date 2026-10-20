@@ -13,6 +13,7 @@ import {
   DoctorSchema,
   ExceptionSchema,
   HoursSchema,
+  RequestUpdateSchema,
   SettingsSchema,
   SpecialtySchema,
 } from "@/admin/schemas";
@@ -514,16 +515,74 @@ export class AdminService {
     };
   }
 
-  /** Журнал доступа к медицинским сведениям — только метаданные (owner). */
+  /** Журнал доступа к медицинским сведениям и обращениям — только метаданные (owner). */
   medicalAccessLog() {
+    const at = this.now().toISOString();
     return {
       consentsEnabled: this.store.consents.enabled,
-      activeConsents: this.store.consents.countActive(
-        "doctor",
-        this.now().toISOString(),
-      ),
+      activeConsents: this.store.consents.countActive("doctor", at),
       entries: this.store.consents.listAccessLog(200),
+      activeRequests: this.store.requests.countActive(at),
+      requestEntries: this.store.requests.listAccessLog(200),
     };
+  }
+
+  // --- Обращения пациентов (роль admin) ------------------------------------
+
+  /** Список без содержания: дата, статус, согласие, маска VK ID. */
+  listRequests() {
+    return {
+      enabled: this.store.requests.enabled,
+      requests: this.store.requests.list(this.now().toISOString()),
+    };
+  }
+
+  /**
+   * Текст обращения — только при действующем согласии и неизменном тексте.
+   * Каждая попытка — в журнал (без содержания).
+   */
+  readRequest(session: AdminSession, id: number) {
+    const at = this.now().toISOString();
+    const result = this.store.requests.read(id, at);
+    this.store.requests.logAccess({
+      userId: session.userId,
+      requestId: id,
+      action: "read",
+      result: result.ok ? "granted" : `denied_${result.reason}`,
+      at,
+    });
+    if (!result.ok)
+      throw new AdminError(
+        result.reason === "missing" ? 404 : 410,
+        {
+          missing: "Обращение не найдено.",
+          revoked:
+            "Пациент отозвал согласие: текст обращения удалён и больше не доступен.",
+          expired: "Срок хранения текста обращения истёк, текст удалён.",
+          integrity:
+            "Текст обращения не прошёл проверку целостности и не показывается.",
+        }[result.reason],
+      );
+    return {
+      ...result.meta,
+      kind: "Дословно, как написал пациент и разрешил передать",
+      text: result.text,
+    };
+  }
+
+  updateRequest(session: AdminSession, id: number, input: unknown) {
+    parse(RequestUpdateSchema, input);
+    const at = this.now().toISOString();
+    if (!this.store.requests.markDone(id, session.userId, at))
+      throw new AdminError(404, "Обращение не найдено.");
+    this.store.requests.logAccess({
+      userId: session.userId,
+      requestId: id,
+      action: "done",
+      result: "ok",
+      at,
+    });
+    return this.store.requests.get(id, at);
   }
 
   // --- Настройки клиники ---------------------------------------------------

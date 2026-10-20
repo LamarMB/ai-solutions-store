@@ -59,6 +59,7 @@ function setup({
     sessions: store,
     interpreter: new RuleInterpreter(fictionalClinic),
     notifier: new VkAdminNotifier(api, 242364009, ADMIN, clock),
+    appAvailable: miniApp ?? false,
     now: clock,
   });
   const runner = createVkRunner({
@@ -377,7 +378,7 @@ describe("VK: кнопка Mini App", () => {
       .flat()
       .filter((b) => b.action.type === "open_app");
 
-  it("главное меню содержит кнопку open_app сообщества", async () => {
+  it("главное меню: первая кнопка — open_app приложения 54834865 сообщества", async () => {
     const t = setup({ miniApp: true });
     await t.runner.onUpdate(t.message(PATIENT, "меню"));
     const last = t
@@ -387,6 +388,22 @@ describe("VK: кнопка Mini App", () => {
     const buttons = openAppButtons(last.params.keyboard);
     expect(buttons).toHaveLength(1);
     expect(buttons[0].action.owner_id).toBe(-242364009);
+    const rows = (
+      JSON.parse(String(last.params.keyboard)) as {
+        buttons: {
+          action: { type: string; label: string; app_id?: number };
+        }[][];
+      }
+    ).buttons;
+    expect(rows[0][0].action).toMatchObject({
+      type: "open_app",
+      app_id: 54834865,
+      label: "Открыть приложение",
+    });
+    expect(rows[1].map((b) => b.action.label)).toEqual([
+      "Мои записи",
+      "Администратор",
+    ]);
   });
 
   it("без VK_MINIAPP_ID кнопки нет", async () => {
@@ -406,7 +423,9 @@ describe("VK: кнопка Mini App", () => {
       .sent(PATIENT)
       .filter((c) => !String(c.params.keyboard ?? "").includes("open_app"));
     const last = delivered.at(-1)!;
-    expect(String(last.params.message)).toContain("Чем могу помочь");
+    expect(String(last.params.message)).toContain("«Открыть приложение»");
+    // Вместо open_app — запись через бота, остальные кнопки прежние.
     expect(String(last.params.keyboard)).toContain("Записаться на приём");
+    expect(String(last.params.keyboard)).toContain("Администратор");
   });
 });

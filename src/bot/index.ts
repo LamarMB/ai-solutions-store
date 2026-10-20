@@ -8,7 +8,7 @@ import { RuleInterpreter } from "@/bot/dialog/rule-interpreter";
 import { OpenAiClient } from "@/bot/llm/openai-client";
 import { OpenAiConversationModel } from "@/bot/llm/openai-conversation";
 import { ClinicSchedule } from "@/bot/schedule/schedule";
-import { createConsentPort } from "@/bot/consent";
+import { createConsentPort, createRequestPort } from "@/bot/consent";
 import type { MedicalCipher } from "@/bot/storage/medical-crypto";
 import { SqliteStore } from "@/bot/storage/sqlite";
 
@@ -27,6 +27,7 @@ export function createDemoBot({
   messagesPerMinute,
   cipher,
   medicalQuestions,
+  miniApp,
   log,
 }: {
   dbPath: string;
@@ -47,6 +48,8 @@ export function createDemoBot({
   cipher?: MedicalCipher;
   /** false — бот не задаёт вопросов о симптомах (BOT_MEDICAL_QUESTIONS). */
   medicalQuestions?: boolean;
+  /** Настроен VK Mini App клиники (кнопка «Открыть приложение» в меню). */
+  miniApp?: boolean;
   log?: (message: string) => void;
 }) {
   const store = new SqliteStore(dbPath, { cipher });
@@ -78,6 +81,8 @@ export function createDemoBot({
     historyHours,
     messagesPerMinute,
     consents: createConsentPort(store.consents, schedule, now),
+    requests: createRequestPort(store.requests, now),
+    appAvailable: miniApp ?? false,
     medicalQuestions,
     stats: store,
     now,

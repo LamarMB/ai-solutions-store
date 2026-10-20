@@ -33,6 +33,12 @@ const NAV: {
     permission: "own_bookings.read",
   },
   {
+    href: "/admin/requests",
+    label: "Обращения",
+    icon: "chat",
+    permission: "requests.handle",
+  },
+  {
     href: "/admin/bookings",
     label: "Записи",
     icon: "calendar",

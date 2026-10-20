@@ -39,6 +39,7 @@ const { bot, store } = createDemoBot({
   messagesPerMinute: config.messagesPerMinute,
   cipher: config.cipher,
   medicalQuestions: config.medicalQuestions,
+  miniApp: config.vk.miniAppId !== undefined,
   log,
 });
 const runner = createVkRunner({
@@ -65,6 +66,9 @@ const prune = () => {
   // Истёкшие согласия: статус expired, переданные врачу сведения удаляются.
   const expired = store.consents.purgeExpired(new Date().toISOString());
   if (expired > 0) log(`истекло согласий на передачу врачу: ${expired}`);
+  // Истёкшие обращения к администратору: текст удаляется.
+  const requests = store.requests.purgeExpired(new Date().toISOString());
+  if (requests > 0) log(`истекло обращений к администратору: ${requests}`);
 };
 prune();
 const pruneTimer = setInterval(prune, 3_600_000);
@@ -84,7 +88,8 @@ log(
     `история разговора: ${config.historyHours} ч, ` +
     `шифрование и передача врачу: ${config.cipher ? "включены" : "выключены (нет MEDICAL_DATA_KEY)"}, ` +
     `вопросы о симптомах: ${config.medicalQuestions ? "да" : "нет"}, ` +
-    `кнопка Mini App: ${config.vk.miniAppId ? "да" : "нет"}`,
+    `кнопка «Открыть приложение»: ${config.vk.miniAppId ? "да" : "нет (запись через бота)"}, ` +
+    `обращения с согласием: ${config.cipher ? "да" : "нет (нет MEDICAL_DATA_KEY)"}`,
 );
 
 try {

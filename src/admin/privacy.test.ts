@@ -11,7 +11,7 @@ import { noteProblem } from "@/admin/schemas";
 import { AdminService } from "@/admin/service";
 import { createDemoBot } from "@/bot";
 import { parseSession } from "@/bot/conversation/memory";
-import { HANDOFF_QUESTION, PRIVACY_NOTICE } from "@/bot/dialog/dialog";
+import { HANDOFF_COMPOSE_TEXT, PRIVACY_NOTICE } from "@/bot/dialog/dialog";
 import type { Reply } from "@/bot/dialog/types";
 import { ClinicSchedule } from "@/bot/schedule/schedule";
 import type { StaffRole } from "@/bot/storage/admin-store";
@@ -579,7 +579,7 @@ describe("5. медицинские данные не попадают в уве
     const { replies, booking } = await t.bookKnee();
     await t.share(replies);
     const r = await t.say("Позовите администратора");
-    await t.press(r, "Да, позвать");
+    await t.press(r, "Позвать без описания");
     expect(t.notices).toEqual([PEER]);
     const maketov = await t.as("dr-maketov");
     await maketov("GET", `my/${booking.id}/medical`);
@@ -835,9 +835,14 @@ describe("10. передача администратору не обходит 
     const t = await setup();
     await t.bookKnee();
     let r = await t.say("Позовите администратора");
-    expect(text(r)).toContain(HANDOFF_QUESTION);
-    expect(text(r)).toMatch(/увидит всю переписку этого диалога ВКонтакте/);
-    r = await t.press(r, "Да, позвать");
+    expect(text(r)).toContain(HANDOFF_COMPOSE_TEXT);
+    expect(text(r)).toMatch(
+      /администраторы сообщества ВКонтакте могут видеть всю переписку этого диалога/,
+    );
+    r = await t.press(r, "Позвать без описания");
+    expect(text(r)).toMatch(/никакой текст не передавался/);
+    // Без согласия обращений в нашей системе нет.
+    expect(t.panelStore.requests.countActive(NOW.toISOString())).toBe(0);
     expect(t.notices).toEqual([PEER]);
     // В панели у администратора медицинских сведений не прибавилось.
     expect(t.panelStore.consents.countActive("admin", NOW.toISOString())).toBe(

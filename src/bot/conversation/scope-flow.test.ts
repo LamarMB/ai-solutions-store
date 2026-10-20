@@ -360,9 +360,7 @@ describe("12. нет лишних обращений к OpenAI", () => {
   it("кнопки, приветствие, благодарность, «да» на подтверждении — без модели", async () => {
     const model = clinicModel();
     const t = setup(model);
-    expect(text(await t.say("Здравствуйте!"))).toMatch(
-      /автоматический помощник/,
-    );
+    expect(text(await t.say("Здравствуйте!"))).toMatch(/Я помощник клиники/);
     const r = await t.say("хочу записаться к терапевту");
     expect(model.calls).toHaveLength(1);
     await t.press(r, "Ближайшее время");

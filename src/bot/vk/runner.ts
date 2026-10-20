@@ -280,15 +280,19 @@ export class VkAdminNotifier implements AdminNotifier {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async notifyHandoff(peerId: number): Promise<void> {
+  /** Только ссылка на диалог и номер обращения — без текста обращения и переписки. */
+  async notifyHandoff(peerId: number, requestId?: number): Promise<void> {
     await this.api.call("messages.send", {
       peer_id: this.adminUserId,
       random_id: randomIdFor(
-        `handoff:${peerId}:${this.now().toISOString().slice(0, 16)}`,
+        `handoff:${peerId}:${requestId ?? 0}:${this.now().toISOString().slice(0, 16)}`,
       ),
       message:
         "Пациент просит администратора (демонстрационный бот). Откройте диалог в сообщениях сообщества: " +
-        `https://vk.com/gim${this.groupId}?sel=${peerId}`,
+        `https://vk.com/gim${this.groupId}?sel=${peerId}` +
+        (requestId
+          ? `\nПациент разрешил передать текст обращения №${requestId} — он в панели клиники, раздел «Обращения».`
+          : "\nТекст обращения через систему клиники не передавался."),
       dont_parse_links: 1,
     });
   }

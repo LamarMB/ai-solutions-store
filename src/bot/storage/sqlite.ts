@@ -6,6 +6,7 @@ import type { Clinic } from "@/bot/clinic/types";
 import { AdminStore } from "@/bot/storage/admin-store";
 import { ClinicStore } from "@/bot/storage/clinic-store";
 import { ConsentStore } from "@/bot/storage/consent-store";
+import { RequestStore } from "@/bot/storage/request-store";
 import { isEncrypted, type MedicalCipher } from "@/bot/storage/medical-crypto";
 import type {
   Booking,
@@ -267,6 +268,46 @@ CREATE TABLE IF NOT EXISTS medical_access_log (
 );
 `;
 
+/**
+ * Обращения пациентов к администратору с явным согласием (этап 3/5). Текст —
+ * зашифрован (payload), хэш — для проверки неизменности; триггеры запрещают
+ * менять хэш и переписывать содержимое после согласия.
+ */
+const REQUESTS_SCHEMA = `
+CREATE TABLE IF NOT EXISTS patient_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  peer_id INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'done')),
+  consent_status TEXT NOT NULL CHECK (consent_status IN ('granted', 'revoked', 'expired')),
+  consent_version INTEGER NOT NULL,
+  text_kind TEXT NOT NULL CHECK (text_kind IN ('verbatim')),
+  text_sha256 TEXT NOT NULL,
+  payload TEXT,
+  created_at TEXT NOT NULL,
+  revoked_at TEXT,
+  done_at TEXT,
+  done_by INTEGER,
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS patient_requests_peer ON patient_requests (peer_id, consent_status);
+CREATE TRIGGER IF NOT EXISTS patient_requests_hash_immutable
+  BEFORE UPDATE OF text_sha256 ON patient_requests
+  WHEN NEW.text_sha256 IS NOT OLD.text_sha256
+  BEGIN SELECT RAISE(ABORT, 'request text is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS patient_requests_payload_once
+  BEFORE UPDATE OF payload ON patient_requests
+  WHEN NEW.payload IS NOT NULL AND (OLD.payload IS NOT NULL OR OLD.consent_status <> 'granted')
+  BEGIN SELECT RAISE(ABORT, 'request text is immutable'); END;
+CREATE TABLE IF NOT EXISTS request_access_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  request_id INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  result TEXT NOT NULL
+);
+`;
+
 type Migration = string | ((db: DatabaseSync) => void);
 
 /**
@@ -274,7 +315,8 @@ type Migration = string | ((db: DatabaseSync) => void);
  * 1 — исходные таблицы; 2 — индекс для удаления устаревших разговоров;
  * 3 — счётчики stats; 4 — справочники клиники, статусы и источник записей
  * (с начальными данными прежней вымышленной клиники); 5 — администраторы;
- * 6 — роли сотрудников, приглашения, согласия пациентов, журнал медицинского доступа.
+ * 6 — роли сотрудников, приглашения, согласия пациентов, журнал медицинского доступа;
+ * 7 — обращения пациентов к администратору с согласием и журнал доступа к ним.
  * Формат JSON в sessions.state сменился на v2 (шаг записи + память разговора);
  * старые значения читаются кодом (parseSession), переписывать их не нужно.
  */
@@ -294,6 +336,7 @@ const MIGRATIONS: Migration[] = [
   },
   ADMIN_SCHEMA,
   PRIVACY_SCHEMA,
+  REQUESTS_SCHEMA,
 ];
 
 /** Последняя версия схемы. */
@@ -355,6 +398,7 @@ export class SqliteStore
 
   /** Согласия пациентов на передачу сведений и журнал доступа к ним. */
   readonly consents: ConsentStore;
+  readonly requests: RequestStore;
   private readonly cipher?: MedicalCipher;
 
   /**
@@ -371,6 +415,7 @@ export class SqliteStore
     this.clinic = new ClinicStore(this.db);
     this.admin = new AdminStore(this.db);
     this.consents = new ConsentStore(this.db, cipher);
+    this.requests = new RequestStore(this.db, cipher);
   }
 
   /** Версия схемы базы (PRAGMA user_version). */

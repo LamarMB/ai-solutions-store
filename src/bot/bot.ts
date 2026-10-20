@@ -11,12 +11,13 @@ import {
   type StatKey,
 } from "@/bot/conversation/guard";
 import type { ConversationModel } from "@/bot/conversation/model";
-import { handleTurn } from "@/bot/conversation/orchestrator";
+import { handleTurn, REVOKE_RE } from "@/bot/conversation/orchestrator";
 import { normalizeText } from "@/bot/dialog/rule-interpreter";
 import type {
   BotEvent,
   ConsentPort,
   Reply,
+  RequestPort,
   TextInterpreter,
 } from "@/bot/dialog/types";
 import { detectRedFlags, urgencyOf } from "@/bot/conversation/safety";
@@ -35,7 +36,8 @@ const RESUME_WORDS = ["бот", "вернуться к боту", "/bot"];
  * не попадает.
  */
 export interface AdminNotifier {
-  notifyHandoff(peerId: number): Promise<void>;
+  /** requestId — номер обращения в панели (без его текста), если пациент разрешил передачу. */
+  notifyHandoff(peerId: number, requestId?: number): Promise<void>;
 }
 
 export type BotDeps = {
@@ -60,6 +62,10 @@ export type BotDeps = {
   consents?: ConsentPort;
   /** false — без уточняющих вопросов о симптомах. */
   medicalQuestions?: boolean;
+  /** Обращения к администратору с согласием (нужен MEDICAL_DATA_KEY). */
+  requests?: RequestPort;
+  /** Настроен VK Mini App: главная кнопка меню — «Открыть приложение». */
+  appAvailable?: boolean;
   now?: () => Date;
   /** Ошибки уведомлений — без персональных данных. */
   onError?: (message: string) => void;
@@ -96,6 +102,15 @@ export function createBot(deps: BotDeps) {
     return until !== undefined && Date.parse(until) > now().getTime();
   }
 
+  /** Отзыв передачи работает и пока отвечает администратор (бот молчит). */
+  function isRevoke(event: BotEvent): boolean {
+    if (event.type === "action") {
+      const payload = event.payload as { a?: unknown } | null;
+      return payload?.a === "hrv";
+    }
+    return event.type === "text" && REVOKE_RE.test(normalizeText(event.text));
+  }
+
   function wantsBotBack(event: BotEvent): boolean {
     if (event.type === "action") {
       const payload = event.payload as { a?: unknown } | null;
@@ -108,11 +123,16 @@ export function createBot(deps: BotDeps) {
 
   return {
     async handle(peerId: number, event: BotEvent): Promise<Reply[]> {
+      let keepPaused = false;
       if (isPaused(peerId)) {
         // Отвечает администратор: бот молчит, пока пациент сам не вернёт его.
-        if (!wantsBotBack(event)) return [];
-        deps.sessions.setPausedUntil(peerId, undefined);
-        event = { type: "action", payload: { a: "bot" } };
+        // Исключение — отзыв передачи обращения: он не должен ждать.
+        if (deps.requests && isRevoke(event)) keepPaused = true;
+        else if (!wantsBotBack(event)) return [];
+        else {
+          deps.sessions.setPausedUntil(peerId, undefined);
+          event = { type: "action", payload: { a: "bot" } };
+        }
       }
       if (event.type === "text") {
         count(["messages_received"]);
@@ -146,13 +166,20 @@ export function createBot(deps: BotDeps) {
           today: localDateTime(now(), clinic.timeZone).date,
           now: now(),
           consents: deps.consents,
+          requests: deps.requests,
+          appAvailable: deps.appAvailable,
           medicalQuestions: deps.medicalQuestions,
         },
       );
       count(stats);
       deps.sessions.save(
         peerId,
-        serializeSession(session),
+        // Во время паузы (отзыв передачи) шаг разговора не меняется.
+        serializeSession(
+          keepPaused
+            ? { flow: loadSession(peerId).flow, conv: session.conv }
+            : session,
+        ),
         now().toISOString(),
       );
 
@@ -163,7 +190,7 @@ export function createBot(deps: BotDeps) {
             new Date(now().getTime() + handoffMs).toISOString(),
           );
           try {
-            await deps.notifier?.notifyHandoff(peerId);
+            await deps.notifier?.notifyHandoff(peerId, effect.requestId);
           } catch {
             deps.onError?.("handoff notification failed");
           }

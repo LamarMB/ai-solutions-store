@@ -66,8 +66,8 @@ describe("сценарий записи", () => {
   it("приветствие → направление → врач → дата → время → подтверждение", async () => {
     const { bot, schedule } = setup();
     const start = await send(bot, 1, { type: "start" });
-    expect(text(start)).toMatch(/автоматический помощник/);
-    expect(text(start)).toMatch(/не ставлю диагнозы/);
+    expect(text(start)).toMatch(/Я помощник клиники/);
+    expect(text(start)).toMatch(/Диагнозы не ставлю/);
 
     const confirm = await toConfirm(bot, 1);
     expect(text(confirm)).toMatch(/Проверьте запись/);
@@ -292,7 +292,7 @@ describe("сессии", () => {
       /подтверждена/,
     );
     expect(text(await send(bot, 2, { type: "resume" }))).toMatch(
-      /автоматический помощник/,
+      /Я помощник клиники/,
     );
   });
 
@@ -397,15 +397,21 @@ describe("вопросы о клинике", () => {
     expect(text(r)).toMatch(/Подтвердить\?/);
   });
 
-  it("кнопки справки в меню", async () => {
+  it("справка — текстом: кнопок «Цены», «Врачи», «Адрес» в меню больше нет", async () => {
     const { bot } = setup();
-    const r = await press(
-      bot,
-      1,
-      await send(bot, 1, { type: "start" }),
-      "Врачи",
+    const start = await send(bot, 1, { type: "start" });
+    expect(buttons(start).map((b) => b.label)).toEqual([
+      "Записаться на приём",
+      "Мои записи",
+      "Администратор",
+    ]);
+    const ask = async (q: string) =>
+      text(await send(bot, 1, { type: "text", text: q }));
+    expect(await ask("Какие врачи есть?")).toMatch(
+      /Наши врачи \(вымышленные\)/,
     );
-    expect(text(r)).toMatch(/Наши врачи \(вымышленные\)/);
+    expect(await ask("Сколько стоит приём?")).toMatch(/₽/);
+    expect(await ask("Где находится клиника?")).toMatch(/Вымышленная/);
   });
 });
 
@@ -540,10 +546,12 @@ describe("передача администратору", () => {
       bot,
       1,
       await send(bot, 1, { type: "start" }),
-      "Позвать администратора",
+      "Администратор",
     );
     r = await press(bot, 1, r, "Да, позвать");
-    expect(text(r)).toMatch(/Передал ваш запрос администратору/);
+    expect(text(r)).toMatch(/Позвал администратора клиники/);
+    // Без ключа шифрования текст через систему не передаётся — бот так и говорит.
+    expect(text(r)).toMatch(/никакой текст не передавался/);
     expect(notified).toEqual([1]);
     expect(await send(bot, 1, { type: "text", text: "алло?" })).toEqual([]);
     const back = await press(bot, 1, r, "Вернуться к боту");
@@ -566,14 +574,14 @@ describe("передача администратору", () => {
     advance(2);
     expect(
       text(await send(bot, 1, { type: "text", text: "здравствуйте" })),
-    ).toMatch(/автоматический помощник/);
+    ).toMatch(/Я помощник клиники/);
   });
 
   it("сбой уведомления не ломает ответ пациенту", async () => {
     const { bot, errors } = withNotifier(true);
     await send(bot, 1, { type: "action", payload: { a: "admin" } });
     const r = await send(bot, 1, { type: "action", payload: { a: "hoff" } });
-    expect(text(r)).toMatch(/Передал ваш запрос/);
+    expect(text(r)).toMatch(/Позвал администратора/);
     expect(errors).toEqual(["handoff notification failed"]);
   });
 

@@ -218,6 +218,10 @@ export const StaffPatchSchema = z.union([
   z.object({ disabled: z.boolean() }),
 ]);
 
+export const RequestUpdateSchema = z.strictObject({
+  action: z.literal("done"),
+});
+
 export const InviteAcceptSchema = z.object({
   token: z.string().trim().min(20).max(100),
   password: z.string().min(1, "Введите пароль").max(200),

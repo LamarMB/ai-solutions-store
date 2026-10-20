@@ -159,6 +159,9 @@ const ROUTES: Record<string, Permission | null> = {
   "POST invites": "staff.manage",
   "DELETE invites/:id": "staff.manage",
   "GET medical-log": "medical_log.read",
+  "GET requests": "requests.handle",
+  "GET requests/:id/content": "requests.handle",
+  "PATCH requests/:id": "requests.handle",
   "GET my/bookings": "own_bookings.read",
   "GET my/:id/medical": "own_medical.request",
 };
@@ -255,6 +258,14 @@ async function dispatch(
 
     case "GET medical-log":
       return ok(service.medicalAccessLog());
+    case "GET requests":
+      return ok(service.listRequests());
+    case "GET requests/:id/content":
+      return ok(service.readRequest(session, intId(id)));
+    case "PATCH requests/:id":
+      return ok(
+        service.updateRequest(session, intId(id), await readJson(request)),
+      );
     case "GET my/bookings":
       return ok(service.myBookings(session, query));
     case "GET my/:id/medical":

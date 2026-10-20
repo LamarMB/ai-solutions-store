@@ -1,7 +1,8 @@
 import type { ScheduleProvider } from "@/bot/schedule/schedule";
 import { addDays } from "@/bot/schedule/time";
 import type { ConsentStore } from "@/bot/storage/consent-store";
-import type { ConsentPort } from "@/bot/dialog/types";
+import type { ConsentPort, RequestPort } from "@/bot/dialog/types";
+import type { RequestStore } from "@/bot/storage/request-store";
 
 /** Согласие действует до приёма и ещё 7 дней после него, затем сведения удаляются. */
 export const CONSENT_DAYS_AFTER_VISIT = 7;
@@ -39,5 +40,23 @@ export function createConsentPort(
     sharedBookingIds(peerId) {
       return store.activeBookingIds(peerId, now().toISOString());
     },
+  };
+}
+
+/**
+ * Обращения к администратору для диалога: сохраняется только текст, который
+ * пациент видел и разрешил передать. Без ключа шифрования — нет порта, бот
+ * зовёт администратора без передачи текста через нашу систему.
+ */
+export function createRequestPort(
+  store: RequestStore,
+  now: () => Date,
+): RequestPort | undefined {
+  if (!store.enabled) return undefined;
+  return {
+    create: (peerId, text) => store.create(peerId, text, now().toISOString()),
+    revoke: (peerId, requestId) =>
+      store.revoke(peerId, now().toISOString(), requestId),
+    activeIds: (peerId) => store.activeIds(peerId, now().toISOString()),
   };
 }
