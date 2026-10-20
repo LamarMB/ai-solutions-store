@@ -130,6 +130,10 @@ export class MiniAppService {
       services: clinic.services.map((s) => ({
         title: s.title,
         priceRub: s.priceRub,
+        // Для категорий и записи: направление услуги (если в клинике есть такие врачи).
+        specialtyId: specialties.some((sp) => sp.id === s.specialtyId)
+          ? s.specialtyId
+          : null,
         specialty:
           clinic.specialties.find((sp) => sp.id === s.specialtyId)?.title ??
           null,

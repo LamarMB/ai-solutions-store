@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Icon, type IconName } from "@/components/ui/Icon";
 import {
   ApiError,
   looksLikeVkLaunch,
@@ -11,6 +10,8 @@ import {
   type PatientBooking,
 } from "@/components/miniapp/client";
 import { BookingFlow, type FlowStart } from "@/components/miniapp/BookingFlow";
+import { DoctorProfile } from "@/components/miniapp/DoctorProfile";
+import { MaIcon, type MaIconName } from "@/components/miniapp/icons";
 import {
   AboutScreen,
   DoctorsScreen,
@@ -21,14 +22,14 @@ import {
 import { ErrorState, Spinner } from "@/components/miniapp/ui";
 import { cn } from "@/lib/cn";
 
-export type Tab = "home" | "doctors" | "bookings" | "services" | "about";
+export type Tab = "home" | "doctors" | "services" | "bookings" | "about";
 
-const TABS: { id: Tab; label: string; icon: IconName }[] = [
+const TABS: { id: Tab; label: string; icon: MaIconName }[] = [
   { id: "home", label: "Главная", icon: "home" },
-  { id: "doctors", label: "Врачи", icon: "users" },
+  { id: "doctors", label: "Врачи", icon: "doctors" },
+  { id: "services", label: "Услуги", icon: "services" },
   { id: "bookings", label: "Записи", icon: "calendar" },
-  { id: "services", label: "Услуги", icon: "document" },
-  { id: "about", label: "О клинике", icon: "info" },
+  { id: "about", label: "Клиника", icon: "more" },
 ];
 
 /**
@@ -59,55 +60,88 @@ export function MiniApp() {
         <Spinner label="Открываем приложение…" />
       </div>
     );
-  if (launch === "outside") return <OutsideVk />;
+  if (launch === "outside")
+    return (
+      <Notice
+        icon="shield"
+        title="Откройте приложение во ВКонтакте"
+        text="Запись к врачу «Демо-Мед» работает только внутри ВКонтакте: так приложение узнаёт, кто вы, и показывает только ваши записи."
+      />
+    );
   return <App />;
 }
 
-function OutsideVk() {
+function Notice({
+  icon,
+  title,
+  text,
+}: {
+  icon: MaIconName;
+  title: string;
+  text: string;
+}) {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center">
-      <span className="bg-accent-soft text-accent flex size-14 items-center justify-center rounded-full">
-        <Icon name="shield" size={28} />
+      <span className="bg-accent-soft text-accent flex size-16 items-center justify-center rounded-full">
+        <MaIcon name={icon} size={30} />
       </span>
-      <h1 className="text-h3 font-semibold">
-        Откройте приложение во ВКонтакте
+      <h1 className="font-display text-[1.5rem] leading-tight font-semibold">
+        {title}
       </h1>
-      <p className="text-muted">
-        Запись к врачу «Демо-Мед» работает только внутри ВКонтакте: так
-        приложение узнаёт, кто вы, и показывает только ваши записи.
-      </p>
+      <p className="text-muted">{text}</p>
     </main>
   );
 }
 
-/** Экран поверх вкладок; «Назад» в браузере и на Android закрывает его. */
-type Overlay = { kind: "flow"; start: FlowStart };
+/** Экраны поверх вкладок. «Назад» (кнопка, жест, Android) закрывает верхний. */
+type Overlay =
+  { kind: "flow"; start: FlowStart } | { kind: "doctor"; doctorId: string };
 
 function App() {
   const [tab, setTab] = useState<Tab>("home");
-  const [overlay, setOverlay] = useState<Overlay>();
+  const [stack, setStack] = useState<Overlay[]>([]);
   const clinic = useApi<ClinicInfo>("clinic");
   const bookings = useApi<MyBookings>("bookings");
 
+  // Глубина стека хранится в истории браузера: «Назад» снимает верхний экран.
   useEffect(() => {
-    const onPop = () => setOverlay(undefined);
+    const onPop = (e: PopStateEvent) => {
+      const depth = (e.state as { miniapp?: number } | null)?.miniapp ?? 0;
+      setStack((s) => s.slice(0, depth));
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  const openFlow = useCallback((start: FlowStart = {}) => {
-    window.history.pushState({ miniapp: "flow" }, "");
-    setOverlay({ kind: "flow", start });
+  const push = useCallback((overlay: Overlay) => {
+    // Побочный эффект — вне функции обновления состояния (StrictMode вызывает её дважды).
+    const depth = ((window.history.state?.miniapp as number) ?? 0) + 1;
+    window.history.pushState({ miniapp: depth }, "");
+    setStack((s) => [...s, overlay]);
+    window.scrollTo({ top: 0 });
   }, []);
-  const closeOverlay = useCallback(() => {
+  const back = useCallback(() => {
     if (window.history.state?.miniapp) window.history.back();
-    else setOverlay(undefined);
+    else setStack((s) => s.slice(0, -1));
+  }, []);
+  const closeAll = useCallback(() => {
+    const depth = window.history.state?.miniapp ?? 0;
+    if (depth > 0) window.history.go(-depth);
+    else setStack([]);
   }, []);
 
   const goTo = useCallback((next: Tab) => {
     setTab(next);
     window.scrollTo({ top: 0 });
   }, []);
+  const openFlow = useCallback(
+    (start: FlowStart = {}) => push({ kind: "flow", start }),
+    [push],
+  );
+  const openDoctor = useCallback(
+    (doctorId: string) => push({ kind: "doctor", doctorId }),
+    [push],
+  );
 
   const authError =
     clinic.error &&
@@ -116,11 +150,24 @@ function App() {
     )
       ? clinic.error
       : undefined;
-  if (authError) return <AccessProblem error={authError} />;
+  if (authError)
+    return (
+      <Notice
+        icon="shield"
+        title={
+          authError.code === "not_allowed"
+            ? "Доступ только для тестовых аккаунтов"
+            : authError.code === "not_configured"
+              ? "Приложение ещё не настроено"
+              : "Не удалось подтвердить вход"
+        }
+        text={authError.message}
+      />
+    );
 
   if (!clinic.data)
     return clinic.error ? (
-      <main className="flex flex-1 items-center px-4">
+      <main className="flex flex-1 items-center px-5">
         <ErrorState error={clinic.error} onRetry={clinic.reload} />
       </main>
     ) : (
@@ -129,35 +176,55 @@ function App() {
       </div>
     );
 
-  if (overlay?.kind === "flow")
+  const top = stack.at(-1);
+  if (top?.kind === "flow")
     return (
       <BookingFlow
+        key={stack.length}
         clinic={clinic.data}
-        start={overlay.start}
-        onClose={closeOverlay}
+        start={top.start}
+        onClose={back}
         onDone={() => {
           bookings.reload();
           clinic.reload();
         }}
         onShowBookings={() => {
-          closeOverlay();
+          closeAll();
           goTo("bookings");
+        }}
+        onHome={() => {
+          closeAll();
+          goTo("home");
         }}
       />
     );
+  if (top?.kind === "doctor") {
+    const doctor = clinic.data.doctors.find((d) => d.id === top.doctorId);
+    if (doctor)
+      return (
+        <DoctorProfile
+          key={stack.length}
+          clinic={clinic.data}
+          doctor={doctor}
+          onBack={back}
+          onBook={(slot) => openFlow({ doctorId: doctor.id, ...slot })}
+        />
+      );
+  }
 
-  const props = {
+  const props: ScreenProps = {
     clinic: clinic.data,
     bookings,
     openFlow,
+    openDoctor,
     goTo,
     reloadClinic: clinic.reload,
   };
   const screens: Record<Tab, ReactNode> = {
     home: <HomeScreen {...props} />,
     doctors: <DoctorsScreen {...props} />,
-    bookings: <MyBookingsScreen {...props} />,
     services: <ServicesScreen {...props} />,
+    bookings: <MyBookingsScreen {...props} />,
     about: <AboutScreen {...props} />,
   };
 
@@ -165,15 +232,15 @@ function App() {
     <>
       <main
         key={tab}
-        className="miniapp-screen mx-auto w-full max-w-xl flex-1 px-4 pt-4 pb-28"
+        className="miniapp-screen mx-auto w-full max-w-xl flex-1 px-5 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-[calc(6.5rem+env(safe-area-inset-bottom))]"
       >
         {screens[tab]}
       </main>
       <nav
         aria-label="Разделы"
-        className="border-border bg-surface fixed inset-x-0 bottom-0 z-20 border-t pb-[env(safe-area-inset-bottom)]"
+        className="ma-bottom-nav bg-surface shadow-raised fixed inset-x-0 bottom-0 z-20 rounded-t-[22px] pb-[env(safe-area-inset-bottom)]"
       >
-        <ul className="mx-auto grid max-w-xl grid-cols-5">
+        <ul className="mx-auto grid max-w-xl grid-cols-5 px-1">
           {TABS.map((t) => (
             <li key={t.id}>
               <button
@@ -181,11 +248,18 @@ function App() {
                 onClick={() => goTo(t.id)}
                 aria-current={tab === t.id ? "page" : undefined}
                 className={cn(
-                  "text-caption flex w-full flex-col items-center gap-1 pt-2.5 pb-2 font-medium transition-colors",
+                  "text-caption flex w-full flex-col items-center gap-1 pt-3 pb-2.5 font-medium transition-colors",
                   tab === t.id ? "text-accent" : "text-muted",
                 )}
               >
-                <Icon name={t.icon} size={22} />
+                <span
+                  className={cn(
+                    "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+                    tab === t.id ? "bg-accent-soft" : "",
+                  )}
+                >
+                  <MaIcon name={t.icon} size={22} />
+                </span>
                 {t.label}
               </button>
             </li>
@@ -193,24 +267,6 @@ function App() {
         </ul>
       </nav>
     </>
-  );
-}
-
-function AccessProblem({ error }: { error: ApiError }) {
-  return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center">
-      <span className="bg-surface-2 text-muted flex size-14 items-center justify-center rounded-full">
-        <Icon name="shield" size={28} />
-      </span>
-      <h1 className="text-h3 font-semibold">
-        {error.code === "not_allowed"
-          ? "Доступ только для тестовых аккаунтов"
-          : error.code === "not_configured"
-            ? "Приложение ещё не настроено"
-            : "Не удалось подтвердить вход"}
-      </h1>
-      <p className="text-muted">{error.message}</p>
-    </main>
   );
 }
 
@@ -223,6 +279,7 @@ export type ScreenProps = {
     reload: () => void;
   };
   openFlow: (start?: FlowStart) => void;
+  openDoctor: (doctorId: string) => void;
   goTo: (tab: Tab) => void;
   reloadClinic: () => void;
 };

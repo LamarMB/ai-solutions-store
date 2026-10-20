@@ -94,10 +94,14 @@
 
 ## VK Mini App
 
-- Страница `/miniapp` (`src/app/miniapp/`, клиент `src/components/miniapp/`): светлая
-  тема `.theme-miniapp` (токены в `globals.css`), нижняя навигация, экраны — главная,
-  врачи, запись, мои записи, услуги, о клинике. `VKWebAppInit` — официальный VK Bridge.
-  Вне ВКонтакте — пояснение без запросов данных.
+- Страница `/miniapp` (`src/app/miniapp/`, клиент `src/components/miniapp/`), дизайн
+  «премиальная частная клиника»: токены `.theme-miniapp` и утилиты `shadow-card`,
+  `shadow-raised`, `shadow-cta`, `bg-hero`, `font-display` (Lora) — в `globals.css`;
+  компоненты — `ui.tsx`, иконки — `icons.tsx`, монограммы и иллюстрация — `art.tsx`.
+  Экраны: вкладки (главная, врачи, услуги, записи, клиника — `screens.tsx`) и экраны
+  поверх них со стеком в истории браузера («Назад» снимает верхний): карточка врача
+  (`DoctorProfile.tsx`), запись и перенос (`BookingFlow.tsx`, общий `SlotPicker`).
+  `VKWebAppInit` — официальный VK Bridge. Вне ВКонтакте — пояснение без запросов данных.
 - Клиент отправляет строку параметров запуска как есть в заголовке `X-VK-Launch-Params`;
   `handleMiniAppApi` проверяет подпись (`launch-params.ts`), приложение, срок `vk_ts`,
   список тестовых аккаунтов и частоту; пациент — `vk_user_id` подписи. Cookie нет.

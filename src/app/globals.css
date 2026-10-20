@@ -43,42 +43,73 @@
 }
 
 /*
- * Светлая тема VK Mini App клиники («качественный медицинский сервис»).
- * Включается на странице, где есть элемент .theme-miniapp; сайт и панель не меняются.
+ * VK Mini App клиники — «премиальная частная клиника»: тёплый белый фон, глубокий
+ * изумрудный акцент, белые карточки с мягкими тенями, серифный шрифт заголовков.
+ * Включается на странице с элементом .theme-miniapp; сайт и панель не меняются.
  * Контраст текста к фону — не ниже 4.5:1.
  */
 :root:has(.theme-miniapp) {
-  --bg: #f3f6f9;
+  --bg: #f7f5f0;
   --surface: #ffffff;
-  --surface-2: #eaf0f4;
-  --border: rgb(15 23 42 / 0.08);
-  --border-strong: rgb(15 23 42 / 0.16);
-  --ink: #0f1b2d;
-  --muted: #536173;
-  --accent: #0b7a72;
-  --accent-hover: #09645e;
+  --surface-2: #f1eee7;
+  --border: rgb(29 42 38 / 0.08);
+  --border-strong: rgb(29 42 38 / 0.16);
+  --ink: #1b2622;
+  --muted: #5d6762;
+  --accent: #245c4a;
+  --accent-hover: #1b4a3b;
   --accent-ink: #ffffff;
-  --accent-soft: #dff2ef;
-  --demo-bg: #fff3dc;
-  --demo-ink: #7a4600;
-  --success: #17803d;
-  --warning: #9a5a00;
-  --danger: #c0262d;
-  --glass-fill: rgb(255 255 255 / 0.82);
+  --accent-soft: #e5eee9;
+  --demo-bg: #f5ecda;
+  --demo-ink: #6b4a10;
+  --success: #2c7a4b;
+  --warning: #8a5a00;
+  --danger: #b3261e;
+  --glass-fill: rgb(255 255 255 / 0.86);
   --glass-sheen: rgb(255 255 255 / 0.6);
   --glass-sheen-hover: rgb(255 255 255 / 0.9);
-  --glass-edge: rgb(15 23 42 / 0.08);
-  --glass-edge-hover: rgb(15 23 42 / 0.16);
+  --glass-edge: rgb(29 42 38 / 0.08);
+  --glass-edge-hover: rgb(29 42 38 / 0.16);
   --glass-highlight: rgb(255 255 255 / 0.9);
-  --glass-shadow: 0 8px 24px -14px rgb(15 23 42 / 0.25);
-  --primary-top: #0f8a81;
-  --primary-bottom: #0b7a72;
+  --glass-shadow: 0 8px 24px -14px rgb(29 42 38 / 0.25);
+  --primary-top: #2b6a55;
+  --primary-bottom: #245c4a;
+
+  /* Тени Mini App: мягкие, без резких краёв. */
+  --ma-shadow-card:
+    0 1px 2px rgb(29 42 38 / 0.04), 0 8px 24px -12px rgb(29 42 38 / 0.12);
+  --ma-shadow-raised:
+    0 2px 4px rgb(29 42 38 / 0.05), 0 18px 40px -18px rgb(29 42 38 / 0.22);
+  --ma-shadow-cta: 0 12px 24px -12px rgb(36 92 74 / 0.55);
+  --ma-hero: #e9f0eb;
 
   color-scheme: light;
 }
 
 :root:has(.theme-miniapp) body::before {
   display: none;
+}
+
+/* Пока открыта клавиатура (фокус в поле), нижнее меню Mini App скрыто. */
+:root:has(.theme-miniapp input:focus) .ma-bottom-nav {
+  display: none;
+}
+
+@utility shadow-card {
+  box-shadow: var(--ma-shadow-card, none);
+}
+@utility shadow-raised {
+  box-shadow: var(--ma-shadow-raised, none);
+}
+@utility shadow-cta {
+  box-shadow: var(--ma-shadow-cta, none);
+}
+@utility bg-hero {
+  background-color: var(--ma-hero, var(--surface-2));
+}
+@utility font-display {
+  font-family: var(--font-lora), ui-serif, Georgia, "Times New Roman", serif;
+  letter-spacing: -0.01em;
 }
 
 /* Плавные переходы Mini App; prefers-reduced-motion их отключает (ниже). */
@@ -101,7 +132,7 @@
   }
 }
 .miniapp-screen {
-  animation: miniapp-in 220ms ease-out;
+  animation: miniapp-in 200ms ease-out;
 }
 .miniapp-sheet {
   animation: miniapp-sheet 220ms ease-out;

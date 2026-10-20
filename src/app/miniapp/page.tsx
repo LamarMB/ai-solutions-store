@@ -1,3 +1,4 @@
+import { lora } from "@/app/fonts";
 import { MiniApp } from "@/components/miniapp/MiniApp";
 
 /**
@@ -6,7 +7,7 @@ import { MiniApp } from "@/components/miniapp/MiniApp";
  */
 export default function MiniAppPage() {
   return (
-    <div className="theme-miniapp flex min-h-dvh flex-col">
+    <div className={`${lora.variable} theme-miniapp flex min-h-dvh flex-col`}>
       <MiniApp />
     </div>
   );

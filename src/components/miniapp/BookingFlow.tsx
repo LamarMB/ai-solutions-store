@@ -1,41 +1,53 @@
 "use client";
 
-import { useState } from "react";
-import { Icon } from "@/components/ui/Icon";
+import { useState, type ReactNode } from "react";
+import { DoctorPortrait } from "@/components/miniapp/art";
 import {
   api,
   ApiError,
   dayChip,
-  formatDay,
+  dayName,
+  longDay,
   rub,
   useApi,
   type ClinicInfo,
   type Doctor,
   type PatientBooking,
 } from "@/components/miniapp/client";
+import { MaIcon } from "@/components/miniapp/icons";
 import {
   Button,
   Card,
+  CardButton,
+  Chip,
   EmptyState,
   ErrorState,
+  Scroller,
   Skeleton,
+  StickyFooter,
+  TopBar,
 } from "@/components/miniapp/ui";
 import { cn } from "@/lib/cn";
 
-/** С чего начать: с выбора врача, с конкретного врача или с переноса записи. */
-export type FlowStart = { doctorId?: string; reschedule?: PatientBooking };
+/**
+ * С чего начать запись: выбор врача (можно сразу по направлению), конкретный
+ * врач, врач и время (из карточки врача) или перенос существующей записи.
+ */
+export type FlowStart = {
+  doctorId?: string;
+  specialtyId?: string;
+  date?: string;
+  time?: string;
+  reschedule?: PatientBooking;
+};
 
-type Step =
-  | { step: "doctor" }
-  | { step: "slot"; doctorId: string }
-  | { step: "confirm"; doctorId: string; date: string; time: string }
-  | { step: "done"; booking: PatientBooking };
+type Slot = { date: string; time: string };
 
 /**
- * Запись (или перенос): врач → день → время → подтверждение → готово.
- * Дни и время — только реальные свободные слоты из общего расписания; запись
- * создаётся одним запросом после подтверждения. Повтор запроса (двойное
- * нажатие, обрыв сети) сервер не превращает во вторую запись.
+ * Запись или перенос: врач → дата и время → проверка → подтверждение.
+ * Дни и время — только реальные свободные слоты общего расписания; запись
+ * создаётся одним запросом по кнопке «Подтвердить запись». Повтор запроса
+ * (двойное нажатие, обрыв сети) сервер не превращает во вторую запись.
  */
 export function BookingFlow({
   clinic,
@@ -43,460 +55,511 @@ export function BookingFlow({
   onClose,
   onDone,
   onShowBookings,
+  onHome,
 }: {
   clinic: ClinicInfo;
   start: FlowStart;
   onClose: () => void;
   onDone: () => void;
   onShowBookings: () => void;
+  onHome: () => void;
 }) {
-  const initialDoctor = start.reschedule?.doctorId ?? start.doctorId;
-  const [state, setState] = useState<Step>(
-    initialDoctor && clinic.doctors.some((d) => d.id === initialDoctor)
-      ? { step: "slot", doctorId: initialDoctor }
-      : { step: "doctor" },
-  );
   const reschedule = start.reschedule;
-  const doctorOf = (id: string) => clinic.doctors.find((d) => d.id === id);
+  const presetDoctor = reschedule?.doctorId ?? start.doctorId;
+  const known = (id?: string) =>
+    id && clinic.doctors.some((d) => d.id === id) ? id : undefined;
+  const [doctorId, setDoctorId] = useState(known(presetDoctor));
+  const [picking, setPicking] = useState(!known(presetDoctor));
+  const [slot, setSlot] = useState<Slot | undefined>(
+    start.date && start.time
+      ? { date: start.date, time: start.time }
+      : undefined,
+  );
+  const [done, setDone] = useState<PatientBooking>();
+  const doctor = clinic.doctors.find((d) => d.id === doctorId);
 
-  const back = () => {
-    if (state.step === "confirm")
-      setState({ step: "slot", doctorId: state.doctorId });
-    else if (state.step === "slot" && !initialDoctor)
-      setState({ step: "doctor" });
-    else onClose();
-  };
+  if (done)
+    return (
+      <Success
+        clinic={clinic}
+        booking={done}
+        rescheduled={Boolean(reschedule)}
+        onShowBookings={onShowBookings}
+        onHome={onHome}
+      />
+    );
 
-  const title =
-    state.step === "done"
-      ? reschedule
-        ? "Запись перенесена"
-        : "Вы записаны"
-      : reschedule
-        ? "Перенос записи"
-        : "Запись к врачу";
+  if (picking || !doctor)
+    return (
+      <ChooseDoctor
+        clinic={clinic}
+        specialtyId={start.specialtyId}
+        onBack={doctor ? () => setPicking(false) : onClose}
+        onChoose={(id) => {
+          if (id !== doctorId) setSlot(undefined);
+          setDoctorId(id);
+          setPicking(false);
+        }}
+      />
+    );
 
   return (
-    <div className="miniapp-screen bg-bg flex min-h-dvh flex-col">
-      <header className="border-border bg-surface sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
-        {state.step !== "done" && (
-          <button
-            type="button"
-            onClick={back}
-            aria-label="Назад"
-            className="text-ink flex size-10 items-center justify-center rounded-full"
-          >
-            <Icon name="chevron-left" size={24} />
-          </button>
-        )}
-        <h1 className="text-body flex-1 px-2 font-semibold">{title}</h1>
-        {state.step !== "done" && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Закрыть"
-            className="text-muted flex size-10 items-center justify-center rounded-full"
-          >
-            <Icon name="close" size={22} />
-          </button>
-        )}
-      </header>
-      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-4">
-        {state.step !== "done" && (
-          <Steps
-            current={
-              state.step === "doctor" ? 0 : state.step === "slot" ? 1 : 2
-            }
+    <BookingForm
+      key={doctor.id}
+      clinic={clinic}
+      doctor={doctor}
+      slot={slot}
+      onSlot={setSlot}
+      reschedule={reschedule}
+      onBack={onClose}
+      onChangeDoctor={() => setPicking(true)}
+      onBooked={(booking) => {
+        setDone(booking);
+        onDone();
+      }}
+    />
+  );
+}
+
+/* Шаг 1: выбор врача */
+
+function ChooseDoctor({
+  clinic,
+  specialtyId,
+  onBack,
+  onChoose,
+}: {
+  clinic: ClinicInfo;
+  specialtyId?: string;
+  onBack: () => void;
+  onChoose: (doctorId: string) => void;
+}) {
+  const [filter, setFilter] = useState(
+    specialtyId && clinic.specialties.some((s) => s.id === specialtyId)
+      ? specialtyId
+      : "all",
+  );
+  const doctors = clinic.doctors.filter(
+    (d) => filter === "all" || d.specialtyId === filter,
+  );
+  return (
+    <div className="miniapp-screen flex min-h-dvh flex-col">
+      <TopBar title="Выберите врача" onBack={onBack} />
+      <main className="mx-auto w-full max-w-xl flex-1 px-5 pt-2 pb-10">
+        <Scroller label="Специальность">
+          {[{ id: "all", title: "Все" }, ...clinic.specialties].map((s) => (
+            <Chip
+              key={s.id}
+              active={filter === s.id}
+              onClick={() => setFilter(s.id)}
+            >
+              {s.title}
+            </Chip>
+          ))}
+        </Scroller>
+        {doctors.length === 0 ? (
+          <EmptyState
+            icon="doctors"
+            title="Сейчас нет врачей для записи"
+            text="Попробуйте позже или напишите в сообщения сообщества."
           />
-        )}
-        {state.step === "doctor" && (
-          <ChooseDoctor
-            clinic={clinic}
-            onChoose={(doctorId) => setState({ step: "slot", doctorId })}
-          />
-        )}
-        {state.step === "slot" && doctorOf(state.doctorId) && (
-          <ChooseSlot
-            key={state.doctorId}
-            doctor={doctorOf(state.doctorId)!}
-            onChoose={(date, time) =>
-              setState({
-                step: "confirm",
-                doctorId: state.doctorId,
-                date,
-                time,
-              })
-            }
-          />
-        )}
-        {state.step === "confirm" && doctorOf(state.doctorId) && (
-          <Confirm
-            clinic={clinic}
-            doctor={doctorOf(state.doctorId)!}
-            date={state.date}
-            time={state.time}
-            reschedule={reschedule}
-            onBooked={(booking) => {
-              setState({ step: "done", booking });
-              onDone();
-            }}
-            onSlotGone={() =>
-              setState({ step: "slot", doctorId: state.doctorId })
-            }
-          />
-        )}
-        {state.step === "done" && (
-          <Done
-            clinic={clinic}
-            booking={state.booking}
-            onShowBookings={onShowBookings}
-            onClose={onClose}
-          />
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {doctors.map((d) => (
+              <li key={d.id}>
+                <CardButton onClick={() => onChoose(d.id)}>
+                  <DoctorPortrait name={d.name} specialtyId={d.specialtyId} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block leading-snug font-semibold">
+                      {d.name}
+                    </span>
+                    <span className="text-small text-accent block">
+                      {d.specialty}
+                    </span>
+                    <span className="text-caption text-muted mt-1 block">
+                      {d.nearest
+                        ? `Ближайшее: ${longDay(d.nearest.date, clinic.today).toLowerCase()}, ${d.nearest.time}`
+                        : "Нет свободного времени в ближайшие дни"}
+                    </span>
+                  </span>
+                  <MaIcon name="chevron" size={20} className="text-muted" />
+                </CardButton>
+              </li>
+            ))}
+          </ul>
         )}
       </main>
     </div>
   );
 }
 
-function Steps({ current }: { current: number }) {
-  return (
-    <ol className="mb-5 grid grid-cols-3 gap-2" aria-label="Шаги записи">
-      {["Врач", "Дата и время", "Подтверждение"].map((label, i) => (
-        <li key={label} className="flex flex-col gap-1.5">
-          <span
-            className={cn(
-              "h-1 rounded-full",
-              i <= current ? "bg-accent" : "bg-surface-2",
-            )}
-          />
-          <span
-            className={cn(
-              "text-caption",
-              i === current ? "text-ink font-semibold" : "text-muted",
-            )}
-            aria-current={i === current ? "step" : undefined}
-          >
-            {label}
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
-}
+/* Шаги 2–3: дата, время, проверка и подтверждение */
 
-function ChooseDoctor({
-  clinic,
-  onChoose,
+function Step({
+  n,
+  title,
+  action,
+  children,
 }: {
-  clinic: ClinicInfo;
-  onChoose: (doctorId: string) => void;
+  n: number;
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
 }) {
-  if (clinic.doctors.length === 0)
-    return (
-      <EmptyState
-        title="Сейчас нет врачей для записи"
-        text="Попробуйте позже или напишите в сообщения сообщества."
-      />
-    );
   return (
-    <ul className="flex flex-col gap-3">
-      {clinic.specialties.map((s) => {
-        const doctors = clinic.doctors.filter((d) => d.specialtyId === s.id);
-        if (doctors.length === 0) return null;
-        return (
-          <li key={s.id}>
-            <p className="text-small text-muted mb-2 font-medium">{s.title}</p>
-            <ul className="flex flex-col gap-2">
-              {doctors.map((d) => (
-                <li key={d.id}>
-                  <button
-                    type="button"
-                    onClick={() => onChoose(d.id)}
-                    className="border-border bg-surface rounded-card flex w-full items-center gap-3 border p-4 text-left transition-transform active:scale-[0.99]"
-                  >
-                    <Avatar name={d.name} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold">{d.name}</span>
-                      <span className="text-small text-muted block">
-                        {d.nearest
-                          ? `ближайшее: ${formatDay(d.nearest.date)}, ${d.nearest.time}`
-                          : "нет свободного времени в ближайшие дни"}
-                      </span>
-                    </span>
-                    <Icon name="chevron-right" size={20} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </li>
-        );
-      })}
-    </ul>
+    <section className="mb-7">
+      <div className="mb-3 flex items-center gap-3">
+        <span className="bg-accent text-accent-ink text-small flex size-7 shrink-0 items-center justify-center rounded-full font-semibold">
+          {n}
+        </span>
+        <h2 className="flex-1 text-[1.0625rem] font-semibold">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
 
-export function Avatar({ name }: { name: string }) {
-  const initials = name
-    .split(/\s+/)
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("");
-  return (
-    <span
-      aria-hidden
-      className="bg-accent-soft text-accent flex size-12 shrink-0 items-center justify-center rounded-full font-semibold"
-    >
-      {initials}
-    </span>
-  );
-}
-
-function ChooseSlot({
-  doctor,
-  onChoose,
-}: {
-  doctor: Doctor;
-  onChoose: (date: string, time: string) => void;
-}) {
-  const days = useApi<string[]>(
-    `doctors/${encodeURIComponent(doctor.id)}/days`,
-  );
-  const [picked, setPicked] = useState<string>();
-  const date = picked ?? days.data?.[0];
-  const slots = useApi<string[]>(
-    date ? `doctors/${encodeURIComponent(doctor.id)}/slots?date=${date}` : null,
-  );
-
-  return (
-    <div className="flex flex-col gap-5">
-      <Card className="flex items-center gap-3">
-        <Avatar name={doctor.name} />
-        <div className="min-w-0">
-          <p className="font-semibold">{doctor.name}</p>
-          <p className="text-small text-muted">
-            {doctor.specialty} · {doctor.slotMinutes} мин
-            {doctor.priceRub !== null && ` · ${rub(doctor.priceRub)}`}
-          </p>
-        </div>
-      </Card>
-
-      <section>
-        <h2 className="mb-2 font-semibold">Дата</h2>
-        {days.error ? (
-          <ErrorState error={days.error} onRetry={days.reload} />
-        ) : days.loading && !days.data ? (
-          <Skeleton rows={1} />
-        ) : days.data && days.data.length === 0 ? (
-          <EmptyState
-            title="Свободного времени нет"
-            text="В ближайшие две недели у врача нет свободных окон. Выберите другого врача."
-          />
-        ) : (
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-            {days.data?.map((d) => {
-              const chip = dayChip(d);
-              const active = d === date;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setPicked(d)}
-                  aria-pressed={active}
-                  className={cn(
-                    "rounded-card flex w-16 shrink-0 flex-col items-center border py-2.5 transition-colors",
-                    active
-                      ? "border-accent bg-accent text-accent-ink"
-                      : "border-border bg-surface text-ink",
-                  )}
-                >
-                  <span className="text-caption opacity-80">
-                    {chip.weekday}
-                  </span>
-                  <span className="text-h3 font-semibold">{chip.day}</span>
-                  <span className="text-caption opacity-80">{chip.month}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {date && (
-        <section>
-          <h2 className="mb-2 font-semibold">Время · {formatDay(date)}</h2>
-          {slots.error ? (
-            <ErrorState error={slots.error} onRetry={slots.reload} />
-          ) : slots.loading ? (
-            <Skeleton rows={1} />
-          ) : slots.data && slots.data.length === 0 ? (
-            <p className="text-muted text-small">
-              На этот день время уже разобрали. Выберите другой день.
-            </p>
-          ) : (
-            <div className="grid grid-cols-4 gap-2">
-              {slots.data?.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => onChoose(date, t)}
-                  className="border-border bg-surface text-ink rounded-field hover:border-accent h-11 border font-semibold transition-colors"
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
-}
-
-function Confirm({
+function BookingForm({
   clinic,
   doctor,
-  date,
-  time,
+  slot,
+  onSlot,
   reschedule,
+  onBack,
+  onChangeDoctor,
   onBooked,
-  onSlotGone,
 }: {
   clinic: ClinicInfo;
   doctor: Doctor;
-  date: string;
-  time: string;
+  slot?: Slot;
+  onSlot: (slot: Slot | undefined) => void;
   reschedule?: PatientBooking;
+  onBack: () => void;
+  onChangeDoctor: () => void;
   onBooked: (booking: PatientBooking) => void;
-  onSlotGone: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError>();
+  const [refresh, setRefresh] = useState(0);
 
   async function submit() {
-    if (busy) return;
+    if (busy || !slot) return;
     setBusy(true);
     setError(undefined);
-    const slot = { doctorId: doctor.id, date, time };
+    const body = { doctorId: doctor.id, ...slot };
     try {
       const booking = reschedule
         ? await api<PatientBooking>(`bookings/${reschedule.id}`, {
             method: "PATCH",
-            body: { action: "reschedule", ...slot },
+            body: { action: "reschedule", ...body },
           })
-        : await api<PatientBooking>("bookings", { method: "POST", body: slot });
+        : await api<PatientBooking>("bookings", { method: "POST", body });
       onBooked(booking);
     } catch (e) {
-      setError(
+      const err =
         e instanceof ApiError
           ? e
-          : new ApiError("Не удалось записаться.", 0, "server"),
-      );
+          : new ApiError("Не удалось записаться.", 0, "server");
+      setError(err);
+      // Время заняли или оно больше недоступно — обновляем свободные слоты.
+      if (["taken", "unavailable"].includes(err.code)) {
+        onSlot(undefined);
+        setRefresh((r) => r + 1);
+      }
       setBusy(false);
     }
   }
 
-  const gone = error && ["taken", "unavailable"].includes(error.code);
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <dl className="flex flex-col gap-3">
-          <Row label="Врач">
-            {doctor.name}
-            <span className="text-small text-muted block">
-              {doctor.specialty}
-            </span>
-          </Row>
-          <Row label="Дата и время">
-            {formatDay(date)}, {time}
-            <span className="text-small text-muted block">
-              приём {doctor.slotMinutes} мин
-            </span>
-          </Row>
-          {doctor.priceRub !== null && (
-            <Row label="Стоимость приёма">{rub(doctor.priceRub)}</Row>
-          )}
-          <Row label="Адрес">{clinic.address}</Row>
-          {reschedule && (
-            <Row label="Вместо">
-              {formatDay(reschedule.date)}, {reschedule.time} —{" "}
-              {reschedule.doctorName}
-            </Row>
-          )}
-        </dl>
-      </Card>
-      <p className="text-caption text-muted">
-        Демо: клиника и расписание вымышленные, запись тестовая. Отменить или
-        перенести запись можно в разделе «Записи».
-      </p>
-      {error && (
-        <ErrorState error={error} onRetry={gone ? undefined : submit} />
-      )}
-      {gone ? (
-        <Button block onClick={onSlotGone}>
-          Выбрать другое время
-        </Button>
-      ) : (
-        <Button block onClick={submit} disabled={busy}>
+    <div className="miniapp-screen flex min-h-dvh flex-col">
+      <TopBar
+        title={reschedule ? "Перенос записи" : "Запись на приём"}
+        onBack={onBack}
+      />
+      <main className="mx-auto w-full max-w-xl flex-1 px-5 pt-3 pb-[calc(7rem+env(safe-area-inset-bottom))]">
+        <Step
+          n={1}
+          title="Врач"
+          action={
+            <button
+              type="button"
+              onClick={onChangeDoctor}
+              className="text-small text-accent font-semibold"
+            >
+              Изменить
+            </button>
+          }
+        >
+          <Card className="flex items-center gap-3.5 p-3.5">
+            <DoctorPortrait
+              name={doctor.name}
+              specialtyId={doctor.specialtyId}
+            />
+            <div className="min-w-0">
+              <p className="leading-snug font-semibold">{doctor.name}</p>
+              <p className="text-small text-accent">{doctor.specialty}</p>
+              <p className="text-caption text-muted mt-0.5">
+                Приём {doctor.slotMinutes} мин
+                {doctor.priceRub !== null && ` · ${rub(doctor.priceRub)}`}
+              </p>
+            </div>
+          </Card>
+        </Step>
+
+        <Step n={2} title="Дата и время">
+          <SlotPicker
+            key={refresh}
+            doctor={doctor}
+            today={clinic.today}
+            value={slot}
+            onChange={(s) => {
+              setError(undefined);
+              onSlot(s);
+            }}
+          />
+        </Step>
+
+        {error && (
+          <div className="mb-6">
+            <ErrorState
+              error={
+                ["taken", "unavailable"].includes(error.code)
+                  ? `${error.message} Свободное время обновлено.`
+                  : error
+              }
+            />
+          </div>
+        )}
+
+        {slot && (
+          <Step n={3} title="Проверьте запись">
+            <Card className="p-4">
+              <dl className="flex flex-col gap-3.5">
+                <Row icon="calendar" label="Дата и время">
+                  {longDay(slot.date, clinic.today)}, {slot.time}
+                </Row>
+                <Row icon="clock" label="Длительность">
+                  {doctor.slotMinutes} минут
+                </Row>
+                {doctor.priceRub !== null && (
+                  <Row icon="ruble" label="Стоимость приёма">
+                    {rub(doctor.priceRub)}
+                  </Row>
+                )}
+                <Row icon="pin" label="Адрес">
+                  {clinic.address}
+                </Row>
+                {reschedule && (
+                  <Row icon="swap" label="Вместо">
+                    {longDay(reschedule.date, clinic.today)}, {reschedule.time}{" "}
+                    — {reschedule.doctorName}
+                  </Row>
+                )}
+              </dl>
+            </Card>
+            <p className="text-caption text-muted mt-3">
+              Демо: клиника и расписание вымышленные, запись тестовая. Отменить
+              или перенести её можно в разделе «Записи».
+            </p>
+          </Step>
+        )}
+      </main>
+      <StickyFooter>
+        <Button size="lg" block onClick={submit} disabled={!slot || busy}>
           {busy
             ? "Записываем…"
-            : reschedule
-              ? "Перенести запись"
-              : "Подтвердить запись"}
+            : !slot
+              ? "Выберите время"
+              : reschedule
+                ? "Перенести запись"
+                : "Подтвердить запись"}
         </Button>
-      )}
+      </StickyFooter>
     </div>
   );
 }
 
 function Row({
+  icon,
   label,
   children,
 }: {
+  icon: Parameters<typeof MaIcon>[0]["name"];
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div>
-      <dt className="text-caption text-muted">{label}</dt>
-      <dd className="font-medium">{children}</dd>
+    <div className="flex gap-3">
+      <MaIcon name={icon} size={20} className="text-accent mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <dt className="text-caption text-muted">{label}</dt>
+        <dd className="font-medium break-words">{children}</dd>
+      </div>
     </div>
   );
 }
 
-function Done({
+/**
+ * Выбор дня и времени по реальному расписанию врача (правила пациента).
+ * Общий для записи и карточки врача.
+ */
+export function SlotPicker({
+  doctor,
+  today,
+  value,
+  onChange,
+}: {
+  doctor: Doctor;
+  today: string;
+  value?: Slot;
+  onChange: (slot: Slot) => void;
+}) {
+  const id = encodeURIComponent(doctor.id);
+  const days = useApi<string[]>(`doctors/${id}/days`);
+  const [picked, setPicked] = useState(value?.date);
+  const date = picked && days.data?.includes(picked) ? picked : days.data?.[0];
+  const slots = useApi<string[]>(
+    date ? `doctors/${id}/slots?date=${date}` : null,
+  );
+
+  if (days.error)
+    return <ErrorState error={days.error} onRetry={days.reload} />;
+  if (days.loading && !days.data) return <Skeleton rows={2} height="h-12" />;
+  if (days.data && days.data.length === 0)
+    return (
+      <EmptyState
+        icon="slots"
+        title="Свободного времени нет"
+        text="В ближайшие две недели у врача нет свободных окон. Выберите другого врача."
+      />
+    );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Scroller label="Дата">
+        {days.data?.map((d) => {
+          const chip = dayChip(d);
+          const active = d === date;
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setPicked(d)}
+              aria-pressed={active}
+              className={cn(
+                "rounded-card flex w-[4.75rem] shrink-0 flex-col items-center py-3 transition-colors",
+                active
+                  ? "bg-accent text-accent-ink shadow-card"
+                  : "bg-surface text-ink shadow-card",
+              )}
+            >
+              <span
+                className={cn(
+                  "text-caption font-medium",
+                  active ? "" : "text-muted",
+                )}
+              >
+                {dayName(d, today)}
+              </span>
+              <span className="mt-0.5 text-[1.375rem] leading-tight font-semibold">
+                {chip.day}
+              </span>
+              <span className={cn("text-caption", active ? "" : "text-muted")}>
+                {chip.month}
+              </span>
+            </button>
+          );
+        })}
+      </Scroller>
+      {date &&
+        (slots.error ? (
+          <ErrorState error={slots.error} onRetry={slots.reload} />
+        ) : slots.loading ? (
+          <Skeleton rows={2} height="h-12" />
+        ) : slots.data && slots.data.length === 0 ? (
+          <p className="text-small text-muted">
+            На этот день время уже разобрали. Выберите другой день.
+          </p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2.5 min-[400px]:grid-cols-4">
+            {slots.data?.map((t) => {
+              const active = value?.date === date && value.time === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => onChange({ date, time: t })}
+                  aria-pressed={active}
+                  className={cn(
+                    "rounded-field h-12 font-semibold transition-colors",
+                    active
+                      ? "bg-accent text-accent-ink shadow-cta"
+                      : "bg-surface text-ink shadow-card",
+                  )}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+    </div>
+  );
+}
+
+/* Готово */
+
+function Success({
   clinic,
   booking,
+  rescheduled,
   onShowBookings,
-  onClose,
+  onHome,
 }: {
   clinic: ClinicInfo;
   booking: PatientBooking;
+  rescheduled: boolean;
   onShowBookings: () => void;
-  onClose: () => void;
+  onHome: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-4 pt-4 text-center">
-      <span className="miniapp-pop bg-accent text-accent-ink flex size-16 items-center justify-center rounded-full">
-        <Icon name="check" size={32} />
-      </span>
-      <div>
-        <p className="text-h3 font-semibold">Запись №{booking.id}</p>
+    <main className="miniapp-screen mx-auto flex min-h-dvh w-full max-w-xl flex-col px-5 pt-[calc(3rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <span className="miniapp-pop bg-accent text-accent-ink shadow-cta flex size-20 items-center justify-center rounded-full">
+          <MaIcon name="check" size={38} strokeWidth={2} />
+        </span>
+        <h1 className="font-display mt-2 text-[1.75rem] leading-tight font-semibold">
+          {rescheduled ? "Запись перенесена" : "Вы записаны"}
+        </h1>
         <p className="text-muted">
-          {formatDay(booking.date)}, {booking.time}
+          Запись №{booking.id} · {longDay(booking.date, clinic.today)},{" "}
+          {booking.time}
         </p>
       </div>
-      <Card className="w-full text-left">
-        <p className="font-semibold">{booking.doctorName}</p>
-        <p className="text-small text-muted">{booking.specialty}</p>
-        <p className="text-small mt-3">{clinic.address}</p>
-        {booking.priceRub !== null && (
-          <p className="text-small mt-1">
-            Стоимость приёма: {rub(booking.priceRub)}
+      <Card raised className="mt-7 p-4">
+        <div className="flex items-center gap-3.5">
+          <DoctorPortrait name={booking.doctorName} />
+          <div className="min-w-0">
+            <p className="leading-snug font-semibold">{booking.doctorName}</p>
+            <p className="text-small text-accent">{booking.specialty}</p>
+          </div>
+        </div>
+        <div className="border-border text-small mt-4 flex flex-col gap-2 border-t pt-4">
+          <p className="flex gap-2.5">
+            <MaIcon name="pin" size={18} className="text-accent shrink-0" />
+            {clinic.address}
           </p>
-        )}
+          {booking.priceRub !== null && (
+            <p className="flex gap-2.5">
+              <MaIcon name="ruble" size={18} className="text-accent shrink-0" />
+              Стоимость приёма: {rub(booking.priceRub)}
+            </p>
+          )}
+        </div>
       </Card>
       {clinic.visitTips.length > 0 && (
-        <Card className="w-full text-left">
+        <Card className="mt-3 p-4">
           <p className="mb-2 font-semibold">Перед визитом</p>
           <ul className="text-small text-muted flex list-disc flex-col gap-1 pl-5">
             {clinic.visitTips.map((tip) => (
@@ -505,14 +568,14 @@ function Done({
           </ul>
         </Card>
       )}
-      <div className="flex w-full flex-col gap-2">
-        <Button block onClick={onShowBookings}>
+      <div className="mt-auto flex flex-col gap-2.5 pt-8">
+        <Button size="lg" block onClick={onShowBookings}>
           Мои записи
         </Button>
-        <Button block variant="secondary" onClick={onClose}>
+        <Button size="lg" variant="secondary" block onClick={onHome}>
           На главную
         </Button>
       </div>
-    </div>
+    </main>
   );
 }

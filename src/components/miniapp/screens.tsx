@@ -1,98 +1,163 @@
 "use client";
 
 import { useState } from "react";
-import { Icon } from "@/components/ui/Icon";
+import { DoctorPortrait, HeroArt, Logo } from "@/components/miniapp/art";
 import {
   api,
   ApiError,
-  formatDay,
-  relativeDay,
+  longDay,
   rub,
+  type ClinicInfo,
   type PatientBooking,
 } from "@/components/miniapp/client";
-import { Avatar } from "@/components/miniapp/BookingFlow";
+import {
+  MaIcon,
+  specialtyIcon,
+  type MaIconName,
+} from "@/components/miniapp/icons";
 import type { ScreenProps } from "@/components/miniapp/MiniApp";
 import {
   Button,
   Card,
+  CardButton,
+  Chip,
+  DemoTag,
   EmptyState,
   ErrorState,
   InfoRow,
   LinkButton,
+  Scroller,
+  ScreenTitle,
   SectionTitle,
+  Segmented,
   Sheet,
   Skeleton,
   StatusBadge,
 } from "@/components/miniapp/ui";
 import { cn } from "@/lib/cn";
 
-function DemoNote() {
-  return (
-    <p className="bg-demo-bg text-demo-ink rounded-field text-caption px-3 py-2 font-medium">
-      Демо: клиника, врачи и расписание вымышленные, запись тестовая.
-    </p>
-  );
-}
+const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
 
 /* Главная */
 
-export function HomeScreen({ clinic, bookings, openFlow, goTo }: ScreenProps) {
+/** Преимущества — то, что действительно делает приложение, без обещаний о клинике. */
+const FEATURES: { icon: MaIconName; title: string }[] = [
+  { icon: "slots", title: "Только свободное время" },
+  { icon: "swap", title: "Перенос и отмена онлайн" },
+  { icon: "ruble", title: "Цены заранее" },
+];
+
+export function HomeScreen({
+  clinic,
+  bookings,
+  openFlow,
+  openDoctor,
+  goTo,
+}: ScreenProps) {
   const next = bookings.data?.upcoming[0];
   return (
     <>
-      <header className="mb-4 flex flex-col gap-3">
-        <DemoNote />
-        <div>
-          <p className="text-small text-muted">Медицинская клиника</p>
-          <h1 className="text-h2 font-semibold">{clinic.name}</h1>
-          {clinic.about && (
-            <p className="text-small text-muted mt-1 line-clamp-3">
-              {clinic.about}
-            </p>
-          )}
-        </div>
-      </header>
+      <div className="mb-5 flex items-center justify-between">
+        <Logo />
+        <DemoTag />
+      </div>
 
-      <Button block onClick={() => openFlow()}>
-        <Icon name="calendar" size={20} />
-        Записаться к врачу
-      </Button>
+      <section className="bg-hero rounded-panel relative overflow-hidden px-5 pt-6 pb-5">
+        <HeroArt className="pointer-events-none absolute -right-6 -bottom-2 h-[78%] w-auto opacity-95" />
+        <div className="relative max-w-[68%]">
+          <h1 className="font-display text-[1.75rem] leading-[1.12] font-semibold min-[400px]:text-[1.95rem]">
+            Забота о вашем здоровье каждый день
+          </h1>
+          <p className="text-small text-muted mt-3">
+            Запись к врачу онлайн — врачи, цены и свободное время.
+          </p>
+        </div>
+        <div className="relative mt-6">
+          <Button size="lg" block onClick={() => openFlow()}>
+            Записаться на приём
+          </Button>
+        </div>
+      </section>
+
+      <ul className="mt-4 grid grid-cols-3 gap-2.5">
+        {FEATURES.map((f) => (
+          <Card
+            as="li"
+            key={f.title}
+            className="flex flex-col items-center gap-2 px-2 py-3.5 text-center"
+          >
+            <span className="bg-accent-soft text-accent flex size-10 items-center justify-center rounded-full">
+              <MaIcon name={f.icon} size={20} />
+            </span>
+            <span className="text-caption leading-snug font-medium">
+              {f.title}
+            </span>
+          </Card>
+        ))}
+      </ul>
+
+      {(bookings.loading || bookings.error || next) && (
+        <>
+          <SectionTitle
+            action={
+              next ? (
+                <LinkButton onClick={() => goTo("bookings")}>Все</LinkButton>
+              ) : undefined
+            }
+          >
+            Ближайшая запись
+          </SectionTitle>
+          {bookings.error ? (
+            <ErrorState error={bookings.error} onRetry={bookings.reload} />
+          ) : !bookings.data ? (
+            <Skeleton rows={1} />
+          ) : (
+            next && (
+              <CardButton onClick={() => goTo("bookings")}>
+                <span className="bg-accent text-accent-ink rounded-field flex size-16 shrink-0 flex-col items-center justify-center leading-tight">
+                  <span className="text-caption">
+                    {longDay(next.date, clinic.today).split(",")[0]}
+                  </span>
+                  <span className="font-semibold">{next.time}</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{next.doctorName}</span>
+                  <span className="text-small text-muted block">
+                    {next.specialty} · {longDay(next.date, clinic.today)}
+                  </span>
+                </span>
+                <MaIcon name="chevron" size={20} className="text-muted" />
+              </CardButton>
+            )
+          )}
+        </>
+      )}
 
       <SectionTitle
-        action={
-          next ? (
-            <LinkButton onClick={() => goTo("bookings")}>Все записи</LinkButton>
-          ) : undefined
-        }
+        action={<LinkButton onClick={() => goTo("doctors")}>Все</LinkButton>}
       >
-        Ближайшая запись
+        Наши врачи
       </SectionTitle>
-      {bookings.error ? (
-        <ErrorState error={bookings.error} onRetry={bookings.reload} />
-      ) : bookings.loading && !bookings.data ? (
-        <Skeleton rows={1} />
-      ) : next ? (
-        <Card className="flex items-center gap-3">
-          <span className="bg-accent text-accent-ink rounded-field flex size-14 shrink-0 flex-col items-center justify-center leading-tight">
-            <span className="text-caption">
-              {relativeDay(next.date, clinic.today).split(",")[0]}
+      <Scroller>
+        {clinic.doctors.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            onClick={() => openDoctor(d.id)}
+            className="bg-surface rounded-card shadow-card flex w-36 shrink-0 flex-col items-start gap-2.5 p-3.5 text-left"
+          >
+            <DoctorPortrait name={d.name} specialtyId={d.specialtyId} />
+            <span className="min-w-0">
+              <span className="text-small line-clamp-2 block leading-snug font-semibold">
+                {d.name}
+              </span>
+              <span className="text-caption text-accent block">
+                {d.specialty}
+              </span>
             </span>
-            <span className="font-semibold">{next.time}</span>
-          </span>
-          <div className="min-w-0">
-            <p className="font-semibold">{next.doctorName}</p>
-            <p className="text-small text-muted">
-              {next.specialty} · {formatDay(next.date)}
-            </p>
-          </div>
-        </Card>
-      ) : (
-        <Card>
-          <p className="text-small text-muted">
-            У вас пока нет предстоящих записей.
-          </p>
-        </Card>
-      )}
+          </button>
+        ))}
+      </Scroller>
 
       <SectionTitle
         action={<LinkButton onClick={() => goTo("services")}>Все</LinkButton>}
@@ -100,22 +165,25 @@ export function HomeScreen({ clinic, bookings, openFlow, goTo }: ScreenProps) {
         Популярные услуги
       </SectionTitle>
       {clinic.services.length === 0 ? (
-        <Card>
+        <Card className="p-4">
           <p className="text-small text-muted">
             Список услуг пока не заполнен.
           </p>
         </Card>
       ) : (
-        <ul className="grid grid-cols-2 gap-2">
-          {clinic.services.slice(0, 4).map((s) => (
-            <Card as="li" key={s.title} className="flex flex-col gap-1">
-              <span className="text-small leading-snug font-medium">
-                {s.title}
-              </span>
-              <span className="text-accent mt-auto font-semibold">
-                {rub(s.priceRub)}
-              </span>
-            </Card>
+        <ul className="flex flex-col gap-2.5">
+          {clinic.services.slice(0, 3).map((s) => (
+            <li key={s.title}>
+              <ServiceRow
+                service={s}
+                onBook={
+                  s.specialtyId
+                    ? () =>
+                        openFlow({ specialtyId: s.specialtyId ?? undefined })
+                    : undefined
+                }
+              />
+            </li>
           ))}
         </ul>
       )}
@@ -127,102 +195,207 @@ export function HomeScreen({ clinic, bookings, openFlow, goTo }: ScreenProps) {
       >
         Контакты
       </SectionTitle>
-      <Card className="py-1.5">
-        <InfoRow icon="pin" label="Адрес">
-          {clinic.address}
-        </InfoRow>
-        {clinic.phone && (
-          <InfoRow icon="phone" label="Телефон">
-            <a
-              href={`tel:${clinic.phone.replace(/[^\d+]/g, "")}`}
-              className="text-accent font-medium"
-            >
-              {clinic.phone}
-            </a>
-          </InfoRow>
-        )}
-        <InfoRow icon="clock" label="Режим работы">
-          {clinic.workingHours}
-        </InfoRow>
-      </Card>
+      <Contacts clinic={clinic} />
     </>
+  );
+}
+
+function Contacts({ clinic }: { clinic: ClinicInfo }) {
+  return (
+    <Card className="divide-border divide-y px-4 py-1">
+      <InfoRow icon="pin" label="Адрес">
+        {clinic.address}
+      </InfoRow>
+      {clinic.phone && (
+        <InfoRow icon="phone" label="Телефон">
+          <a href={telHref(clinic.phone)} className="text-accent font-semibold">
+            {clinic.phone}
+          </a>
+        </InfoRow>
+      )}
+      <InfoRow icon="clock" label="Режим работы">
+        {clinic.workingHours}
+      </InfoRow>
+    </Card>
   );
 }
 
 /* Врачи */
 
-export function DoctorsScreen({ clinic, openFlow }: ScreenProps) {
-  const [filter, setFilter] = useState<string>("all");
+export function DoctorsScreen({ clinic, openDoctor }: ScreenProps) {
+  const [filter, setFilter] = useState("all");
   const doctors = clinic.doctors.filter(
     (d) => filter === "all" || d.specialtyId === filter,
   );
   return (
     <>
-      <h1 className="text-h2 mb-3 font-semibold">Врачи</h1>
-      <div
-        className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1"
-        role="group"
-        aria-label="Специальность"
-      >
+      <ScreenTitle subtitle="Выберите специалиста, чтобы посмотреть свободное время">
+        Наши врачи
+      </ScreenTitle>
+      <Scroller label="Специальность">
         {[{ id: "all", title: "Все" }, ...clinic.specialties].map((s) => (
-          <button
+          <Chip
             key={s.id}
-            type="button"
+            active={filter === s.id}
             onClick={() => setFilter(s.id)}
-            aria-pressed={filter === s.id}
-            className={cn(
-              "rounded-control text-small h-9 shrink-0 border px-4 font-medium transition-colors",
-              filter === s.id
-                ? "border-accent bg-accent text-accent-ink"
-                : "border-border bg-surface text-ink",
-            )}
           >
             {s.title}
-          </button>
+          </Chip>
         ))}
-      </div>
+      </Scroller>
       {doctors.length === 0 ? (
-        <EmptyState icon="users" title="Врачей с такой специальностью нет" />
+        <EmptyState icon="doctors" title="Врачей с такой специальностью нет" />
       ) : (
         <ul className="flex flex-col gap-3">
           {doctors.map((d) => (
-            <Card as="li" key={d.id} className="flex flex-col gap-3">
-              <div className="flex items-start gap-3">
-                <Avatar name={d.name} />
-                <div className="min-w-0">
-                  <p className="font-semibold">{d.name}</p>
-                  <p className="text-small text-accent font-medium">
-                    {d.specialty}
-                  </p>
-                </div>
-              </div>
-              {d.about && <p className="text-small text-muted">{d.about}</p>}
-              <div className="text-small flex flex-wrap gap-x-4 gap-y-1">
-                <span>
-                  <span className="text-muted">Приём: </span>
-                  {d.slotMinutes} мин
-                </span>
-                <span>
-                  <span className="text-muted">Стоимость: </span>
-                  {d.priceRub !== null
-                    ? rub(d.priceRub)
-                    : "уточняйте в клинике"}
-                </span>
-              </div>
-              <div className="bg-surface-2 rounded-field text-small flex items-center gap-2 px-3 py-2">
-                <Icon name="clock" size={16} />
-                {d.nearest
-                  ? `Ближайшее время: ${relativeDay(d.nearest.date, clinic.today)}, ${d.nearest.time}`
-                  : "Нет свободного времени в ближайшие две недели"}
-              </div>
-              <Button
-                block
-                disabled={!d.nearest}
-                onClick={() => openFlow({ doctorId: d.id })}
+            <li key={d.id}>
+              <CardButton
+                onClick={() => openDoctor(d.id)}
+                className="items-start p-4"
               >
-                Записаться
-              </Button>
-            </Card>
+                <DoctorPortrait name={d.name} specialtyId={d.specialtyId} />
+                <span className="min-w-0 flex-1">
+                  <span className="block leading-snug font-semibold break-words">
+                    {d.name}
+                  </span>
+                  <span className="text-small text-accent block font-medium">
+                    {d.specialty}
+                  </span>
+                  <span className="text-caption text-muted mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                    <span>
+                      {d.priceRub !== null
+                        ? rub(d.priceRub)
+                        : "Цена — уточняйте"}
+                    </span>
+                    <span>{d.slotMinutes} мин</span>
+                  </span>
+                  <span
+                    className={cn(
+                      "text-caption mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium",
+                      d.nearest
+                        ? "bg-accent-soft text-accent"
+                        : "bg-surface-2 text-muted",
+                    )}
+                  >
+                    <MaIcon name="clock" size={14} />
+                    {d.nearest
+                      ? `${longDay(d.nearest.date, clinic.today).split(",")[0]}, ${d.nearest.time}`
+                      : "Нет свободного времени"}
+                  </span>
+                </span>
+                <MaIcon name="chevron" size={20} className="text-muted mt-1" />
+              </CardButton>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/* Услуги */
+
+function ServiceRow({
+  service,
+  onBook,
+}: {
+  service: ClinicInfo["services"][number];
+  onBook?: () => void;
+}) {
+  const body = (
+    <>
+      <span className="bg-hero text-accent flex size-12 shrink-0 items-center justify-center rounded-[14px]">
+        <MaIcon name={specialtyIcon(service.specialtyId)} size={24} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-2 block leading-snug font-medium break-words">
+          {service.title}
+        </span>
+        <span className="text-accent mt-0.5 block font-semibold">
+          {rub(service.priceRub)}
+        </span>
+      </span>
+    </>
+  );
+  return onBook ? (
+    <CardButton onClick={onBook} aria-label={`${service.title}: записаться`}>
+      {body}
+      <MaIcon name="chevron" size={20} className="text-muted" />
+    </CardButton>
+  ) : (
+    <Card className="flex items-center gap-3 p-3.5">{body}</Card>
+  );
+}
+
+const norm = (s: string) => s.toLowerCase().replaceAll("ё", "е");
+
+export function ServicesScreen({ clinic, openFlow }: ScreenProps) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const categories = clinic.specialties.filter((sp) =>
+    clinic.services.some((s) => s.specialtyId === sp.id),
+  );
+  const words = norm(query).split(/\s+/).filter(Boolean);
+  const services = clinic.services.filter(
+    (s) =>
+      (filter === "all" || s.specialtyId === filter) &&
+      words.every((w) => norm(`${s.title} ${s.specialty ?? ""}`).includes(w)),
+  );
+  return (
+    <>
+      <ScreenTitle subtitle="Цены из прайса клиники. Нажмите на услугу, чтобы записаться к врачу этого направления.">
+        Услуги и цены
+      </ScreenTitle>
+      <label className="bg-surface rounded-control shadow-card mb-3 flex h-12 items-center gap-2.5 px-4">
+        <MaIcon name="search" size={20} className="text-muted shrink-0" />
+        <span className="sr-only">Поиск услуги</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Поиск услуги"
+          enterKeyHint="search"
+          className="text-body placeholder:text-muted min-w-0 flex-1 bg-transparent outline-none"
+        />
+      </label>
+      {categories.length > 1 && (
+        <Scroller label="Категория">
+          <Chip active={filter === "all"} onClick={() => setFilter("all")}>
+            Все
+          </Chip>
+          {categories.map((c) => (
+            <Chip
+              key={c.id}
+              active={filter === c.id}
+              onClick={() => setFilter(c.id)}
+            >
+              {c.title}
+            </Chip>
+          ))}
+        </Scroller>
+      )}
+      {clinic.services.length === 0 ? (
+        <EmptyState icon="services" title="Список услуг пока не заполнен" />
+      ) : services.length === 0 ? (
+        <EmptyState
+          icon="search"
+          title="Ничего не найдено"
+          text="Попробуйте другое слово или категорию."
+        />
+      ) : (
+        <ul className="flex flex-col gap-2.5">
+          {services.map((s) => (
+            <li key={s.title}>
+              <ServiceRow
+                service={s}
+                onBook={
+                  s.specialtyId
+                    ? () =>
+                        openFlow({ specialtyId: s.specialtyId ?? undefined })
+                    : undefined
+                }
+              />
+            </li>
           ))}
         </ul>
       )}
@@ -232,7 +405,83 @@ export function DoctorsScreen({ clinic, openFlow }: ScreenProps) {
 
 /* Мои записи */
 
+function BookingCard({
+  booking,
+  today,
+  address,
+  featured,
+  onReschedule,
+  onCancel,
+}: {
+  booking: PatientBooking;
+  today: string;
+  address: string;
+  featured?: boolean;
+  onReschedule: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Card
+      as="li"
+      raised={featured}
+      className={cn(
+        "flex flex-col gap-4 p-4",
+        featured && "border-accent border-l-4",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-small text-muted">
+            {longDay(booking.date, today)}
+          </p>
+          <p
+            className={cn(
+              "font-semibold",
+              featured
+                ? "text-accent text-[1.75rem] leading-tight"
+                : "text-[1.25rem]",
+            )}
+          >
+            {booking.time}
+          </p>
+        </div>
+        <StatusBadge booking={booking} />
+      </div>
+      <div className="flex items-center gap-3">
+        <DoctorPortrait name={booking.doctorName} size="sm" />
+        <div className="min-w-0">
+          <p className="leading-snug font-semibold break-words">
+            {booking.doctorName}
+          </p>
+          <p className="text-small text-muted">
+            {booking.specialty}
+            {booking.priceRub !== null && ` · ${rub(booking.priceRub)}`}
+          </p>
+        </div>
+      </div>
+      {featured && (
+        <p className="text-small text-muted flex gap-2">
+          <MaIcon name="pin" size={18} className="text-accent shrink-0" />
+          {address}
+        </p>
+      )}
+      <p className="text-caption text-muted">Запись №{booking.id}</p>
+      {booking.upcoming && (
+        <div className="grid grid-cols-2 gap-2.5">
+          <Button size="sm" variant="secondary" onClick={onReschedule}>
+            Перенести
+          </Button>
+          <Button size="sm" variant="danger" onClick={onCancel}>
+            Отменить
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function MyBookingsScreen({
+  clinic,
   bookings,
   openFlow,
   reloadClinic,
@@ -268,39 +517,23 @@ export function MyBookingsScreen({
   }
 
   const list = bookings.data?.[view] ?? [];
+  const count = (id: "upcoming" | "past") =>
+    bookings.data ? ` · ${bookings.data[id].length}` : "";
   return (
     <>
-      <h1 className="text-h2 mb-3 font-semibold">Мои записи</h1>
-      <div
-        className="bg-surface-2 rounded-control mb-4 grid grid-cols-2 p-1"
-        role="tablist"
-      >
-        {(
-          [
-            ["upcoming", "Предстоящие"],
-            ["past", "Прошедшие"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={view === id}
-            onClick={() => setView(id)}
-            className={cn(
-              "rounded-control text-small h-9 font-medium transition-colors",
-              view === id ? "bg-surface text-ink shadow-sm" : "text-muted",
-            )}
-          >
-            {label}
-            {bookings.data && ` · ${bookings.data[id].length}`}
-          </button>
-        ))}
-      </div>
+      <ScreenTitle>Мои записи</ScreenTitle>
+      <Segmented
+        value={view}
+        onChange={setView}
+        options={[
+          { id: "upcoming", label: `Предстоящие${count("upcoming")}` },
+          { id: "past", label: `Прошедшие${count("past")}` },
+        ]}
+      />
       {notice && (
         <p
           role="status"
-          className="bg-accent-soft text-accent rounded-field text-small mb-3 px-3 py-2 font-medium"
+          className="bg-accent-soft text-accent rounded-field text-small mb-4 px-4 py-3 font-medium"
         >
           {notice}
         </p>
@@ -308,7 +541,7 @@ export function MyBookingsScreen({
       {bookings.error ? (
         <ErrorState error={bookings.error} onRetry={bookings.reload} />
       ) : bookings.loading && !bookings.data ? (
-        <Skeleton rows={3} />
+        <Skeleton rows={2} height="h-28" />
       ) : list.length === 0 ? (
         <EmptyState
           title={
@@ -323,58 +556,26 @@ export function MyBookingsScreen({
           }
           action={
             view === "upcoming" ? (
-              <Button small onClick={() => openFlow()}>
-                Записаться
-              </Button>
+              <Button onClick={() => openFlow()}>Записаться на приём</Button>
             ) : undefined
           }
         />
       ) : (
         <ul className="flex flex-col gap-3">
-          {list.map((b) => (
-            <Card as="li" key={b.id} className="flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold">
-                    {formatDay(b.date)}, {b.time}
-                  </p>
-                  <p className="text-small text-muted">Запись №{b.id}</p>
-                </div>
-                <StatusBadge booking={b} />
-              </div>
-              <div className="flex items-center gap-3">
-                <Avatar name={b.doctorName} />
-                <div className="min-w-0">
-                  <p className="font-medium">{b.doctorName}</p>
-                  <p className="text-small text-muted">
-                    {b.specialty}
-                    {b.priceRub !== null && ` · ${rub(b.priceRub)}`}
-                  </p>
-                </div>
-              </div>
-              {b.upcoming && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    small
-                    variant="secondary"
-                    onClick={() => openFlow({ reschedule: b })}
-                  >
-                    Перенести
-                  </Button>
-                  <Button
-                    small
-                    variant="danger"
-                    onClick={() => {
-                      setError(undefined);
-                      setNotice(undefined);
-                      setCancelling(b);
-                    }}
-                  >
-                    Отменить
-                  </Button>
-                </div>
-              )}
-            </Card>
+          {list.map((b, i) => (
+            <BookingCard
+              key={b.id}
+              booking={b}
+              today={clinic.today}
+              address={clinic.address}
+              featured={view === "upcoming" && i === 0}
+              onReschedule={() => openFlow({ reschedule: b })}
+              onCancel={() => {
+                setError(undefined);
+                setNotice(undefined);
+                setCancelling(b);
+              }}
+            />
           ))}
         </ul>
       )}
@@ -386,15 +587,23 @@ export function MyBookingsScreen({
         {cancelling && (
           <div className="flex flex-col gap-4">
             <p className="text-muted">
-              {cancelling.doctorName}, {formatDay(cancelling.date)},{" "}
+              {cancelling.doctorName},{" "}
+              {longDay(cancelling.date, clinic.today).toLowerCase()},{" "}
               {cancelling.time}. Время освободится для других пациентов.
             </p>
             {error && <ErrorState error={error} />}
-            <div className="flex flex-col gap-2">
-              <Button block variant="danger" onClick={cancel} disabled={busy}>
+            <div className="flex flex-col gap-2.5">
+              <Button
+                size="lg"
+                block
+                variant="danger"
+                onClick={cancel}
+                disabled={busy}
+              >
                 {busy ? "Отменяем…" : "Да, отменить запись"}
               </Button>
               <Button
+                size="lg"
                 block
                 variant="secondary"
                 onClick={() => setCancelling(undefined)}
@@ -410,88 +619,32 @@ export function MyBookingsScreen({
   );
 }
 
-/* Услуги */
-
-export function ServicesScreen({ clinic, openFlow }: ScreenProps) {
-  return (
-    <>
-      <h1 className="text-h2 mb-1 font-semibold">Услуги и цены</h1>
-      <p className="text-small text-muted mb-4">
-        Цены из прайса клиники; актуальную стоимость приёма врача видно при
-        записи.
-      </p>
-      {clinic.services.length === 0 ? (
-        <EmptyState icon="document" title="Список услуг пока не заполнен" />
-      ) : (
-        <Card className="py-1">
-          <ul className="divide-border divide-y">
-            {clinic.services.map((s) => (
-              <li
-                key={s.title}
-                className="flex items-start justify-between gap-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium">{s.title}</p>
-                  {s.specialty && (
-                    <p className="text-small text-muted">{s.specialty}</p>
-                  )}
-                </div>
-                <span className="font-semibold whitespace-nowrap">
-                  {rub(s.priceRub)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-      <div className="mt-4">
-        <Button block onClick={() => openFlow()}>
-          Записаться к врачу
-        </Button>
-      </div>
-    </>
-  );
-}
-
 /* О клинике */
 
 export function AboutScreen({ clinic }: ScreenProps) {
   return (
     <>
-      <h1 className="text-h2 mb-3 font-semibold">О клинике</h1>
+      <div className="mb-5 flex items-center justify-between">
+        <Logo />
+        <DemoTag />
+      </div>
+      <ScreenTitle>О клинике</ScreenTitle>
       {clinic.about && (
-        <Card className="mb-3">
+        <Card className="mb-3 p-4">
           <p className="text-small whitespace-pre-line">{clinic.about}</p>
         </Card>
       )}
-      <Card className="py-1.5">
-        <InfoRow icon="pin" label="Адрес">
-          {clinic.address}
-        </InfoRow>
-        {clinic.phone && (
-          <InfoRow icon="phone" label="Телефон">
-            <a
-              href={`tel:${clinic.phone.replace(/[^\d+]/g, "")}`}
-              className="text-accent font-medium"
-            >
-              {clinic.phone}
-            </a>
-          </InfoRow>
-        )}
-        <InfoRow icon="clock" label="Часы работы">
-          {clinic.workingHours}
-        </InfoRow>
-      </Card>
+      <Contacts clinic={clinic} />
       {clinic.route && (
         <>
           <SectionTitle>Как добраться</SectionTitle>
-          <Card>
+          <Card className="p-4">
             <p className="text-small whitespace-pre-line">{clinic.route}</p>
           </Card>
         </>
       )}
       <SectionTitle>Вопросы и консультация</SectionTitle>
-      <Card className="flex flex-col gap-3">
+      <Card className="flex flex-col gap-3 p-4">
         <p className="text-small text-muted">
           Ответить на вопросы и подобрать специалиста поможет бот клиники в
           сообщениях сообщества ВКонтакте.
@@ -506,9 +659,9 @@ export function AboutScreen({ clinic }: ScreenProps) {
             href={clinic.messagesUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="liquid-primary rounded-control flex h-12 items-center justify-center gap-2 font-semibold"
+            className="bg-accent text-accent-ink rounded-control shadow-cta flex h-12 items-center justify-center gap-2 font-semibold"
           >
-            <Icon name="chat" size={20} />
+            <MaIcon name="chat" size={20} />
             Написать в сообщения сообщества
           </a>
         ) : (

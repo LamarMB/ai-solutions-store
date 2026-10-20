@@ -153,3 +153,37 @@ export function relativeDay(date: string, today: string): string {
   if (diff === 1) return "завтра";
   return formatDay(date);
 }
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Подпись дня для выбора: «Сегодня», «Завтра» или «Пн». */
+export function dayName(date: string, today: string): string {
+  const diff = Math.round(
+    (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) /
+      86_400_000,
+  );
+  if (diff === 0) return "Сегодня";
+  if (diff === 1) return "Завтра";
+  return capitalize(dayChip(date).weekday.replace(".", ""));
+}
+
+const longFormat = new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
+/** «Завтра, 13 ноября» / «Пятница, 23 октября». */
+export function longDay(date: string, today: string): string {
+  const name = dayName(date, today);
+  const full =
+    name === "Сегодня" || name === "Завтра"
+      ? name
+      : capitalize(
+          new Intl.DateTimeFormat("ru-RU", {
+            weekday: "long",
+            timeZone: "UTC",
+          }).format(new Date(`${date}T00:00:00Z`)),
+        );
+  return `${full}, ${longFormat.format(new Date(`${date}T00:00:00Z`))}`;
+}
