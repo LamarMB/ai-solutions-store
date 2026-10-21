@@ -2,6 +2,7 @@ import type { z } from "zod";
 import type { Weekday } from "@/bot/clinic/types";
 import { ClinicSchedule } from "@/bot/schedule/schedule";
 import { addDays, localDateTime } from "@/bot/schedule/time";
+import { photoUrl } from "@/bot/storage/photo-store";
 import type { SqliteStore } from "@/bot/storage/sqlite";
 import type { Booking } from "@/bot/storage/types";
 import {
@@ -284,10 +285,50 @@ export class AdminService {
   // --- Врачи и специальности -----------------------------------------------
 
   listDoctors() {
+    const photos = this.store.photos.all();
     return {
-      doctors: this.store.clinic.listDoctors(this.today()),
+      doctors: this.store.clinic.listDoctors(this.today()).map((d) => ({
+        ...d,
+        photoUrl: photoUrl(photos.get(d.id)),
+        photoSource: photos.get(d.id)?.source ?? null,
+      })),
       specialties: this.store.clinic.listSpecialties(),
     };
+  }
+
+  /**
+   * Фото врача: содержимое проверяется по сигнатуре (JPEG, PNG, WebP), размер и
+   * стороны ограничены. Хранится в общей базе — попадает в резервную копию.
+   */
+  setDoctorPhoto(id: string, bytes: Uint8Array, userId: number) {
+    this.doctor(id);
+    const saved = this.store.photos.set(
+      id,
+      bytes,
+      "upload",
+      this.now().toISOString(),
+      userId,
+    );
+    if (!saved.ok)
+      throw new AdminError(
+        saved.problem === "size" ? 413 : 415,
+        {
+          type: "Нужна фотография JPEG, PNG или WebP.",
+          size: "Файл слишком большой: не больше 2 МБ.",
+          dimensions:
+            "Фото должно быть от 120 до 4000 пикселей по каждой стороне.",
+          animated: "Анимированные изображения не поддерживаются.",
+        }[saved.problem],
+      );
+    this.audit(userId, "set_photo", "doctor", id);
+    return { photoUrl: photoUrl(saved.meta), photoSource: saved.meta.source };
+  }
+
+  deleteDoctorPhoto(id: string, userId: number) {
+    this.doctor(id);
+    if (!this.store.photos.remove(id))
+      throw new AdminError(404, "У врача нет фотографии.");
+    this.audit(userId, "delete_photo", "doctor", id);
   }
 
   private checkSpecialty(id: string) {
@@ -332,6 +373,8 @@ export class AdminService {
         409,
         "У врача есть предстоящие записи. Перенесите или отмените их — или просто отключите врача.",
       );
+    // Удалённый врач больше нигде не показывается — фото ему не нужно.
+    this.store.photos.remove(id);
     this.audit(userId, "delete", "doctor", id);
   }
 

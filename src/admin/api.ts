@@ -10,6 +10,7 @@ import {
   type AuthConfig,
 } from "@/admin/auth";
 import { can, type Permission } from "@/admin/permissions";
+import { PHOTO_MAX_BYTES, PHOTO_TYPES } from "@/bot/storage/image";
 import { LoginSchema, describeZodError } from "@/admin/schemas";
 import { AdminError, type AdminService } from "@/admin/service";
 
@@ -33,6 +34,41 @@ const ok = (data: unknown = null, headers?: HeadersInit) =>
 
 const fail = (status: number, error: string, fields?: Record<string, string>) =>
   json(status, { ok: false, error, ...(fields ? { fields } : {}) });
+
+/**
+ * Тело с изображением: только заявленный тип JPEG, PNG или WebP и не больше
+ * PHOTO_MAX_BYTES (читается с ограничением, без доверия Content-Length).
+ * Содержимое дополнительно проверяет PhotoStore по сигнатуре.
+ */
+async function readImage(request: Request): Promise<Uint8Array> {
+  const type = request.headers.get("content-type")?.split(";")[0].trim();
+  if (!type || !(PHOTO_TYPES as readonly string[]).includes(type))
+    throw new AdminError(415, "Нужна фотография JPEG, PNG или WebP.");
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > PHOTO_MAX_BYTES)
+    throw new AdminError(413, "Файл слишком большой: не больше 2 МБ.");
+  const reader = request.body?.getReader();
+  if (!reader) throw new AdminError(400, "Пустой файл.");
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > PHOTO_MAX_BYTES) {
+      await reader.cancel();
+      throw new AdminError(413, "Файл слишком большой: не больше 2 МБ.");
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.length;
+  }
+  return bytes;
+}
 
 async function readJson(request: Request): Promise<unknown> {
   if (!request.headers.get("content-type")?.includes("application/json"))
@@ -145,6 +181,8 @@ const ROUTES: Record<string, Permission | null> = {
   "POST doctors": "doctors.write",
   "PATCH doctors/:id": "doctors.write",
   "DELETE doctors/:id": "doctors.write",
+  "PUT doctors/:id/photo": "doctors.write",
+  "DELETE doctors/:id/photo": "doctors.write",
   "POST specialties": "doctors.write",
   "PATCH specialties/:id": "doctors.write",
   "GET schedule/:id": "schedule.read",
@@ -223,6 +261,10 @@ async function dispatch(
       return ok(service.updateDoctor(id!, await readJson(request), user));
     case "DELETE doctors/:id":
       return ok(service.deleteDoctor(id!, user));
+    case "PUT doctors/:id/photo":
+      return ok(service.setDoctorPhoto(id!, await readImage(request), user));
+    case "DELETE doctors/:id/photo":
+      return ok(service.deleteDoctorPhoto(id!, user));
 
     case "POST specialties":
       return ok(service.createSpecialty(await readJson(request), user));

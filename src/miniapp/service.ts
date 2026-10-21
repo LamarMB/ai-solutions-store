@@ -2,6 +2,7 @@ import { z } from "zod";
 import { isActiveDoctor } from "@/bot/clinic/types";
 import { ClinicSchedule } from "@/bot/schedule/schedule";
 import { addDays, isDate, isTime, localDateTime } from "@/bot/schedule/time";
+import { photoUrl } from "@/bot/storage/photo-store";
 import type { SqliteStore } from "@/bot/storage/sqlite";
 import type { Booking } from "@/bot/storage/types";
 
@@ -71,6 +72,8 @@ export type PatientBooking = {
   specialty: string;
   priceRub: number | null;
   slotMinutes: number | null;
+  /** Фото врача (адрес) или null — тогда монограмма. */
+  doctorPhotoUrl: string | null;
 };
 
 /**
@@ -101,6 +104,7 @@ export class MiniAppService {
   clinicInfo(groupId?: number) {
     const clinic = this.clinic;
     const specialties = this.schedule.listSpecialties();
+    const photos = this.store.photos.all();
     const doctors = clinic.doctors.filter(isActiveDoctor).map((d) => {
       const day = this.schedule.listAvailableDays(d.id)[0];
       const slot = day ? this.schedule.listFreeSlots(d.id, day)[0] : undefined;
@@ -114,6 +118,9 @@ export class MiniAppService {
         priceRub: d.priceRub ?? null,
         slotMinutes: d.slotMinutes,
         nearest: day && slot ? { date: day, time: slot } : null,
+        photoUrl: photoUrl(photos.get(d.id)),
+        /** Демо-портрет, созданный ИИ: приложение подписывает его как демонстрационный. */
+        photoIsDemo: photos.get(d.id)?.source === "demo_ai",
       };
     });
     return {
@@ -182,6 +189,7 @@ export class MiniAppService {
         "",
       priceRub: doctor?.priceRub ?? null,
       slotMinutes: doctor?.slotMinutes ?? null,
+      doctorPhotoUrl: photoUrl(this.store.photos.meta(b.doctorId)),
     };
   }
 

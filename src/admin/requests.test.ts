@@ -534,8 +534,8 @@ describe("миграция v6 → v7", () => {
       cipher: MedicalCipher.fromBase64(KEY),
     });
     cleanups.push(() => store.close());
-    expect(SCHEMA_VERSION).toBe(7);
-    expect(store.schemaVersion).toBe(7);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(7);
+    expect(store.schemaVersion).toBe(SCHEMA_VERSION);
     expect(store.searchBookings({})).toHaveLength(1);
     expect(store.admin.findUser("vps-owner")).toMatchObject({
       role: "owner",

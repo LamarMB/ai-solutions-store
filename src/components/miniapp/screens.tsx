@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { DoctorPortrait, HeroArt, Logo } from "@/components/miniapp/art";
+import {
+  AiPhotoNote,
+  DoctorPortrait,
+  HeroArt,
+  Logo,
+} from "@/components/miniapp/art";
 import {
   api,
   ApiError,
@@ -144,10 +149,15 @@ export function HomeScreen({
             key={d.id}
             type="button"
             onClick={() => openDoctor(d.id)}
-            className="bg-surface rounded-card shadow-card flex w-36 shrink-0 flex-col items-start gap-2.5 p-3.5 text-left"
+            className="bg-surface rounded-card shadow-card flex w-40 shrink-0 flex-col items-start gap-2.5 p-2.5 pb-3.5 text-left"
           >
-            <DoctorPortrait name={d.name} specialtyId={d.specialtyId} />
-            <span className="min-w-0">
+            <DoctorPortrait
+              name={d.name}
+              specialtyId={d.specialtyId}
+              photoUrl={d.photoUrl}
+              size="tile"
+            />
+            <span className="min-w-0 px-1">
               <span className="text-small line-clamp-2 block leading-snug font-semibold">
                 {d.name}
               </span>
@@ -158,6 +168,9 @@ export function HomeScreen({
           </button>
         ))}
       </Scroller>
+      {clinic.doctors.some((d) => d.photoIsDemo) && (
+        <AiPhotoNote className="-mt-1" />
+      )}
 
       <SectionTitle
         action={<LinkButton onClick={() => goTo("services")}>Все</LinkButton>}
@@ -253,7 +266,11 @@ export function DoctorsScreen({ clinic, openDoctor }: ScreenProps) {
                 onClick={() => openDoctor(d.id)}
                 className="items-start p-4"
               >
-                <DoctorPortrait name={d.name} specialtyId={d.specialtyId} />
+                <DoctorPortrait
+                  name={d.name}
+                  specialtyId={d.specialtyId}
+                  photoUrl={d.photoUrl}
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block leading-snug font-semibold break-words">
                     {d.name}
@@ -288,6 +305,9 @@ export function DoctorsScreen({ clinic, openDoctor }: ScreenProps) {
             </li>
           ))}
         </ul>
+      )}
+      {clinic.doctors.some((d) => d.photoIsDemo) && (
+        <AiPhotoNote className="mt-5 text-center" />
       )}
     </>
   );
@@ -448,7 +468,11 @@ function BookingCard({
         <StatusBadge booking={booking} />
       </div>
       <div className="flex items-center gap-3">
-        <DoctorPortrait name={booking.doctorName} size="sm" />
+        <DoctorPortrait
+          name={booking.doctorName}
+          photoUrl={booking.doctorPhotoUrl}
+          size="sm"
+        />
         <div className="min-w-0">
           <p className="leading-snug font-semibold break-words">
             {booking.doctorName}

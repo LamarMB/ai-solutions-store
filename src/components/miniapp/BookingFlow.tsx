@@ -168,7 +168,11 @@ function ChooseDoctor({
             {doctors.map((d) => (
               <li key={d.id}>
                 <CardButton onClick={() => onChoose(d.id)}>
-                  <DoctorPortrait name={d.name} specialtyId={d.specialtyId} />
+                  <DoctorPortrait
+                    name={d.name}
+                    specialtyId={d.specialtyId}
+                    photoUrl={d.photoUrl}
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="block leading-snug font-semibold">
                       {d.name}
@@ -295,6 +299,7 @@ function BookingForm({
             <DoctorPortrait
               name={doctor.name}
               specialtyId={doctor.specialtyId}
+              photoUrl={doctor.photoUrl}
             />
             <div className="min-w-0">
               <p className="leading-snug font-semibold">{doctor.name}</p>
@@ -539,7 +544,10 @@ function Success({
       </div>
       <Card raised className="mt-7 p-4">
         <div className="flex items-center gap-3.5">
-          <DoctorPortrait name={booking.doctorName} />
+          <DoctorPortrait
+            name={booking.doctorName}
+            photoUrl={booking.doctorPhotoUrl}
+          />
           <div className="min-w-0">
             <p className="leading-snug font-semibold">{booking.doctorName}</p>
             <p className="text-small text-accent">{booking.specialty}</p>

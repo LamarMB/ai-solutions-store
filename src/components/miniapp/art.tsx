@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { MaIcon, specialtyIcon } from "@/components/miniapp/icons";
 import { cn } from "@/lib/cn";
 
@@ -19,20 +22,29 @@ export const initials = (name: string) =>
 
 const SIZES = {
   sm: "size-12 rounded-[14px] text-[1.05rem]",
-  md: "size-16 rounded-[18px] text-[1.35rem]",
+  md: "size-[4.5rem] rounded-[18px] text-[1.45rem]",
+  /** Плитка во всю ширину карточки (лента врачей на главной). */
+  tile: "aspect-square w-full rounded-[16px] text-[2rem]",
   lg: "size-32 rounded-full text-[2.75rem]",
 } as const;
 
-/** Монограмма врача вместо фотографии; значок направления — в углу. */
+/**
+ * Портрет врача: фото из базы или, если его нет (или оно не загрузилось),
+ * монограмма со значком направления. Одинаковые пропорции во всех списках.
+ */
 export function DoctorPortrait({
   name,
   specialtyId,
+  photoUrl,
   size = "md",
 }: {
   name: string;
   specialtyId?: string;
+  photoUrl?: string | null;
   size?: keyof typeof SIZES;
 }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const photo = photoUrl && failed !== photoUrl ? photoUrl : null;
   return (
     <span
       aria-hidden
@@ -43,8 +55,21 @@ export function DoctorPortrait({
         SIZES[size],
       )}
     >
-      {initials(name)}
-      {specialtyId && size !== "sm" && (
+      {photo ? (
+        // Фото с нашего сервера (/api/miniapp/photos/…), уже квадратное и сжатое.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={photo}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(photo)}
+          className="size-full rounded-[inherit] object-cover"
+        />
+      ) : (
+        initials(name)
+      )}
+      {specialtyId && size !== "sm" && !photo && (
         <span
           className={cn(
             "bg-surface text-accent shadow-card absolute flex items-center justify-center rounded-full",
@@ -60,6 +85,15 @@ export function DoctorPortrait({
         </span>
       )}
     </span>
+  );
+}
+
+/** Пометка демо-портрета: фото создано ИИ, это не реальный сотрудник. */
+export function AiPhotoNote({ className }: { className?: string }) {
+  return (
+    <p className={cn("text-caption text-muted", className)}>
+      Демо: портреты врачей созданы ИИ и не изображают реальных сотрудников.
+    </p>
   );
 }
 

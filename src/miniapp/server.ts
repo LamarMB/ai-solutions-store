@@ -29,3 +29,10 @@ export function miniAppDeps(): MiniAppApiDeps | null {
   }
   return deps;
 }
+
+/** Фото врачей нужны и панели, поэтому — отдельно от настроек Mini App. */
+let photos: SqliteStore | undefined;
+export function photoStore() {
+  photos ??= new SqliteStore(process.env.BOT_DB_PATH || ".data/bot.sqlite");
+  return photos.photos;
+}

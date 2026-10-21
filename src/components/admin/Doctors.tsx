@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Specialty } from "@/bot/clinic/types";
 import type { AdminDoctor } from "@/bot/storage/clinic-store";
 import { api, ApiError, useResource } from "@/components/admin/client";
+import { DoctorPhotoDialog } from "@/components/admin/DoctorPhoto";
 import { rub } from "@/components/admin/format";
 import {
   ConfirmDialog,
@@ -24,7 +25,11 @@ import {
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 
-type DoctorsData = { doctors: AdminDoctor[]; specialties: Specialty[] };
+type PanelDoctor = AdminDoctor & {
+  photoUrl: string | null;
+  photoSource: "demo_ai" | "upload" | null;
+};
+type DoctorsData = { doctors: PanelDoctor[]; specialties: Specialty[] };
 
 type DoctorForm = {
   name: string;
@@ -299,6 +304,7 @@ export function Doctors() {
   const { data, error, loading, reload } = useResource<DoctorsData>("doctors");
   const [editing, setEditing] = useState<AdminDoctor | "new" | null>(null);
   const [specialty, setSpecialty] = useState<Specialty | "new" | null>(null);
+  const [photoFor, setPhotoFor] = useState<PanelDoctor>();
   const [confirm, setConfirm] = useState<{
     doctor: AdminDoctor;
     kind: "disable" | "delete";
@@ -366,7 +372,25 @@ export function Doctors() {
           {data.doctors.map((d) => (
             <Panel key={d.id} className={cn(!d.active && "opacity-70")}>
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setPhotoFor(d)}
+                  aria-label={`Фото: ${d.name}`}
+                  className="bg-surface-2 rounded-field text-caption text-muted flex size-16 shrink-0 items-center justify-center overflow-hidden"
+                >
+                  {d.photoUrl ? (
+                    // Фото с нашего сервера (/api/miniapp/photos/…).
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={d.photoUrl}
+                      alt=""
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    "нет фото"
+                  )}
+                </button>
+                <div className="min-w-0 flex-1">
                   <h2 className="text-h3 font-semibold">{d.name}</h2>
                   <p className="text-small text-muted">
                     {specialtyTitle(d.specialtyId)}
@@ -417,6 +441,13 @@ export function Doctors() {
                   onClick={() => setEditing(d)}
                 >
                   Изменить
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setPhotoFor(d)}
+                >
+                  Фото
                 </Button>
                 <Link
                   href={`/admin/schedule?doctor=${d.id}`}
@@ -521,6 +552,12 @@ export function Doctors() {
         busy={busy}
         onClose={() => setConfirm(null)}
         onConfirm={() => confirm && apply(confirm.doctor, confirm.kind)}
+      />
+      <DoctorPhotoDialog
+        key={photoFor?.id ?? "none"}
+        doctor={photoFor}
+        onClose={() => setPhotoFor(undefined)}
+        onSaved={reload}
       />
     </>
   );

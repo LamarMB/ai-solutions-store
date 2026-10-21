@@ -6,6 +6,7 @@ import type { Clinic } from "@/bot/clinic/types";
 import { AdminStore } from "@/bot/storage/admin-store";
 import { ClinicStore } from "@/bot/storage/clinic-store";
 import { ConsentStore } from "@/bot/storage/consent-store";
+import { PhotoStore } from "@/bot/storage/photo-store";
 import { RequestStore } from "@/bot/storage/request-store";
 import { isEncrypted, type MedicalCipher } from "@/bot/storage/medical-crypto";
 import type {
@@ -308,6 +309,21 @@ CREATE TABLE IF NOT EXISTS request_access_log (
 );
 `;
 
+/** Фотографии врачей: содержимое в базе, только JPEG, PNG, WebP. */
+const PHOTOS_SCHEMA = `
+CREATE TABLE IF NOT EXISTS doctor_photos (
+  doctor_id TEXT PRIMARY KEY,
+  mime TEXT NOT NULL CHECK (mime IN ('image/webp', 'image/jpeg', 'image/png')),
+  data BLOB NOT NULL,
+  sha256 TEXT NOT NULL,
+  width INTEGER NOT NULL,
+  height INTEGER NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('demo_ai', 'upload')),
+  updated_at TEXT NOT NULL,
+  updated_by INTEGER
+);
+`;
+
 type Migration = string | ((db: DatabaseSync) => void);
 
 /**
@@ -316,7 +332,8 @@ type Migration = string | ((db: DatabaseSync) => void);
  * 3 — счётчики stats; 4 — справочники клиники, статусы и источник записей
  * (с начальными данными прежней вымышленной клиники); 5 — администраторы;
  * 6 — роли сотрудников, приглашения, согласия пациентов, журнал медицинского доступа;
- * 7 — обращения пациентов к администратору с согласием и журнал доступа к ним.
+ * 7 — обращения пациентов к администратору с согласием и журнал доступа к ним;
+ * 8 — фотографии врачей.
  * Формат JSON в sessions.state сменился на v2 (шаг записи + память разговора);
  * старые значения читаются кодом (parseSession), переписывать их не нужно.
  */
@@ -337,6 +354,7 @@ const MIGRATIONS: Migration[] = [
   ADMIN_SCHEMA,
   PRIVACY_SCHEMA,
   REQUESTS_SCHEMA,
+  PHOTOS_SCHEMA,
 ];
 
 /** Последняя версия схемы. */
@@ -399,6 +417,7 @@ export class SqliteStore
   /** Согласия пациентов на передачу сведений и журнал доступа к ним. */
   readonly consents: ConsentStore;
   readonly requests: RequestStore;
+  readonly photos: PhotoStore;
   private readonly cipher?: MedicalCipher;
 
   /**
@@ -416,6 +435,7 @@ export class SqliteStore
     this.admin = new AdminStore(this.db);
     this.consents = new ConsentStore(this.db, cipher);
     this.requests = new RequestStore(this.db, cipher);
+    this.photos = new PhotoStore(this.db);
   }
 
   /** Версия схемы базы (PRAGMA user_version). */

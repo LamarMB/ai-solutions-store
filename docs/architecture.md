@@ -76,10 +76,12 @@
 - Подхранилища: `clinic` (`clinic-store.ts` — врачи, специальности, часы, исключения,
   услуги, настройки; кэш до изменения базы), `admin` (`admin-store.ts` — сотрудники,
   сессии, приглашения, аудит), `consents` (`consent-store.ts` — согласия врачу и журнал
-  доступа), `requests` (`request-store.ts` — обращения к администратору и журнал доступа).
+  доступа), `requests` (`request-store.ts` — обращения к администратору и журнал доступа),
+  `photos` (`photo-store.ts` — фото врачей; проверка формата — `image.ts`; публичная
+  выдача — `src/miniapp/photos.ts`, `/api/miniapp/photos/<id>`).
 - `medical-crypto.ts` (`MedicalCipher`, AES-256-GCM с контекстом): при заданном
   `MEDICAL_DATA_KEY` шифрует `sessions.state` и содержимое согласий.
-- Текущая версия схемы — `SCHEMA_VERSION` (v7). Резервная копия — `npm run db:backup`.
+- Текущая версия схемы — `SCHEMA_VERSION` (v8). Резервная копия — `npm run db:backup`.
 
 ## Админ-панель
 
