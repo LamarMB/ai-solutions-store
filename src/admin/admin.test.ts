@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleAdminApi, type AdminApiDeps } from "@/admin/api";
 import { AdminAuth, LoginThrottle, type AuthConfig } from "@/admin/auth";
 import {
@@ -340,6 +340,16 @@ describe("врачи", () => {
 });
 
 describe("расписание", () => {
+  // Хранилище отбрасывает исключения расписания старше двух дней по системным
+  // часам (clinic-store.ts), а даты в тестах фиксированы: без подмены часов
+  // тесты начинают падать, когда эти даты проходят.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("часы приёма, пересечения, выходной, перерыв, праздник клиники", async () => {
     const t = await setup();
     await t.login();
