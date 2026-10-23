@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -10,6 +10,13 @@ import {
 } from "@/config/navigation";
 
 const appDir = path.resolve(__dirname, "../app");
+/** Группы маршрутов вида (site) не входят в адрес страницы. */
+const routeRoots = [
+  appDir,
+  ...readdirSync(appDir)
+    .filter((name) => /^\(.+\)$/.test(name))
+    .map((name) => path.join(appDir, name)),
+];
 
 describe("навигация", () => {
   it("адреса основного меню уникальны", () => {
@@ -18,7 +25,11 @@ describe("навигация", () => {
   });
 
   it.each(allNavHrefs)("для %s существует страница", (href) => {
-    expect(existsSync(path.join(appDir, href, "page.tsx"))).toBe(true);
+    // Якорь (/#tariffs) ведёт на секцию страницы — проверяем саму страницу.
+    const page = href.split("#")[0];
+    expect(
+      routeRoots.some((root) => existsSync(path.join(root, page, "page.tsx"))),
+    ).toBe(true);
   });
 
   it("подвал ссылается только на известные разделы", () => {

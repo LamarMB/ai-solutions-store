@@ -11,7 +11,6 @@ export { getSeoConfig, type SeoConfig };
 export const INDEXABLE_PAGES = [
   "/",
   "/catalog",
-  "/industries",
   "/how-we-work",
   "/about",
   "/consultant",
@@ -22,7 +21,7 @@ export const OG_IMAGE = {
   url: "/og-image.png",
   width: 1200,
   height: 630,
-  alt: "AI Solutions Store — внедрение ИИ и автоматизация бизнеса. Демо-версия сайта.",
+  alt: "AI Solutions Store — ИИ-решения для медицинских клиник. Демо-версия сайта.",
 };
 
 /** Абсолютный адрес страницы сайта. */

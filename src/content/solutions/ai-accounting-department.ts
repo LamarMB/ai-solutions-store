@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const aiAccountingDepartment = {
   id: "ai-accounting-department",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   maturity: "in_development",
   title: "AI Accounting Department",
   summary:

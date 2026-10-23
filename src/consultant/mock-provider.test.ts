@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { getIndustries, getSolutions } from "@/catalog";
+import { getAllSolutions, getIndustries, getSolutions } from "@/catalog";
 import { formatDuration } from "@/catalog/links";
-import { formatPrice } from "@/catalog/price";
+import { formatPackagePrice } from "@/catalog/price";
 import {
   EXAMPLE_TASKS,
   MOCK_INDUSTRY_STEMS,
@@ -46,7 +46,7 @@ describe("конфигурация mock", () => {
 });
 
 describe("сценарии диалога", () => {
-  it("клиника и запись → ИИ-администратор, с учётом отрасли", async () => {
+  it("звонки и запись → ИИ-администратор, с учётом отрасли", async () => {
     const r = await provider.reply(
       user("Клиника тратит много времени на звонки и запись пациентов"),
     );
@@ -55,27 +55,24 @@ describe("сценарии диалога", () => {
     expect(r.text).toMatch(/Медицина и клиники/);
   });
 
-  it("счета и накладные → извлечение данных", async () => {
-    expect(await ids("Долго вносим счета и накладные в 1С")).toEqual([
-      "document-data-extraction",
-    ]);
+  it("обращения в почте → маршрутизация обращений с пометкой концепции", async () => {
+    const r = await provider.reply(
+      user("Обращения пациентов теряются в общей почте"),
+    );
+    expect(r.recommendations[0].solutionId).toBe("patient-request-routing");
+    expect(r.recommendations[0].reason).toMatch(/^статус: концепция/);
+    expect(r.text).toContain("не готовые продукты");
   });
 
-  it("CRM и продажи → интеграция с CRM", async () => {
-    expect((await ids("Менеджеры по продажам тонут в сделках в CRM"))[0]).toBe(
-      "crm-ai-integration",
+  it("документы пациента → концепция помощника с пометкой статуса", async () => {
+    const r = await provider.reply(
+      user("Хотим, чтобы пациенты загружали выписки и анкету до приёма"),
     );
-  });
-
-  it("несколько задач → несколько решений", async () => {
-    expect(
-      await ids("Нужна обработка документов и помощь отделу продаж"),
-    ).toEqual(
-      expect.arrayContaining([
-        "document-data-extraction",
-        "crm-ai-integration",
-      ]),
+    const rec = r.recommendations.find(
+      (x) => x.solutionId === "patient-ai-assistant",
     );
+    expect(rec?.reason).toMatch(/^статус: концепция/);
+    expect(r.text).toContain("не готовые продукты");
   });
 
   it("приветствие → уточняющий вопрос и примеры, без рекомендаций", async () => {
@@ -85,39 +82,47 @@ describe("сценарии диалога", () => {
     expect(r.followUps).toEqual(EXAMPLE_TASKS);
   });
 
-  it("только отрасль → уточнение задачи", async () => {
-    const r = await provider.reply(user("У нас логистическая компания"));
+  it("только отрасль → уточнение задачи клиники", async () => {
+    const r = await provider.reply(user("Мы стоматологическая клиника"));
     expect(r.recommendations).toEqual([]);
-    expect(r.text).toMatch(/Логистика/);
-    expect(r.followUps.length).toBeGreaterThan(0);
+    expect(r.text).toMatch(/задачу клиники/);
   });
 
   it("контекст накапливается: отрасль, затем задача", async () => {
     const r = await provider.reply(
       user(
         "Мы стоматологическая клиника",
-        "Администраторы не успевают отвечать на обращения",
+        "Администраторы не успевают отвечать на сообщения",
       ),
     );
     expect(r.recommendations[0].solutionId).toBe("clinic-ai-administrator");
   });
 
-  it("новая задача в продолжении диалога выходит на первое место", async () => {
-    const r = await provider.reply(
-      user(
-        "Клиника тратит много времени на звонки и запись пациентов",
-        "Сколько это стоит?",
-        "Склад и логистика, долго вносим накладные",
-      ),
-    );
-    expect(r.recommendations[0].solutionId).toBe("document-data-extraction");
-    expect(r.text).toMatch(/^Похоже, ваша задача — обработка документов/);
+  it("другая отрасль → честный ответ, что работаем только с клиниками", async () => {
+    for (const text of [
+      "Ресторан, принимаем заказы по телефону",
+      "Нужно автоматизировать бухгалтерию",
+      "Менеджеры по продажам тонут в сделках в CRM",
+    ]) {
+      const r = await provider.reply(user(text));
+      expect(r.recommendations, text).toEqual([]);
+      expect(r.text, text).toMatch(/только с частными медицинскими клиниками/);
+    }
   });
 
-  it("«долго» в описании задачи не считается вопросом о сроках", async () => {
-    const r = await provider.reply(user("Долго вносим счета"));
-    expect(r.text).not.toMatch(/^Сроки/);
-    expect(r.recommendations[0].solutionId).toBe("document-data-extraction");
+  it("другая отрасль после задачи клиники — тоже честный ответ", async () => {
+    const r = await provider.reply(
+      user("Пациенты пишут ночью", "А ещё у нас ресторан, принимаем заказы"),
+    );
+    expect(r.recommendations).toEqual([]);
+    expect(r.text).toMatch(/только с частными медицинскими клиниками/);
+  });
+
+  it("медицинский вопрос → без советов, диагнозов и рекомендаций решений", async () => {
+    const r = await provider.reply(user("У меня болит горло, чем лечить?"));
+    expect(r.recommendations).toEqual([]);
+    expect(r.text).toMatch(/не даю медицинских советов/);
+    expect(r.text).toMatch(/врачу/);
   });
 
   it("задача вне каталога → честный ответ без рекомендаций", async () => {
@@ -133,22 +138,27 @@ describe("сценарии диалога", () => {
     expect(await ids("Хотим обновить контакты и улучшить работу")).toEqual([]);
   });
 
-  it("вопрос о цене — цены из каталога без изменений", async () => {
+  it("вопрос о цене — тарифы из каталога с обслуживанием и пометкой", async () => {
     const r = await provider.reply(
-      user("Нужно обрабатывать счета", "Сколько это стоит?"),
+      user("Пациенты пишут ночью, а ответить некому", "Сколько это стоит?"),
     );
     const solution = getSolutions().find(
-      (s) => s.id === "document-data-extraction",
+      (s) => s.id === "clinic-ai-administrator",
     )!;
     for (const pkg of solution.packages) {
-      expect(r.text).toContain(`«${pkg.title}» — ${formatPrice(pkg.price)}`);
+      expect(r.text).toContain(`«${pkg.title}» — ${formatPackagePrice(pkg)}`);
     }
-    expect(r.recommendations[0].solutionId).toBe("document-data-extraction");
+    expect(r.text).toContain("/мес.");
+    expect(r.text).toContain(solution.pricingNote!);
   });
 
   it("вопрос о сроках — сроки из каталога, без выдуманных", async () => {
-    const r = await provider.reply(user("Интеграция с CRM", "Какие сроки?"));
-    const solution = getSolutions().find((s) => s.id === "crm-ai-integration")!;
+    const r = await provider.reply(
+      user("Пациенты пишут ночью", "Какие сроки?"),
+    );
+    const solution = getSolutions().find(
+      (s) => s.id === "clinic-ai-administrator",
+    )!;
     for (const pkg of solution.packages) {
       expect(r.text).toContain(
         pkg.duration
@@ -173,42 +183,38 @@ describe("сценарии диалога", () => {
     }
   });
 
-  it("рекомендует только существующие решения", async () => {
-    const all = new Set(getSolutions().map((s) => s.id));
+  it("рекомендует только публичные решения", async () => {
+    const pub = new Set(getSolutions().map((s) => s.id));
     for (const text of [
-      "CRM документы клиника запись склад школа",
+      "CRM документы клиника запись склад школа бухгалтерия ресторан",
       "что угодно",
+      ...EXAMPLE_TASKS,
     ]) {
-      for (const id of await ids(text)) expect(all.has(id)).toBe(true);
+      for (const id of await ids(text)) expect(pub.has(id), id).toBe(true);
     }
   });
 
-  it("бухгалтерия → AI Accounting Department со статусом «в разработке»", async () => {
-    const r = await provider.reply(
-      user("Нужно автоматизировать бухгалтерию и первичные документы"),
+  it("скрытые решения не рекомендуются, даже если провайдер получил весь каталог", async () => {
+    const full = new MockChatProvider(getAllSolutions(), getIndustries());
+    const hidden = new Set(
+      getAllSolutions()
+        .filter((s) => s.hidden)
+        .map((s) => s.id),
     );
-    const aad = r.recommendations.find(
-      (x) => x.solutionId === "ai-accounting-department",
-    );
-    expect(aad).toBeDefined();
-    expect(aad!.reason).toContain("в разработке");
-    expect(r.text).toContain("не готовые продукты");
+    for (const text of ["счета и накладные", "бухгалтерия", "ресторан"]) {
+      const r = await full.reply(user(text));
+      for (const rec of r.recommendations) {
+        expect(hidden.has(rec.solutionId), rec.solutionId).toBe(false);
+      }
+    }
   });
 
-  it("ресторан и заказы → ассистент приёма заказов", async () => {
-    expect((await ids("Ресторан, принимаем заказы по телефону"))[0]).toBe(
-      "restaurant-order-assistant",
-    );
-  });
-
-  it("концепции и продукты в разработке всегда помечены в причине", async () => {
+  it("концепции всегда помечены в причине", async () => {
     const byId = new Map(getSolutions().map((s) => [s.id, s]));
     for (const text of [
       ...EXAMPLE_TASKS,
-      "подбор кандидатов",
-      "поиск по базе знаний",
-      "квалификация лидов",
-      "сверка актов",
+      "запись на приём",
+      "документы пациента и анкета",
     ]) {
       for (const rec of (await provider.reply(user(text))).recommendations) {
         if (byId.get(rec.solutionId)!.maturity !== "demo") {

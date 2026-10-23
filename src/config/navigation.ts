@@ -5,8 +5,8 @@ export type NavItem = {
 
 /** Основные разделы — шапка, мобильное меню и подвал. */
 export const mainNav = [
-  { href: "/catalog", label: "Каталог" },
-  { href: "/industries", label: "Отрасли" },
+  { href: "/catalog", label: "Решения" },
+  { href: "/#tariffs", label: "Тарифы" },
   { href: "/how-we-work", label: "Как мы работаем" },
   { href: "/about", label: "О компании" },
 ] as const satisfies readonly NavItem[];

@@ -8,7 +8,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { askConsultant } from "@/app/consultant/actions";
+import { askConsultant } from "@/app/(site)/consultant/actions";
 import type { RecommendationView } from "@/consultant/recommendations";
 import { LIMITS, type ChatTurn } from "@/consultant/types";
 import { RecommendationCard } from "@/components/consultant/RecommendationCard";
@@ -27,7 +27,7 @@ type UiMessage = {
 type ChatError = { message: string; retryable: boolean };
 
 const WELCOME =
-  "Здравствуйте! Я помогу подобрать решение из каталога. Опишите задачу своими словами: какой процесс хотите ускорить или автоматизировать и в какой отрасли работаете.";
+  "Здравствуйте! Я помогу подобрать решение для клиники. Опишите задачу своими словами: что в общении с пациентами, записи на приём или обработке обращений хотите упростить.";
 
 export function ConsultantChat({ examples }: { examples: readonly string[] }) {
   const [messages, setMessages] = useState<UiMessage[]>([]);

@@ -1,9 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { onest } from "@/app/fonts";
-import { DemoBar } from "@/components/layout/DemoBar";
-import { SiteFooter } from "@/components/layout/SiteFooter";
-import { SiteHeader } from "@/components/layout/SiteHeader";
-import { SkipLink } from "@/components/ui/SkipLink";
 import { getSeoConfig, OG_IMAGE, robotsFor } from "@/lib/seo";
 import { site } from "@/lib/site";
 import "./globals.css";
@@ -37,15 +33,8 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ru" className={onest.variable}>
-      <body className="flex min-h-dvh flex-col">
-        <SkipLink />
-        <DemoBar />
-        <SiteHeader />
-        <main id="main" className="flex flex-1 flex-col">
-          {children}
-        </main>
-        <SiteFooter />
-      </body>
+      {/* Шапка и подвал сайта — в app/(site)/layout.tsx; у админ-панели свой каркас. */}
+      <body className="flex min-h-dvh flex-col">{children}</body>
     </html>
   );
 }

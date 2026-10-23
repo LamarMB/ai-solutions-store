@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const corporateKnowledgeSearch = {
   id: "corporate-knowledge-search",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   maturity: "concept",
   title: "Корпоративный ИИ-поиск по документации",
   summary:

@@ -13,10 +13,19 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "bot:sim": "tsx scripts/bot-sim.mts",
+    "bot:vk": "tsx scripts/vk-bot.mts",
+    "bot:check": "tsx scripts/vk-check.mts",
+    "bot:setup": "tsx scripts/vk-setup.mts",
+    "bot:stats": "tsx scripts/bot-stats.mts",
+    "admin:user": "tsx scripts/admin-user.mts",
+    "db:backup": "tsx scripts/db-backup.mts",
+    "doctors:demo-photos": "tsx scripts/demo-photos.mts"
   },
   "dependencies": {
-    "next": "16.4.0",
+    "@vkontakte/vk-bridge": "3.0.2",
+    "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "4.6.7"
@@ -27,11 +36,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "16.4.2",
     "eslint-config-prettier": "10.1.8",
     "prettier": "3.9.10",
     "prettier-plugin-tailwindcss": "0.8.1",
     "tailwindcss": "^4",
+    "tsx": "4.23.15",
     "typescript": "^5",
     "vitest": "5.0.4"
   }

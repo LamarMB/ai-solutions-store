@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getSolutions } from "@/catalog";
+// Механика проверяется на всех записях, включая скрытые.
+import { getAllSolutions as getSolutions } from "@/catalog";
 import {
   createIdempotencyCache,
   createRateLimiter,

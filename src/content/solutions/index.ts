@@ -12,15 +12,20 @@ import { restaurantSalesAnalytics } from "@/content/solutions/restaurant-sales-a
 import { corporateKnowledgeSearch } from "@/content/solutions/corporate-knowledge-search";
 import { aiRecruiter } from "@/content/solutions/ai-recruiter";
 import { hrAssistant } from "@/content/solutions/hr-assistant";
+import { patientAiAssistant } from "@/content/solutions/patient-ai-assistant";
 
-/** Все решения каталога. Новое решение добавляется отдельным файлом и сюда. */
+/**
+ * Все решения каталога. Новое решение добавляется отдельным файлом и сюда.
+ * Сначала — публичные медицинские решения (порядок показа), затем скрытые.
+ */
 export const solutions = [
   clinicAiAdministrator,
+  patientRequestRouting,
+  patientAiAssistant,
   documentDataExtraction,
   crmAiIntegration,
   aiAccountingDepartment,
   documentReconciliation,
-  patientRequestRouting,
   aiSalesManager,
   leadQualification,
   restaurantOrderAssistant,

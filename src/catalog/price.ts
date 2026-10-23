@@ -1,4 +1,4 @@
-import type { Currency, Price, Solution } from "@/catalog/schema";
+import type { Currency, Price } from "@/catalog/schema";
 
 const MINOR_UNITS_PER_MAJOR = 100;
 
@@ -58,7 +58,9 @@ function formatAmount(amount: number, currency: Currency) {
  * При равных суммах предпочитается «от», чтобы не выдавать нижнюю границу
  * за точную цену. Если ни у одного пакета нет суммы — «по запросу».
  */
-export function getStartingPrice(solution: Pick<Solution, "packages">): Price {
+export function getStartingPrice(solution: {
+  packages: readonly { price: Price }[];
+}): Price {
   let best: Exclude<Price, { kind: "on_request" }> | undefined;
   for (const { price } of solution.packages) {
     if (price.kind === "on_request") continue;
@@ -76,4 +78,15 @@ export function getStartingPrice(solution: Pick<Solution, "packages">): Price {
     }
   }
   return best ?? { kind: "on_request" };
+}
+
+/** Цена пакета текстом: «15 000 ₽ + 3 900 ₽/мес.» или только разовая цена. */
+export function formatPackagePrice(pkg: {
+  price: Price;
+  monthlyPrice?: Price;
+}): string {
+  const once = formatPrice(pkg.price);
+  return pkg.monthlyPrice
+    ? `${once} + ${formatPrice(pkg.monthlyPrice)}/мес.`
+    : once;
 }

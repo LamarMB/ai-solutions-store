@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const documentReconciliation = {
   id: "document-reconciliation",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   maturity: "concept",
   title: "Сверка документов и поиск расхождений",
   summary:

@@ -1,7 +1,7 @@
 import { formatDuration, REQUEST_PARAMS } from "@/catalog/links";
 import type { Solution } from "@/catalog/schema";
 import { Icon } from "@/components/ui/Icon";
-import { PriceTag } from "@/components/ui/PriceTag";
+import { PackagePrice } from "@/components/ui/PackagePrice";
 import { cn } from "@/lib/cn";
 
 /**
@@ -43,7 +43,14 @@ export function PackagePicker({
                 className="sr-only"
               />
               <div className="flex items-start justify-between gap-4">
-                <h3 className="text-h3 font-semibold">{pkg.title}</h3>
+                <div>
+                  {pkg.recommended && (
+                    <p className="text-caption text-accent mb-1 font-semibold tracking-wide uppercase">
+                      Рекомендуем
+                    </p>
+                  )}
+                  <h3 className="text-h3 font-semibold">{pkg.title}</h3>
+                </div>
                 {/* Индикатор выбора, как у радиокнопки */}
                 <span
                   aria-hidden="true"
@@ -59,7 +66,7 @@ export function PackagePicker({
               <p className="text-small text-muted mt-2">{pkg.summary}</p>
 
               <div className="mt-5">
-                <PriceTag price={pkg.price} size="lg" />
+                <PackagePrice pkg={pkg} size="lg" />
                 {pkg.duration && (
                   <p className="text-caption text-muted mt-1">
                     Ориентировочный срок: {formatDuration(pkg.duration)}
@@ -91,8 +98,9 @@ export function PackagePicker({
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-caption text-muted max-w-prose">
-          Цены и сроки демонстрационные и ориентировочные. Окончательный состав
-          и стоимость определяются после обсуждения задачи.
+          {solution.pricingNote ??
+            "Цены и сроки демонстрационные и ориентировочные."}{" "}
+          Окончательный состав и стоимость определяются после обсуждения задачи.
         </p>
         <button
           type="submit"

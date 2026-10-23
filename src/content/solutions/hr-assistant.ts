@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const hrAssistant = {
   id: "hr-assistant",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   maturity: "concept",
   title: "Внутренний HR-ассистент и адаптация сотрудников",
   summary:

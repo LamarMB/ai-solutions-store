@@ -3,7 +3,7 @@ import { requestHref, solutionHref } from "@/catalog/links";
 import type { RecommendationView } from "@/consultant/recommendations";
 import { DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
-import { PriceTag } from "@/components/ui/PriceTag";
+import { PackagePrice } from "@/components/ui/PackagePrice";
 
 /** Карточка рекомендации: все данные — из каталога. */
 export function RecommendationCard({ rec }: { rec: RecommendationView }) {
@@ -40,7 +40,7 @@ export function RecommendationCard({ rec }: { rec: RecommendationView }) {
               className="text-small flex flex-wrap items-baseline justify-between gap-x-3"
             >
               <span>Пакет «{pkg.title}»</span>
-              <PriceTag price={pkg.price} />
+              <PackagePrice pkg={pkg} compact />
             </li>
           ))}
         </ul>

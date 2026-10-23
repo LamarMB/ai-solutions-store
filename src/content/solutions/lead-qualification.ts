@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const leadQualification = {
   id: "lead-qualification",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   maturity: "concept",
   title: "ИИ-квалификация лидов",
   summary:
