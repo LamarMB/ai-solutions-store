@@ -523,7 +523,10 @@ describe("11–12. отказоустойчивость", () => {
     await a.say("без травмы");
     first.close();
 
-    const b = setup({ store: new SqliteStore(path) });
+    const second = new SqliteStore(path);
+    // Закрыть до удаления папки: Windows не удаляет открытый файл базы.
+    cleanup.push(() => second.close());
+    const b = setup({ store: second });
     const r = await b.say("уже дня четыре");
     expect(text(r)).toMatch(/сильный отёк/);
     expect(b.memory()).toMatchObject({ trauma: "no", duration: "дня четыре" });
