@@ -1,0 +1,79 @@
+
+> ai-solutions-store@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.4 [39m[90m/home/runner/work/ai-solutions-store/ai-solutions-store/app[39m
+
+ [32m✓[39m src/bot/conversation/conversation.test.ts [2m([22m[2m34 tests[22m[2m)[22m[33m 457[2mms[22m[39m
+ [32m✓[39m src/miniapp/miniapp.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 693[2mms[22m[39m
+   [32m✓[39m общая база с ботом и админ-панелью [2m(2)[22m
+     [33m[2m✓[22m[39m Mini App ↔ панель ↔ бот: записи, занятые слоты, врачи, цены, отмена[33m 356[2mms[22m[39m
+ [32m✓[39m src/bot/dialog/dialog.test.ts [2m([22m[2m32 tests[22m[2m)[22m[33m 1041[2mms[22m[39m
+ [32m✓[39m src/admin/admin.test.ts [2m([22m[2m35 tests[22m[2m)[22m[33m 4321[2mms[22m[39m
+   [32m✓[39m пароли [2m(2)[22m
+     [33m[2m✓[22m[39m хранится только хэш scrypt с солью; проверка за постоянное время[33m 316[2mms[22m[39m
+   [32m✓[39m авторизация и защита API [2m(22)[22m
+     [33m[2m✓[22m[39m неверный пароль — 401, после 5 ошибок — 429 даже с верным паролем[33m 537[2mms[22m[39m
+ [32m✓[39m src/admin/privacy.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 5499[2mms[22m[39m
+   [32m✓[39m 1. администратор не читает медицинские данные [2m(2)[22m
+     [33m[2m✓[22m[39m ни в записях, ни на главной, ни в разделе врача[33m 338[2mms[22m[39m
+   [32m✓[39m 3. врач не видит пациентов другого врача [2m(2)[22m
+     [33m[2m✓[22m[39m врач записи видит сведения только по согласию; открытие — в журнале[33m 348[2mms[22m[39m
+   [32m✓[39m 4. прямые запросы к API не обходят ограничения [2m(4)[22m
+     [33m[2m✓[22m[39m отмена, перенос к другому врачу и отзыв закрывают доступ[33m 379[2mms[22m[39m
+     [33m[2m✓[22m[39m смена роли и отключение завершают сессии сотрудника[33m 319[2mms[22m[39m
+   [32m✓[39m приглашения сотрудников [2m(2)[22m
+     [33m[2m✓[22m[39m одноразовая ссылка: сотрудник сам задаёт пароль, повтор не работает[33m 343[2mms[22m[39m
+     [33m[2m✓[22m[39m нельзя оставить панель без владельца[33m 302[2mms[22m[39m
+   [32m✓[39m 5. медицинские данные не попадают в уведомления и журналы [2m(3)[22m
+     [33m[2m✓[22m[39m журналы, аудит и уведомления после разговора, записи, передачи и handoff[33m 334[2mms[22m[39m
+   [32m✓[39m 6. существующая учётная запись сохраняет доступ после миграции [2m(1)[22m
+     [33m[2m✓[22m[39m база v5 → v6: администратор становится владельцем, пароль и сессия работают[33m 314[2mms[22m[39m
+   [32m✓[39m 9. по умолчанию согласий на раскрытие нет [2m(3)[22m
+     [33m[2m✓[22m[39m отзыв из «Мои записи» и отмена записи удаляют сведения[33m 362[2mms[22m[39m
+ [32m✓[39m src/admin/photos.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 1465[2mms[22m[39m
+   [32m✓[39m панель: загрузка, замена, удаление [2m(4)[22m
+     [33m[2m✓[22m[39m права: врач не управляет фото; без входа и с чужого сайта — отказ[33m 354[2mms[22m[39m
+ [32m✓[39m src/bot/conversation/scope-flow.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 347[2mms[22m[39m
+ [32m✓[39m src/admin/requests.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 3292[2mms[22m[39m
+   [32m✓[39m панель: «Обращения» только для роли admin [2m(3)[22m
+     [33m[2m✓[22m[39m владелец и врач не видят обращений; журнал у владельца — без содержания[33m 502[2mms[22m[39m
+ [32m✓[39m src/content/content.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/bot/vk/runner.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 245[2mms[22m[39m
+ [32m✓[39m src/consultant/mock-provider.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/bot/llm/openai-conversation.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 99[2mms[22m[39m
+ [32m✓[39m src/requests/service.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/lib/seo.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 258[2mms[22m[39m
+ [32m✓[39m src/content/product-map.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 207[2mms[22m[39m
+ [32m✓[39m src/catalog/search.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/bot/schedule/schedule.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 90[2mms[22m[39m
+ [32m✓[39m src/catalog/schema.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/bot/conversation/safety.test.ts [2m([22m[2m73 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/consultant/service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/bot/conversation/scope.test.ts [2m([22m[2m59 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/bot/vk/longpoll.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m src/bot/vk/api.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/bot/vk/keyboard.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/catalog/price.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/catalog/catalog.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/requests/schema.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m src/bot/config.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/config/navigation.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/content/pages.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/catalog/links.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/bot/dialog/rule-interpreter.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/bot/clinic/fictional-clinic.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/client-key.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/bot/setup.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/lib/cn.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/components/marketing/product-map/layout.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m37 passed[39m[22m[90m (37)[39m
+[2m      Tests [22m [1m[32m673 passed[39m[22m[90m (673)[39m
+[2m   Start at [22m 15:27:13
+[2m   Duration [22m 9.09s[2m (tests 81%, import 12%, transform 6%, worker 1%)[22m
+
+[2m    Isolate [22m [33m37 workers spawned[39m[2m · ~103ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~1.17s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
