@@ -9,7 +9,7 @@ const NOW = new Date(process.env.MAP_NOW ?? "2026-10-26T07:00:00.000Z");
 type Step = { text: string } | { button: string };
 const scenarios: Record<string, Step[]> = {
   greeting: [{ text: "Здравствуйте" }],
-  routing: [{ text: "Болит колено" }, { text: "Нет" }, { text: "Неделю" }, { text: "Нет" }],
+  routing: [{ text: "Болит колено" }, { text: "Нет" }, { text: "Неделю" }, { text: "Нет" }, { button: "Ближайшее время" }, { button: "Подтвердить" }],
   emergency: [{ text: "Упал, сильная боль в груди и трудно дышать" }],
   info: [{ text: "Сколько стоит приём ортопеда?" }],
   scope: [{ text: "Напиши стихотворение про осень" }],
