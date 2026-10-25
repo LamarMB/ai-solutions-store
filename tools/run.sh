@@ -11,6 +11,7 @@ step lint npm run lint
 step typecheck npm run typecheck
 step test npm test
 step build npm run build
+cp "$T/transcripts.mts" scripts/_transcripts.mts && npx tsx scripts/_transcripts.mts > "$OUT/transcripts.json" 2> "$OUT/transcripts.err"; rm -f scripts/_transcripts.mts
 grep -qx 'build: OK' "$OUT/summary.txt" || exit 0
 [ -f "$T/shots.mjs" ] || exit 0
 
