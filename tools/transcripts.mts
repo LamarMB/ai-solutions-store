@@ -13,8 +13,8 @@ const scenarios: Record<string, Step[]> = {
   emergency: [{ text: "Упал, сильная боль в груди и трудно дышать" }],
   info: [{ text: "Сколько стоит приём ортопеда?" }],
   scope: [{ text: "Напиши стихотворение про осень" }],
-  handoff: [{ button: "Администратор" }, { text: "Хочу перенести запись на пятницу после 16:00" }],
-  my: [{ button: "Мои записи" }],
+  handoff: [{ text: "Здравствуйте" }, { button: "Администратор" }, { text: "Хочу перенести запись на пятницу после 16:00" }, { button: "Разрешаю передачу" }],
+  booking: [{ text: "Хочу записаться к терапевту" }],
 };
 const out: Record<string, unknown> = {};
 for (const [name, steps] of Object.entries(scenarios)) {
@@ -30,17 +30,16 @@ for (const [name, steps] of Object.entries(scenarios)) {
   const push = (rs: Reply[]) => {
     for (const r of rs) {
       buttons = r.buttons.flat();
-      log.push({ from: "bot", text: r.text, buttons: buttons.map((b) => b.label) });
+      log.push({ from: "bot", text: r.text, ...(buttons.length ? { buttons: buttons.map((b) => b.label) } : {}) });
     }
   };
-  push(await bot.handle(1, { type: "resume" }));
   for (const step of steps) {
     if ("text" in step) {
       log.push({ from: "patient", text: step.text });
       push(await bot.handle(1, { type: "text", text: step.text }));
     } else {
       const b = buttons.find((x) => x.label === step.button);
-      log.push({ from: "patient", button: step.button, found: !!b });
+      log.push({ from: "patient", text: step.button, button: true, found: !!b });
       if (b) push(await bot.handle(1, { type: "action", payload: b.action }));
     }
   }
