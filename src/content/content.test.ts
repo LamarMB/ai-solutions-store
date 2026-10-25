@@ -109,18 +109,40 @@ describe("тарифы ИИ-администратора", () => {
     expect(admin.pricingNote).toMatch(/предварительные/);
   });
 
-  it("заявка отделена от подтверждённой записи, мгновенная запись не обещается", () => {
+  it("запись: сразу — по расписанию панели, МИС — отдельно; без обещаний мгновенности", () => {
     const optimum = admin.packages.find((p) => p.id === "optimum")!;
     expect(optimum.includes.join(" ")).toMatch(
-      /заявок.*запись подтверждает администратор/,
+      /подтверждается сразу по расписанию в панели клиники/,
     );
-    expect(admin.limitations.join(" ")).toMatch(/Без интеграции/);
+    expect(admin.description).toMatch(
+      /расписание клиники ведётся в нашей панели, запись подтверждается сразу/,
+    );
+    expect(admin.limitations.join(" ")).toMatch(/МИС.*оценивается отдельно/);
     const texts = [
       admin.description,
       ...admin.capabilities,
       ...admin.packages.flatMap((p) => [p.summary, ...p.includes]),
     ].join(" ");
-    expect(texts).not.toMatch(/мгновенн/i);
+    expect(texts).not.toMatch(/мгновенн|собирает заявку/i);
+  });
+
+  it("о внешнем ИИ — прозрачно и без обещания полной анонимизации", () => {
+    expect(admin.description).toMatch(/внешним ИИ-сервисом/);
+    const limits = admin.limitations.join(" ");
+    expect(limits).toMatch(/телефоны и адреса почты перед отправкой удаляются/);
+    expect(limits).toMatch(/не полная анонимизация/);
+    const all = [
+      admin.description,
+      ...admin.capabilities,
+      ...admin.limitations,
+    ].join(" ");
+    expect(all).not.toMatch(/полностью анонимн|анонимизирует/i);
+  });
+
+  it("будущие функции не входят в тарифы как готовые", () => {
+    const includes = admin.packages.flatMap((p) => p.includes).join(" ");
+    expect(includes).not.toMatch(/чат на сайте|Второй канал|напоминани/i);
+    expect(includes).toMatch(/МИС.*оценивается отдельно/);
   });
 });
 
@@ -146,7 +168,7 @@ describe("медицинские решения", () => {
     expect(includes).toMatch(/ВКонтакте/);
     expect(includes).not.toMatch(/Два канала связи|До трёх каналов связи/);
     expect(admin.limitations.join(" ")).toMatch(
-      /один канал — сообщения сообщества ВКонтакте/,
+      /сообщения сообщества ВКонтакте и приложение клиники во ВКонтакте; чат на сайте и другие каналы — в планах/,
     );
     expect(admin.limitations.join(" ")).toMatch(
       /тестовым расписанием и вымышленными/,
