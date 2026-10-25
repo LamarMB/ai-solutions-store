@@ -143,16 +143,17 @@ export class AdminAuth {
   ): Promise<LoginResult> {
     const keys = [`ip:${clientKey}`, `login:${login.toLowerCase()}`];
     if (this.throttle.isLocked(keys)) return { ok: false, reason: "locked" };
+    // Попытка засчитывается до проверки пароля: пока scrypt считает, параллельные
+    // запросы иначе успевали бы пройти isLocked. Успешный вход сбрасывает счётчик.
+    this.throttle.fail(keys);
     const user = this.store.findUser(login);
     dummyHash ??= hashPassword("dummy-password-for-timing-1");
     const valid = await verifyPassword(
       password,
       user?.passwordHash ?? (await dummyHash),
     );
-    if (!user || user.disabled || !valid) {
-      this.throttle.fail(keys);
+    if (!user || user.disabled || !valid)
       return { ok: false, reason: "invalid" };
-    }
     this.throttle.reset(keys);
     const token = randomBytes(32).toString("base64url");
     const at = this.now();

@@ -165,6 +165,24 @@ describe("авторизация и защита API", () => {
     expect((await t.login()).status).toBe(200);
   });
 
+  it("параллельные попытки не обходят ограничение: не больше 5 проверок пароля", async () => {
+    const t = await setup();
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        t.call("POST", "login", { login: "admin", password: `неверный-${i}` }),
+      ),
+    );
+    const statuses = results.map((r) => r.status);
+    expect(statuses.filter((s) => s === 401)).toHaveLength(5);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(15);
+    // И верный пароль сразу после серии — тоже 429.
+    const locked = await t.call("POST", "login", {
+      login: "admin",
+      password: PASSWORD,
+    });
+    expect(locked.status).toBe(429);
+  });
+
   it("неизвестный логин и отключённый администратор — тот же ответ", async () => {
     const t = await setup();
     expect(
