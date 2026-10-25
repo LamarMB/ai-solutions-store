@@ -5,13 +5,14 @@ import {
   getSolutionById,
   getSolutions,
 } from "@/catalog";
+import { solutionHref } from "@/catalog/links";
 import { SolutionCard } from "@/components/catalog/SolutionCard";
 import { CtaPanel } from "@/components/marketing/CtaPanel";
 import { DirectionGrid } from "@/components/marketing/DirectionGrid";
 import { HeroShowcase } from "@/components/marketing/HeroShowcase";
-import { PatientJourney } from "@/components/marketing/PatientJourney";
 import { PrincipleGrid } from "@/components/marketing/PrincipleGrid";
 import { ProcessSteps } from "@/components/marketing/ProcessSteps";
+import { ProductOverview } from "@/components/marketing/product-map/ProductOverview";
 import { TariffGrid } from "@/components/marketing/TariffGrid";
 import { ButtonLink } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
@@ -21,7 +22,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { headerActions, mainNav } from "@/config/navigation";
 import { principles, processSteps } from "@/content/approach";
 import { directions } from "@/content/directions";
-import { patientJourney } from "@/content/patient-journey";
+import { MAP_ANCHOR, PRODUCT_MAP_SOLUTION_ID } from "@/content/product-map";
 import { absoluteUrl, getSeoConfig, jsonLd, pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 
@@ -89,6 +90,10 @@ export default function Home() {
                 <Icon name="chat" size={18} />
                 {headerActions.consultant.label}
               </ButtonLink>
+              <ButtonLink href="#how-it-works" variant="ghost" size="lg">
+                <Icon name="sparkle" size={18} />
+                Как это работает
+              </ButtonLink>
             </div>
             <p className="text-caption text-muted mt-6">
               Демо-версия сайта. Цены предварительные, до окончательного
@@ -100,6 +105,24 @@ export default function Home() {
           </div>
         </Container>
       </section>
+
+      <Section
+        id="how-it-works"
+        aria-labelledby="how-it-works-title"
+        className="scroll-mt-20 py-10 md:py-12 xl:py-14"
+      >
+        <SectionHeading
+          id="how-it-works-title"
+          eyebrow="Как это работает"
+          title="От сообщения пациента до работы клиники"
+          text="Пять шагов ИИ-администратора «Демо-Мед»: что видит пациент и что получают администратор и врач. Экраны — из демо-версии с вымышленной клиникой."
+        />
+        <div className="mt-8">
+          <ProductOverview
+            detailsHref={`${solutionHref(PRODUCT_MAP_SOLUTION_ID)}#${MAP_ANCHOR}`}
+          />
+        </div>
+      </Section>
 
       <Section
         aria-labelledby="directions-title"
@@ -167,21 +190,6 @@ export default function Home() {
             </li>
           ))}
         </ul>
-      </Section>
-
-      <Section
-        aria-labelledby="journey-title"
-        className="py-10 md:py-12 xl:py-14"
-      >
-        <SectionHeading
-          id="journey-title"
-          eyebrow="Будущая функциональность"
-          title="Как будет выглядеть запись для пациента"
-          text="Описание планируемого сценария. Сейчас на сайте нет записи на приём, а медицинские данные не собираются и не передаются."
-        />
-        <div className="mt-8">
-          <PatientJourney steps={patientJourney} />
-        </div>
       </Section>
 
       <Section
