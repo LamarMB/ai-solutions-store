@@ -29,6 +29,9 @@ export default async function ({ B, MINI, phone, desk, shot, run, report, passwo
     await shot(page, "mini-flow-1");
     const time = page.getByRole("button", { name: /^\s*\d{1,2}:\d{2}\s*$/ }).first();
     if (await time.count()) { await time.click(); await settle(page); await shot(page, "mini-flow-2"); }
+    await page.getByRole("button", { name: "Подтвердить запись" }).click();
+    await settle(page);
+    await shot(page, "mini-done");
     report["mini-buttons"] = await page.locator("button").allInnerTexts();
   });
   await run("mini-my", async () => {
@@ -87,7 +90,17 @@ export default async function ({ B, MINI, phone, desk, shot, run, report, passwo
       const map = page.locator("#product-map");
       if (await map.count()) {
         await map.scrollIntoViewIfNeeded();
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(2500);
+        report[`debug-${name}`] = await page.evaluate(() => {
+          const m = document.querySelector(".pm-map");
+          const nodes = [...document.querySelectorAll("#product-map .pm-map .pm-node")].slice(0, 3);
+          return {
+            inview: m && m.getAttribute("data-inview"),
+            nodes: nodes.map((n) => { const cs = getComputedStyle(n); const r = n.getBoundingClientRect(); return { op: cs.opacity, anim: cs.animationName, vis: cs.visibility, r: [r.x, r.y, r.width, r.height].map(Math.round) }; }),
+            anims: document.getAnimations().map((a) => [a.animationName, a.playState, Math.round(a.currentTime)]).slice(0, 30),
+          };
+        });
+        await page.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-view.png` });
         await map.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-1.png` });
         await map.locator("button[data-index='4']:visible").first().click();
         await page.waitForTimeout(900);

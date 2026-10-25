@@ -17,7 +17,7 @@ store.admin.createUser("demo-doctor", hash, at, "doctor", "testova");
 console.log(bindDemoPhotos(store, at).map((r) => `${r.doctorId}:${r.result}`).join(" "));
 // Сегодня может быть выходной: двум врачам добавляются часы на сегодняшний день
 // недели, чтобы на главной панели были записи «на сегодня» (только демо-стенд).
-const weekday = new Date().getDay();
+const weekday = new Date().getDay() || 7;
 for (const id of ["primerov", "obraztsova"]) {
   const d = store.clinic.load().doctors.find((x) => x.id === id);
   if (d && !d.hours.some((h) => h.weekday === weekday))
