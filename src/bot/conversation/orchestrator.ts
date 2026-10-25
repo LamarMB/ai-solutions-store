@@ -389,6 +389,9 @@ function applyRules(
 ): Conversation {
   const hasFlags = flags.length > 0;
   let next = { ...conv };
+  // Распознавание — по исходному тексту, а в память (она уходит в модель и в
+  // предпросмотр для врача) — только текст без телефонов и почты.
+  const safeRaw = redactContacts(raw).text;
   const found = detectComplaint(raw);
   // Новая жалоба — только если область названа прямо: «без травмы» или
   // «отёка нет» в ответ на вопрос не меняют тему.
@@ -398,7 +401,7 @@ function applyRules(
   if (found && changes) {
     // Прежние факты к новой жалобе не относятся.
     if (next.complaint) next = withoutComplaint(next);
-    next.complaint = { area: found.area, summary: complaintSummary(raw) };
+    next.complaint = { area: found.area, summary: complaintSummary(safeRaw) };
   }
   const trauma = detectTrauma(raw);
   if (next.pending === "trauma" && !trauma) {
@@ -410,7 +413,7 @@ function applyRules(
       next.redFlagsDenied = true;
   }
   next.trauma = trauma ?? next.trauma;
-  next.duration = detectDuration(raw) ?? next.duration;
+  next.duration = detectDuration(safeRaw) ?? next.duration;
   if (hasFlags) next.redFlags = [...new Set([...next.redFlags, ...flags])];
   next.urgency = keepEmergency(next);
   return next;
