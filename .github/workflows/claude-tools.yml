@@ -1,0 +1,41 @@
+# Временный служебный процесс Claude: форматирование, проверки и скриншоты демо
+# для ветки из tools/target. Результаты — в ветку tmp/claude-out. Не для main.
+name: claude-tools
+on:
+  push:
+    branches: [tmp/claude-tools]
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: tools-src
+      - run: echo "TARGET=$(cat tools-src/tools/target)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TARGET }}
+          path: app
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: run
+        working-directory: app
+        run: bash ../tools-src/tools/run.sh
+      - name: publish
+        if: always()
+        working-directory: tools-src
+        run: |
+          git config user.name claude-tools
+          git config user.email claude-tools@users.noreply.github.com
+          git checkout -q --orphan out
+          git rm -rqf .
+          cp -r "$GITHUB_WORKSPACE/out/." .
+          git add -A
+          git commit -qm "out $(date -u +%FT%TZ) $TARGET"
+          git push -qf origin HEAD:tmp/claude-out
