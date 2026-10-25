@@ -24,6 +24,8 @@ cp "$T/seed.mts" scripts/_seed.mts
 step seed npx tsx scripts/_seed.mts
 rm -f scripts/_seed.mts
 (npx next start -H 127.0.0.1 -p 3100 > "$OUT/next.log" 2>&1 &)
+# Отметка «бот работает» для главной панели (демо-стенд без ВКонтакте).
+(while true; do node -e "const {DatabaseSync}=require('node:sqlite');const d=new DatabaseSync(process.env.BOT_DB_PATH);const t=new Date().toISOString();d.prepare('UPDATE bot_status SET value=?, updated_at=? WHERE key=?').run(t,t,'last_poll_at')" 2>/dev/null; sleep 20; done &)
 for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:3100/ && break; sleep 1; done
 mkdir -p /tmp/pw && (cd /tmp/pw && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.56.1 > "$OUT/pw-install.log" 2>&1 && npx playwright install --with-deps chromium >> "$OUT/pw-install.log" 2>&1)
 cp "$T/shots.mjs" "$T/steps.mjs" /tmp/pw/

@@ -15,7 +15,23 @@ store.admin.createUser("demo-owner", hash, at, "owner");
 store.admin.createUser("demo-admin", hash, at, "admin");
 store.admin.createUser("demo-doctor", hash, at, "doctor", "testova");
 console.log(bindDemoPhotos(store, at).map((r) => `${r.doctorId}:${r.result}`).join(" "));
+// Сегодня может быть выходной: двум врачам добавляются часы на сегодняшний день
+// недели, чтобы на главной панели были записи «на сегодня» (только демо-стенд).
+const weekday = new Date().getDay();
+for (const id of ["primerov", "obraztsova"]) {
+  const d = store.clinic.load().doctors.find((x) => x.id === id);
+  if (d && !d.hours.some((h) => h.weekday === weekday))
+    store.clinic.setHours(id, [...d.hours, { weekday, from: "08:00", to: "20:00" }]);
+}
 const schedule = new ClinicSchedule(() => store.clinic.load(), store);
+const today = new Date().toISOString().slice(0, 10);
+let t = 0;
+for (const id of ["primerov", "obraztsova"]) {
+  for (const time of schedule.listFreeSlots(id, today, { admin: true }).filter((x) => x >= "10:00").slice(0, 2)) {
+    const r = schedule.book(900300 + t, id, today, time, { admin: true, source: (["vk", "miniapp", "admin"] as const)[t++ % 3] });
+    if (r.status !== "ok") console.log("today", id, time, r.status);
+  }
+}
 const sources = ["vk", "miniapp", "admin"] as const;
 let peer = 900200;
 let n = 0;
@@ -33,5 +49,7 @@ const day = schedule.listAvailableDays(doc.id)[1];
 const slot = schedule.listFreeSlots(doc.id, day)[2];
 console.log("mine", JSON.stringify(schedule.book(900100, doc.id, day, slot, { source: "miniapp" })));
 store.requests.create(900201, "Хочу перенести запись на пятницу после 16:00", at);
+store.setBotStatus("started_at", at, at);
+store.setBotStatus("last_poll_at", at, at);
 console.log("bookings", n, "users 3, request 1");
 store.close();

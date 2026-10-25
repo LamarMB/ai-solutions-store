@@ -17,8 +17,8 @@ const texts = async (page) => (await page.locator("button, a, h1, h2, h3").allIn
 const shot = async (page, name, full = false) => { await page.waitForTimeout(700); await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: full }); report[name] = await texts(page); };
 const run = async (name, fn) => { try { await fn(); } catch (e) { report[name + ":error"] = String(e).slice(0, 400); } };
 
-const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "ru-RU", reducedMotion: "reduce" });
-const desk = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, locale: "ru-RU", reducedMotion: "reduce" });
+const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "ru-RU", reducedMotion: "no-preference" });
+const desk = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, locale: "ru-RU", reducedMotion: "no-preference" });
 
 const stepsMod = await import(process.env.STEPS || "./steps.mjs").catch(() => null);
 const ctx = { B, MINI, phone, desk, shot, run, report, password: process.env.DEMO_PASSWORD };
