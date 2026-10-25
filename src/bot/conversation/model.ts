@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { redactContacts } from "@/consultant/privacy";
 import type { Clinic } from "@/bot/clinic/types";
 import type { Conversation } from "@/bot/conversation/memory";
 import {
@@ -171,11 +172,14 @@ export function sanitizeDecision(
     newTopic: m.new_topic,
   };
   if (m.question) decision.question = m.question;
-  if (m.complaint_area)
+  if (m.complaint_area) {
+    // Контакты не храним в памяти разговора, даже если модель их повторила.
+    const summary = redactContacts((m.complaint_summary ?? "").trim()).text;
     decision.complaint = {
       area: m.complaint_area,
-      summary: (m.complaint_summary ?? "").trim().slice(0, 120),
+      summary: summary.slice(0, 120),
     };
+  }
   if (m.trauma) decision.trauma = m.trauma;
   const duration = m.duration?.trim();
   if (duration) decision.duration = duration.slice(0, 40);

@@ -22,8 +22,16 @@ const ORIGIN = `https://${HOST}`;
 const PASSWORD = "надёжный-пароль-2026";
 const config: AuthConfig = { secureCookie: true, allowedOrigins: [] };
 
+// Хранилище отбрасывает исключения расписания старше двух дней по системным
+// часам (clinic-store.ts), а даты в тестах фиксированы: без подмены часов
+// тесты начинают падать, когда эти даты проходят. Подмена — для всего файла.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+});
+
 const cleanups: (() => void)[] = [];
 afterEach(() => {
+  vi.useRealTimers();
   while (cleanups.length) cleanups.pop()!();
 });
 
@@ -155,6 +163,24 @@ describe("авторизация и защита API", () => {
     expect(locked.status).toBe(429);
     t.advance(16 * 60_000);
     expect((await t.login()).status).toBe(200);
+  });
+
+  it("параллельные попытки не обходят ограничение: не больше 5 проверок пароля", async () => {
+    const t = await setup();
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        t.call("POST", "login", { login: "admin", password: `неверный-${i}` }),
+      ),
+    );
+    const statuses = results.map((r) => r.status);
+    expect(statuses.filter((s) => s === 401)).toHaveLength(5);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(15);
+    // И верный пароль сразу после серии — тоже 429.
+    const locked = await t.call("POST", "login", {
+      login: "admin",
+      password: PASSWORD,
+    });
+    expect(locked.status).toBe(429);
   });
 
   it("неизвестный логин и отключённый администратор — тот же ответ", async () => {
@@ -340,16 +366,6 @@ describe("врачи", () => {
 });
 
 describe("расписание", () => {
-  // Хранилище отбрасывает исключения расписания старше двух дней по системным
-  // часам (clinic-store.ts), а даты в тестах фиксированы: без подмены часов
-  // тесты начинают падать, когда эти даты проходят.
-  beforeEach(() => {
-    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("часы приёма, пересечения, выходной, перерыв, праздник клиники", async () => {
     const t = await setup();
     await t.login();

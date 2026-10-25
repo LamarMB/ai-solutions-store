@@ -513,6 +513,52 @@ describe("11–12. отказоустойчивость", () => {
     expect(errors.join()).not.toMatch(/колен/);
   });
 
+  it("11a. телефон и почта из жалобы не уходят в OpenAI и не хранятся в памяти", async () => {
+    const bodies: string[] = [];
+    const model = new OpenAiConversationModel(
+      fictionalClinic,
+      new OpenAiClient({
+        apiKey: "sk-test-0000000000000000000000",
+        model: "gpt-5.6-luna",
+        fetch: (async (_url: unknown, init?: RequestInit) => {
+          bodies.push(String(init?.body));
+          throw new TypeError("fetch failed");
+        }) as typeof fetch,
+        now: () => NOW,
+        onError: () => {},
+      }),
+    );
+    const t = setup({ model });
+    // Без запятой: контакты попадают в первую фразу, из которой берётся суть.
+    await t.say(
+      "болит колено звоните 8 916 123 45 67 или пишите ivan.petrov@mail.ru",
+    );
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("суть: болит колено");
+    expect(bodies[0]).not.toMatch(/916|123 45|ivan|mail\.ru/);
+    const summary = t.memory().complaint?.summary ?? "";
+    expect(summary).toContain("[телефон скрыт]");
+    expect(summary).not.toMatch(/916|ivan/);
+  });
+
+  it("11b. контакты в ответе модели не попадают в память разговора", async () => {
+    const t = setup({
+      model: new ScriptedModel(() =>
+        raw({
+          action: "ask_clarification",
+          question: "trauma",
+          complaint_area: "joint",
+          complaint_summary: "колено, тел. +7 916 123-45-67",
+          reply: "Подскажите, боль появилась после травмы?",
+        }),
+      ),
+    });
+    // Симптома в тексте нет — правила жалобу не распознают, суть берётся у модели.
+    await t.say("хочу показать врачу колено");
+    expect(t.memory().complaint?.area).toBe("joint");
+    expect(t.memory().complaint?.summary).not.toMatch(/916/);
+  });
+
   it("12. перезапуск процесса: разговор продолжается с того же вопроса", async () => {
     const dir = mkdtempSync(join(tmpdir(), "bot-"));
     cleanup.push(() => rmSync(dir, { recursive: true, force: true }));
