@@ -67,6 +67,13 @@ export default async function ({ B, MINI, phone, desk, shot, run, report, passwo
     await page.waitForTimeout(2000);
     await shot(page, "admin-my");
   });
+  await run("reduced", async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+    const page = await ctx.newPage();
+    await page.goto(`${B}/catalog/clinic-ai-administrator#map-a5`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1500);
+    report["reduced-running"] = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").map((a) => a.animationName));
+  });
   // Сайт: карта на главной и на странице решения.
   for (const [name, c] of [["desk", desk], ["phone", phone]]) {
     await run(`site-${name}`, async () => {
@@ -78,18 +85,18 @@ export default async function ({ B, MINI, phone, desk, shot, run, report, passwo
       await shot(page, `site-home-${name}`, true);
       const ov = page.locator("#how-it-works");
       if (await ov.count()) {
-        await ov.scrollIntoViewIfNeeded();
+        await ov.evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 70));
         await page.waitForTimeout(800);
-        await ov.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/ov-${name}-1.png` });
+        await page.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/ov-${name}-1.png` });
         await ov.getByRole("button", { name: /Запись на приём/ }).first().click();
         await page.waitForTimeout(900);
-        await ov.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/ov-${name}-3.png` });
+        await page.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/ov-${name}-3.png` });
       }
       await page.goto(`${B}/catalog/clinic-ai-administrator`, { waitUntil: "networkidle" });
       await shot(page, `site-admin-${name}`, true);
       const map = page.locator("#product-map");
       if (await map.count()) {
-        await map.scrollIntoViewIfNeeded();
+        await map.evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 70));
         await page.waitForTimeout(2500);
         report[`debug-${name}`] = await page.evaluate(() => {
           const m = document.querySelector(".pm-map");
@@ -101,29 +108,33 @@ export default async function ({ B, MINI, phone, desk, shot, run, report, passwo
           };
         });
         await page.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-view.png` });
-        await map.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-1.png` });
+        await page.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-1.png` });
         await map.locator("button[data-index='4']:visible").first().click();
         await page.waitForTimeout(900);
-        await map.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-a5.png` });
+        await page.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-a5.png` });
         await map.locator("button[data-index='6']:visible").first().click();
         await page.waitForTimeout(900);
-        await map.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-a7.png` });
+        await page.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-a7.png` });
         await map.getByRole("button", { name: "Показать за минуту" }).click();
         await page.waitForTimeout(6800);
-        await map.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-auto.png` });
+        await page.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/map-${name}-auto.png` });
         report[`autoplay-${name}`] = await map.locator("[aria-current]:visible").allInnerTexts();
       }
       const setup = page.locator("#product-setup");
       if (await setup.count()) {
         await setup.locator("button[data-index='3']:visible").first().click();
         await page.waitForTimeout(800);
-        await setup.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/setup-${name}.png` });
+        await page.screenshot({ path: `${process.env.GITHUB_WORKSPACE}/out/shots/setup-${name}.png` });
       }
       await page.goto(`${B}/catalog/clinic-ai-administrator#map-a8`, { waitUntil: "networkidle" });
       await page.waitForTimeout(1500);
       report[`hash-${name}`] = await page.locator("#product-map [aria-current]:visible").allInnerTexts();
       await shot(page, `site-hash-${name}`);
       report[`errors-${name}`] = errors;
+      for (const url of ["/", "/catalog/clinic-ai-administrator"]) {
+        await page.goto(`${B}${url}`, { waitUntil: "networkidle" });
+        report[`overflow-${name}-${url}`] = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      }
     });
   }
 }

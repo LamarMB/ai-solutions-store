@@ -1,11 +1,19 @@
-// Вымышленные данные для скриншотов демо: клиника «Демо-Мед» из начальной миграции,
-// сотрудники трёх ролей, демо-портреты (созданы ИИ), записи и одно обращение.
+/**
+ * Временная база для снимков карты продукта (docs/product-map.md): клиника
+ * «Демо-Мед» из начальной миграции, сотрудники трёх ролей, демо-портреты
+ * (созданы ИИ), вымышленные записи и одно обращение. Только новый файл базы:
+ *   BOT_DB_PATH=/tmp/demo/bot.sqlite MEDICAL_DATA_KEY=… DEMO_PASSWORD=… \
+ *     npx tsx scripts/demo-screens/seed.mts
+ */
+import { existsSync } from "node:fs";
 import { hashPassword } from "@/admin/password";
 import { bindDemoPhotos } from "@/bot/demo-photos";
 import { ClinicSchedule } from "@/bot/schedule/schedule";
 import { MedicalCipher } from "@/bot/storage/medical-crypto";
 import { SqliteStore } from "@/bot/storage/sqlite";
 
+if (existsSync(process.env.BOT_DB_PATH ?? ".data/bot.sqlite"))
+  throw new Error("Нужен новый файл базы: рабочую базу не заполняем демо-данными.");
 const store = new SqliteStore(process.env.BOT_DB_PATH!, {
   cipher: MedicalCipher.fromBase64(process.env.MEDICAL_DATA_KEY!),
 });
