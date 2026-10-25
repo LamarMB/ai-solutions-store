@@ -50,7 +50,7 @@ export function HeroShowcase() {
 
       <div className="glass absolute -bottom-6 left-3 flex items-center gap-2 rounded-full px-4 py-2 sm:-left-10">
         <Icon name="sparkle" size={16} className="text-accent" />
-        <span className="text-caption">Пакеты, сроки и ограничения</span>
+        <span className="text-caption">Тарифы и ограничения</span>
       </div>
     </div>
   );

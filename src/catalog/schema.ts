@@ -65,7 +65,12 @@ export const PackageSchema = z.strictObject({
   id: SlugSchema,
   title: Text,
   summary: Text,
+  /** Разовая стоимость (внедрение). */
   price: PriceSchema,
+  /** Ежемесячная плата за обслуживание, если она есть. */
+  monthlyPrice: PriceSchema.optional(),
+  /** Рекомендуемый пакет — выделяется в интерфейсе. Не больше одного на решение. */
+  recommended: z.boolean().default(false),
   /** Состав работ пакета. */
   includes: NonEmptyTextList,
   duration: DurationSchema.optional(),
@@ -94,6 +99,13 @@ export const SolutionSchema = z
     isDemo: z.boolean(),
     /** Необязательное поле: по умолчанию demo — старые записи остаются валидными. */
     maturity: MaturitySchema.default("demo"),
+    /**
+     * Скрыто с публичных страниц (каталог, консультант, sitemap), но запись
+     * сохраняется в репозитории. Сайт сейчас посвящён медицинским клиникам.
+     */
+    hidden: z.boolean().default(false),
+    /** Пояснение к ценам пакетов, например «предварительные». */
+    pricingNote: Text.optional(),
     title: Text,
     summary: Text,
     description: Text,
@@ -123,6 +135,13 @@ export const SolutionSchema = z
       ctx.addIssue({
         code: "custom",
         message: "Нужен хотя бы один пакет",
+        path: ["packages"],
+      });
+    }
+    if (solution.packages.filter((p) => p.recommended).length > 1) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Рекомендуемым может быть только один пакет",
         path: ["packages"],
       });
     }

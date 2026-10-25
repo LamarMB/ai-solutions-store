@@ -234,14 +234,13 @@ describe("метаданные публичных страниц", () => {
   it("у каждой страницы свои title, description и canonical", async () => {
     const pages = await Promise.all(
       [
-        import("@/app/page"),
-        import("@/app/catalog/page"),
-        import("@/app/industries/page"),
-        import("@/app/how-we-work/page"),
-        import("@/app/about/page"),
-        import("@/app/consultant/page"),
-        import("@/app/request/page"),
-        import("@/app/privacy/page"),
+        import("@/app/(site)/page"),
+        import("@/app/(site)/catalog/page"),
+        import("@/app/(site)/how-we-work/page"),
+        import("@/app/(site)/about/page"),
+        import("@/app/(site)/consultant/page"),
+        import("@/app/(site)/request/page"),
+        import("@/app/(site)/privacy/page"),
       ].map(async (m) => (await m).metadata),
     );
     const titles = pages.map((m) => JSON.stringify(m.title));

@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const crmAiIntegration = {
   id: "crm-ai-integration",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   title: "Интеграция ИИ с CRM",
   summary:
     "ИИ-функции внутри CRM: краткие сводки по клиентам, классификация обращений и подсказки менеджерам.",

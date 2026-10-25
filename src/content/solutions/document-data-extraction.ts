@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const documentDataExtraction = {
   id: "document-data-extraction",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   title: "Извлечение данных из документов",
   summary:
     "Автоматическое извлечение реквизитов и позиций из счетов, накладных и актов с передачей в учётную систему.",

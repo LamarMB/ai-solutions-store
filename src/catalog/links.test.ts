@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getSolutions } from "@/catalog";
+// Механика проверяется на всех записях, включая скрытые.
+import { getAllSolutions as getSolutions } from "@/catalog";
 import {
   formatDuration,
   requestHref,

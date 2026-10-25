@@ -124,19 +124,22 @@ export function CatalogControls({
           })
         }
       />
-      <FilterGroup
-        legend="Отрасли"
-        name={QUERY_PARAMS.industry}
-        options={industries}
-        selected={optimistic.industries}
-        onToggle={(id) =>
-          navigate({
-            ...optimistic,
-            q: text,
-            industries: toggleValue(optimistic.industries, id),
-          })
-        }
-      />
+      {/* Фильтр из одной отрасли бесполезен — показываем, только когда выбор есть. */}
+      {industries.length > 1 && (
+        <FilterGroup
+          legend="Отрасли"
+          name={QUERY_PARAMS.industry}
+          options={industries}
+          selected={optimistic.industries}
+          onToggle={(id) =>
+            navigate({
+              ...optimistic,
+              q: text,
+              industries: toggleValue(optimistic.industries, id),
+            })
+          }
+        />
+      )}
 
       <div className="flex min-h-6 items-center gap-4">
         {hasFilters && (

@@ -1,54 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { getCategories, getIndustries, getSolutions } from "@/catalog";
-import {
-  catalogHref,
-  EMPTY_QUERY,
-  filterSolutions,
-  parseCatalogQuery,
-} from "@/catalog/search";
+import { getSolutionById, getSolutions } from "@/catalog";
 import { principles, processSteps } from "@/content/approach";
-import { directions, industryIcons } from "@/content/directions";
+import { directions } from "@/content/directions";
+import { patientJourney } from "@/content/patient-journey";
 
-const known = {
-  categoryIds: getCategories().map((c) => c.id),
-  industryIds: getIndustries().map((i) => i.id),
-};
-
-describe("направления на главной", () => {
+describe("задачи клиники на главной", () => {
   it.each(directions.map((d) => [d.id, d] as const))(
-    "%s ведёт в каталог с валидным фильтром и непустым результатом",
+    "%s ведёт на публичное решение каталога",
     (_, direction) => {
-      const query = { ...EMPTY_QUERY, ...direction.query };
-      const href = catalogHref(query);
-      expect(href.startsWith("/catalog?")).toBe(true);
-
-      // Фильтр переживает разбор URL без потерь — значит, id существуют.
-      const params = new URLSearchParams(href.split("?")[1]);
-      const parsed = parseCatalogQuery(
-        {
-          q: params.get("q") ?? undefined,
-          category: params.getAll("category"),
-          industry: params.getAll("industry"),
-        },
-        known,
-      );
-      expect(parsed).toEqual(query);
-      expect(filterSolutions(getSolutions(), query).length).toBeGreaterThan(0);
+      expect(getSolutionById(direction.solutionId)).toBeDefined();
     },
   );
 
-  it("направления уникальны и включают медицину, продажи и документы", () => {
+  it("задачи уникальны и покрывают все публичные решения", () => {
     const ids = directions.map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(
-      expect.arrayContaining(["healthcare", "sales", "documents"]),
+    expect(new Set(directions.map((d) => d.solutionId))).toEqual(
+      new Set(getSolutions().map((s) => s.id)),
     );
   });
+});
 
-  it("у каждой отрасли есть иконка", () => {
-    for (const id of known.industryIds) {
-      expect(industryIcons[id], id).toBeDefined();
-    }
+describe("сценарий пациента", () => {
+  it("запись завершается до необязательных шагов", () => {
+    const optional = patientJourney.map((s) => "optional" in s && s.optional);
+    expect(optional).toEqual([false, false, false, true, true]);
+    // После подтверждения пациент может закрыть приложение.
+    expect(patientJourney[2].text).toMatch(/подтверждение/);
+    expect(patientJourney[3].text).toMatch(/пропустить/);
+  });
+
+  it("подтверждённая запись — только при интеграции, сводка — с согласия", () => {
+    expect(patientJourney[1].text).toMatch(/интеграци/);
+    expect(patientJourney[4].text).toMatch(/согласи/);
   });
 });
 
@@ -77,6 +61,7 @@ describe("подход", () => {
         ...s.fromClient,
       ]),
       ...directions.flatMap((d) => [d.title, d.description]),
+      ...patientJourney.flatMap((s) => [s.title, s.text]),
     ];
     for (const text of texts) {
       expect(text, text).not.toMatch(

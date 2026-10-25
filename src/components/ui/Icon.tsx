@@ -2,6 +2,25 @@ import type { SVGProps } from "react";
 
 const paths = {
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  home: (
+    <path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z" />
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 11v5.5M12 7.8v.4" />
+    </>
+  ),
+  pin: (
+    <>
+      <path d="M12 20.5s-6.5-5.6-6.5-10.5a6.5 6.5 0 0 1 13 0c0 4.9-6.5 10.5-6.5 10.5z" />
+      <circle cx="12" cy="10" r="2.3" />
+    </>
+  ),
+  phone: (
+    <path d="M7 3.5h3l1.5 4-2 1.5a10 10 0 0 0 5.5 5.5l1.5-2 4 1.5v3a1.5 1.5 0 0 1-1.6 1.5A16.5 16.5 0 0 1 5.5 5.1 1.5 1.5 0 0 1 7 3.5z" />
+  ),
+  "chevron-left": <path d="M15 6l-6 6 6 6" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
   "arrow-right": <path d="M5 12h14M13 6l6 6-6 6" />,
   "chevron-right": <path d="M9 6l6 6-6 6" />,
@@ -98,6 +117,12 @@ const paths = {
     <>
       <rect x="5" y="3" width="14" height="18" rx="2" />
       <path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M8 3v4M16 3v4M9 14l2 2 4-4" />
     </>
   ),
 } as const;

@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const restaurantOrderAssistant = {
   id: "restaurant-order-assistant",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   maturity: "concept",
   title: "ИИ-оператор заказов и консультант по меню",
   summary:

@@ -4,6 +4,8 @@ import type { SolutionInput } from "@/catalog/schema";
 export const aiSalesManager = {
   id: "ai-sales-manager",
   isDemo: true,
+  // Скрыто: сайт сосредоточен на медицинских клиниках; запись сохранена.
+  hidden: true,
   maturity: "concept",
   title: "ИИ-менеджер продаж",
   summary:
