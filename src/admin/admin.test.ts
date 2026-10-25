@@ -22,8 +22,16 @@ const ORIGIN = `https://${HOST}`;
 const PASSWORD = "надёжный-пароль-2026";
 const config: AuthConfig = { secureCookie: true, allowedOrigins: [] };
 
+// Хранилище отбрасывает исключения расписания старше двух дней по системным
+// часам (clinic-store.ts), а даты в тестах фиксированы: без подмены часов
+// тесты начинают падать, когда эти даты проходят. Подмена — для всего файла.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+});
+
 const cleanups: (() => void)[] = [];
 afterEach(() => {
+  vi.useRealTimers();
   while (cleanups.length) cleanups.pop()!();
 });
 
@@ -340,16 +348,6 @@ describe("врачи", () => {
 });
 
 describe("расписание", () => {
-  // Хранилище отбрасывает исключения расписания старше двух дней по системным
-  // часам (clinic-store.ts), а даты в тестах фиксированы: без подмены часов
-  // тесты начинают падать, когда эти даты проходят.
-  beforeEach(() => {
-    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("часы приёма, пересечения, выходной, перерыв, праздник клиники", async () => {
     const t = await setup();
     await t.login();
