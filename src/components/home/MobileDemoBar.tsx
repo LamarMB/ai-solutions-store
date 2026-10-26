@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { buttonClasses } from "@/components/ui/Button";
 import { headerActions } from "@/config/navigation";
+import { externalLinkProps } from "@/config/contact";
 import { cn } from "@/lib/cn";
 
 /**
@@ -39,6 +40,7 @@ export function MobileDemoBar() {
     >
       <a
         href={headerActions.demo.href}
+        {...externalLinkProps}
         tabIndex={visible ? 0 : -1}
         className={cn(buttonClasses({ size: "md" }), "w-full")}
       >

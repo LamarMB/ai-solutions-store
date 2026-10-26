@@ -5,6 +5,7 @@ import { Container } from "@/components/ui/Container";
 import { Icon } from "@/components/ui/Icon";
 import { PackagePrice } from "@/components/ui/PackagePrice";
 import { headerActions } from "@/config/navigation";
+import { externalLinkProps } from "@/config/contact";
 import { cn } from "@/lib/cn";
 import { SectionIntro } from "./SectionIntro";
 
@@ -71,6 +72,7 @@ export function Pricing({ solution }: { solution: Solution }) {
               </ul>
               <ButtonLink
                 href={headerActions.demo.href}
+                {...externalLinkProps}
                 variant={pkg.recommended ? "primary" : "secondary"}
                 className="mt-8"
               >

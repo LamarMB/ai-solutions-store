@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { Logo } from "@/components/layout/Logo";
+import { buttonClasses } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
-import { footerNav } from "@/config/navigation";
+import { Icon } from "@/components/ui/Icon";
+import { externalLinkProps, telegram } from "@/config/contact";
+import { footerNav, isExternalHref } from "@/config/navigation";
+import { cn } from "@/lib/cn";
 import { site } from "@/lib/site";
 
 export function SiteFooter() {
@@ -13,6 +17,17 @@ export function SiteFooter() {
           <p className="text-small text-muted mt-4 max-w-sm">
             {site.description}
           </p>
+          <a
+            href={telegram.href}
+            {...externalLinkProps}
+            className={cn(
+              buttonClasses({ variant: "secondary", size: "md" }),
+              "mt-6",
+            )}
+          >
+            <Icon name="send" size={18} />
+            {telegram.label} · {telegram.handle}
+          </a>
         </div>
 
         <nav
@@ -29,6 +44,7 @@ export function SiteFooter() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      {...(isExternalHref(item.href) ? externalLinkProps : {})}
                       className="text-small text-ink hover:text-accent inline-block rounded-sm py-1.5 transition-colors"
                     >
                       {item.label}

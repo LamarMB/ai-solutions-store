@@ -1,11 +1,12 @@
 import { ButtonLink } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { externalLinkProps } from "@/config/contact";
 import { headerActions, mainNav } from "@/config/navigation";
 
 /** Финальный призыв к действию: каталог или демонстрация. */
 export function CtaPanel({
   title = "Освободим администраторов клиники от рутины",
-  text = "Посмотрите решения в каталоге или запросите демонстрацию ИИ-администратора на демо-клинике.",
+  text = "Посмотрите решения в каталоге или напишите нам в Telegram — покажем ИИ-администратора на демо-клинике.",
 }: {
   title?: string;
   text?: string;
@@ -28,6 +29,7 @@ export function CtaPanel({
         </ButtonLink>
         <ButtonLink
           href={headerActions.demo.href}
+          {...externalLinkProps}
           variant="secondary"
           size="lg"
         >

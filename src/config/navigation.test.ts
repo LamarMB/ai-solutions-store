@@ -1,11 +1,13 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { telegram } from "@/config/contact";
 import {
   allNavHrefs,
   footerNav,
   headerActions,
   isActivePath,
+  isExternalHref,
   mainNav,
 } from "@/config/navigation";
 
@@ -36,7 +38,10 @@ describe("навигация", () => {
     const known = new Set(allNavHrefs);
     for (const group of footerNav) {
       for (const item of group.items) {
-        expect(known.has(item.href), item.href).toBe(true);
+        expect(
+          known.has(item.href) || item.href === telegram.href,
+          item.href,
+        ).toBe(true);
       }
     }
   });
@@ -44,6 +49,15 @@ describe("навигация", () => {
   it("действия шапки ведут на заявку и консультанта", () => {
     expect(headerActions.request.href).toBe("/request");
     expect(headerActions.consultant.href).toBe("/consultant");
+  });
+
+  it("обращение клиента ведёт в рабочий Telegram, подвал содержит контакт", () => {
+    expect(telegram.href).toBe("https://t.me/tgboostman");
+    expect(headerActions.demo.href).toBe(telegram.href);
+    expect(isExternalHref(headerActions.demo.href)).toBe(true);
+    expect(
+      footerNav.some((g) => g.items.some((i) => i.href === telegram.href)),
+    ).toBe(true);
   });
 });
 

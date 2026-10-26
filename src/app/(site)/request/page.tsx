@@ -9,11 +9,14 @@ import {
 } from "@/catalog/links";
 import { RequestForm } from "@/components/request/RequestForm";
 import { DemoBadge, MaturityBadge } from "@/components/ui/Badge";
+import { buttonClasses } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { PackagePrice } from "@/components/ui/PackagePrice";
 import { Section } from "@/components/ui/Section";
+import { externalLinkProps, telegram } from "@/config/contact";
+import { cn } from "@/lib/cn";
 import { getRequestStore } from "@/requests/store";
 import { pageMetadata } from "@/lib/seo";
 
@@ -63,14 +66,27 @@ export default async function RequestPage({
             id="test-mode-title"
             className="text-body text-demo-ink flex items-center gap-2 font-semibold"
           >
-            <Icon name="shield" size={18} />
-            Приём заявок ещё не запущен
+            <Icon name="send" size={18} />
+            Заявки пока принимаются в Telegram
           </h2>
-          <p className="text-small text-demo-ink mt-2">
-            Форма работает в тестовом режиме: данные проверяются, но не
-            сохраняются и никуда не передаются. Пожалуйста, не указывайте
-            реальные персональные данные.
+          <p className="text-small text-demo-ink mt-2 max-w-prose">
+            Напишите нам в Telegram — обсудим задачу клиники и договоримся о
+            демонстрации. Форма ниже работает в тестовом режиме: данные
+            проверяются, но не сохраняются и никуда не передаются, в том числе в
+            Telegram. Пожалуйста, не указывайте в ней реальные персональные
+            данные.
           </p>
+          <a
+            href={telegram.href}
+            {...externalLinkProps}
+            className={cn(buttonClasses({ size: "lg" }), "mt-5")}
+          >
+            <Icon name="send" size={18} />
+            {telegram.label}
+            <span className="text-small hidden font-normal opacity-80 sm:inline">
+              {telegram.handle}
+            </span>
+          </a>
         </aside>
       )}
 

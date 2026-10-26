@@ -5,13 +5,14 @@ import { Button, buttonClasses } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Icon } from "@/components/ui/Icon";
 import { MaturityBadge } from "@/components/ui/Badge";
+import { externalLinkProps, telegram } from "@/config/contact";
 import { demoContact } from "@/config/demo";
 import { demoSection } from "@/content/home";
 
 /**
- * Раздел #demo. Пока контакта нет (src/config/demo.ts), кнопка неактивна и
- * рядом прямо сказано, что заявки через сайт не принимаются. Ниже — модули в
- * разработке с пометкой статуса.
+ * Раздел #demo. Кнопка ведёт в рабочий Telegram (src/config/demo.ts); без
+ * контакта она неактивна и рядом сказано, что заявки через сайт не
+ * принимаются. Ниже — модули в разработке с пометкой статуса.
  */
 export function DemoSection({ concepts }: { concepts: Solution[] }) {
   return (
@@ -44,12 +45,12 @@ export function DemoSection({ concepts }: { concepts: Solution[] }) {
               {demoContact ? (
                 <a
                   href={demoContact.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  {...externalLinkProps}
+                  aria-describedby="demo-contact-note"
                   className={buttonClasses({ size: "lg" })}
                 >
-                  Запросить демонстрацию
-                  <Icon name="arrow-right" size={18} />
+                  <Icon name="send" size={18} />
+                  {demoContact.label}
                 </a>
               ) : (
                 <Button size="lg" disabled aria-describedby="demo-pending">
@@ -63,7 +64,24 @@ export function DemoSection({ concepts }: { concepts: Solution[] }) {
                 Карта системы
               </Link>
             </div>
-            {!demoContact && (
+            {demoContact ? (
+              <p
+                id="demo-contact-note"
+                className="text-small text-muted mt-5 flex max-w-xl items-start gap-2"
+              >
+                <Icon name="info" size={18} className="mt-0.5 shrink-0" />
+                <span>
+                  {demoSection.contactNote}{" "}
+                  <a
+                    href={demoContact.href}
+                    {...externalLinkProps}
+                    className="text-accent hover:text-accent-hover font-medium"
+                  >
+                    {telegram.handle}
+                  </a>
+                </span>
+              </p>
+            ) : (
               <p
                 id="demo-pending"
                 className="text-small text-muted mt-5 flex max-w-xl items-start gap-2"

@@ -1,9 +1,11 @@
+import { telegram } from "@/config/contact";
+
 /**
- * Контакт для записи на демонстрацию. Пока его нет, кнопки «Запросить
- * демонстрацию» ведут к разделу #demo на главной, а там прямо сказано, что
- * заявки через сайт не принимаются. Тестовая форма /request сюда не подключается.
- *
- * Когда владелец передаст контакт (сообщения сообщества ВКонтакте, Telegram или
- * почта), укажите ссылку и подпись — кнопка в разделе #demo станет активной.
+ * Контакт для записи на демонстрацию — рабочий Telegram (config/contact.ts).
+ * Тестовая форма /request сюда не подключается. Если задать null, кнопка в
+ * разделе #demo станет неактивной с пояснением.
  */
-export const demoContact: { href: string; label: string } | null = null;
+export const demoContact: { href: string; label: string } | null = {
+  href: telegram.href,
+  label: telegram.label,
+};

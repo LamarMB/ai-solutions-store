@@ -8,7 +8,7 @@ import {
   getSolutions,
 } from "@/catalog";
 import { solutionHref } from "@/catalog/links";
-import { headerActions } from "@/config/navigation";
+import { externalLinkProps, telegram } from "@/config/contact";
 import { MATURITY_NOTES } from "@/catalog/maturity";
 import { solutionSeoDescription, solutionSeoTitle } from "@/catalog/seo";
 import { PackagePicker } from "@/components/catalog/PackagePicker";
@@ -159,11 +159,21 @@ export default async function SolutionPage({
         </h2>
         {solution.packages.length > 0 ? (
           <>
-            <p className="text-small text-muted mt-2">
-              Приём заявок через сайт пока не открыт: форма заявки работает в
-              тестовом режиме и ничего не отправляет. Чтобы обсудить внедрение,
-              запросите демонстрацию.
-            </p>
+            <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-small text-muted max-w-prose">
+                Заявки пока принимаются в Telegram — напишите нам, обсудим
+                задачу клиники и покажем демо. Форма заявки на сайте работает в
+                тестовом режиме и ничего не отправляет.
+              </p>
+              <ButtonLink
+                href={telegram.href}
+                {...externalLinkProps}
+                className="self-start sm:self-auto"
+              >
+                <Icon name="send" size={18} />
+                {telegram.label}
+              </ButtonLink>
+            </div>
             <div className="mt-6">
               <PackagePicker
                 solution={solution}
@@ -185,9 +195,13 @@ export default async function SolutionPage({
                 задачи. Цена — по запросу.
               </p>
             </div>
-            <ButtonLink href={headerActions.demo.href} className="shrink-0">
-              Как с нами связаться
-              <Icon name="arrow-right" size={18} />
+            <ButtonLink
+              href={telegram.href}
+              {...externalLinkProps}
+              className="shrink-0"
+            >
+              <Icon name="send" size={18} />
+              {telegram.label}
             </ButtonLink>
           </Card>
         )}

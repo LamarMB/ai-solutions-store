@@ -23,6 +23,7 @@ const paths = {
   "chevron-left": <path d="M15 6l-6 6 6 6" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
   "arrow-right": <path d="M5 12h14M13 6l6 6-6 6" />,
+  send: <path d="M20.5 3.5 3.5 10.6l6.4 2.6 2.6 6.4zM9.9 13.2l4.6-4.6" />,
   "chevron-right": <path d="M9 6l6 6-6 6" />,
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   search: (

@@ -3,6 +3,7 @@ import { ConsultantChat } from "@/components/consultant/ConsultantChat";
 import { ButtonLink } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Icon } from "@/components/ui/Icon";
+import { externalLinkProps } from "@/config/contact";
 import { headerActions } from "@/config/navigation";
 import { Section } from "@/components/ui/Section";
 import { EXAMPLE_TASKS } from "@/consultant/mock-provider";
@@ -78,11 +79,11 @@ export default function ConsultantPage() {
           <div className="rounded-card border-border bg-surface border p-5">
             <h2 className="text-body font-semibold">Нестандартная задача?</h2>
             <p className="text-small text-muted mt-1.5">
-              Расскажите о ней на демонстрации — подходящее решение подберём
-              вместе.
+              Напишите нам в Telegram — подходящее решение подберём вместе.
             </p>
             <ButtonLink
               href={headerActions.demo.href}
+              {...externalLinkProps}
               variant="secondary"
               size="sm"
               className="mt-4"

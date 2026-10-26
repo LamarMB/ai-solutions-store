@@ -12,6 +12,7 @@ import {
 } from "react";
 import { submitRequest } from "@/app/(site)/request/actions";
 import { Icon } from "@/components/ui/Icon";
+import { externalLinkProps, telegram } from "@/config/contact";
 import { cn } from "@/lib/cn";
 import {
   fieldErrors as toFieldErrors,
@@ -126,9 +127,20 @@ export function RequestForm({
             Приём заявок ещё не запущен: форма работает в тестовом режиме.
             Данные проверены, но не сохранены и никуда не переданы. Номер
             проверки: <span className="font-mono">{state.reference}</span>.
+            Чтобы обсудить задачу, напишите нам в Telegram.
           </p>
         )}
         <div className="mt-6 flex flex-wrap gap-3">
+          {mode === "test" && (
+            <a
+              href={telegram.href}
+              {...externalLinkProps}
+              className="liquid-primary text-small rounded-control inline-flex h-10 items-center gap-2 px-4 font-medium"
+            >
+              <Icon name="send" size={16} />
+              {telegram.label}
+            </a>
+          )}
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -138,7 +150,10 @@ export function RequestForm({
           </button>
           <Link
             href="/catalog"
-            className="liquid-primary text-small rounded-control inline-flex h-10 items-center px-4 font-medium"
+            className={cn(
+              "text-small rounded-control inline-flex h-10 items-center px-4 font-medium",
+              mode === "test" ? "glass glass-hover text-ink" : "liquid-primary",
+            )}
           >
             Вернуться в каталог
           </Link>

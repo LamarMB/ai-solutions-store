@@ -24,6 +24,7 @@ const texts = [
   demoSection.title,
   demoSection.text,
   demoSection.pending,
+  demoSection.contactNote,
   ...demoSection.points,
 ];
 
@@ -48,6 +49,8 @@ describe("тексты главной", () => {
     expect(demoSection.pending).toMatch(
       /заявки через сайт сейчас не принимаются/i,
     );
+    expect(demoSection.contactNote).toMatch(/telegram/i);
+    expect(demoSection.contactNote).toMatch(/тестовом режиме/i);
   });
 
   it("снимки панели существуют и это окна браузера", () => {
