@@ -14,16 +14,15 @@ import {
   type MapNode,
 } from "@/content/product-map";
 import { cn } from "@/lib/cn";
-import { onListKeyDown, useAutoplay, useHashSelect, useInView } from "./hooks";
+import { onListKeyDown, useHashSelect, useInView } from "./hooks";
 import { LANES, VIEW_H, VIEW_W, mapEdges, nodeStyle } from "./layout";
-import { AutoplayButton, LiveTitle } from "./parts";
+import { LiveTitle } from "./parts";
 import { ScreenView } from "./ScreenView";
 import { StatusBadge } from "./StatusBadge";
 
 const NODES: readonly MapNode[] = mapNodes;
 const NODE_IDS = NODES.map((n) => n.id);
 const EDGES = mapEdges(NODES);
-const STEP_MS = 6000;
 
 /**
  * Подробная карта «Как работает система»: десять узлов на трёх дорожках,
@@ -31,25 +30,12 @@ const STEP_MS = 6000;
  * вертикальный список с подробностями под выбранным шагом.
  */
 export function ProductMap() {
-  const [active, setActiveRaw] = useState(0);
+  const [active, setActive] = useState(0);
   const [screen, setScreen] = useState(0);
-  const setActive = useCallback((index: number) => {
-    setActiveRaw(index);
+  const select = useCallback((index: number) => {
+    setActive(index);
     setScreen(0);
   }, []);
-  const { playing, start, stop } = useAutoplay(
-    NODES.length,
-    active,
-    setActive,
-    STEP_MS,
-  );
-  const select = useCallback(
-    (index: number) => {
-      stop();
-      setActive(index);
-    },
-    [stop, setActive],
-  );
   useHashSelect("map-", NODE_IDS, select, MAP_ANCHOR);
   const canvasRef = useRef<HTMLDivElement>(null);
   const inView = useInView(canvasRef);
@@ -69,18 +55,9 @@ export function ProductMap() {
   return (
     <div className="theme-product-map pm-canvas rounded-panel border-border border p-4 sm:p-6 lg:p-8">
       <LiveTitle text={`Шаг ${active + 1}: ${node.title}`} />
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          <StatusBadge status="working" />
-          <StatusBadge status="configurable" />
-        </div>
-        <AutoplayButton
-          playing={playing}
-          onStart={start}
-          onStop={stop}
-          stepKey={active}
-          stepMs={STEP_MS}
-        />
+      <div className="flex flex-wrap gap-2">
+        <StatusBadge status="working" />
+        <StatusBadge status="configurable" />
       </div>
 
       {/* Широкий экран: схема на трёх дорожках. */}

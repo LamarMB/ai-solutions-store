@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import {
   AI_NOTE,
@@ -9,49 +9,26 @@ import {
   type OverviewStep,
 } from "@/content/product-map";
 import { cn } from "@/lib/cn";
-import { onListKeyDown, useAutoplay } from "./hooks";
-import { AutoplayButton, LiveTitle } from "./parts";
+import { onListKeyDown } from "./hooks";
+import { LiveTitle } from "./parts";
 import { ScreenView } from "./ScreenView";
 import { StatusBadge } from "./StatusBadge";
 
 const STEPS: readonly OverviewStep[] = overviewSteps;
-const STEP_MS = 9000;
 
 /**
  * Короткая карта для главной: пять ключевых шагов, экран демо выбранного шага
  * и переход к подробной карте. Будущих функций здесь нет.
  */
 export function ProductOverview({ detailsHref }: { detailsHref: string }) {
-  const [active, setActive] = useState(0);
-  const { playing, start, stop } = useAutoplay(
-    STEPS.length,
-    active,
-    setActive,
-    STEP_MS,
-  );
-  const select = useCallback(
-    (index: number) => {
-      stop();
-      setActive(index);
-    },
-    [stop],
-  );
+  const [active, select] = useState(0);
   const step = STEPS[active];
   const screen = getScreen(step.screenId);
 
   return (
     <div className="theme-product-map pm-canvas rounded-panel border-border border p-4 sm:p-6 lg:p-8">
       <LiveTitle text={`Шаг ${active + 1}: ${step.title}`} />
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <StatusBadge status="working" className="self-start" />
-        <AutoplayButton
-          playing={playing}
-          onStart={start}
-          onStop={stop}
-          stepKey={active}
-          stepMs={STEP_MS}
-        />
-      </div>
+      <StatusBadge status="working" />
 
       <div className="relative mt-8">
         <span

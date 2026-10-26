@@ -350,10 +350,6 @@
 .pm-screen-in {
   animation: pm-fade 520ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
-.pm-progress {
-  transform-origin: left;
-  animation: pm-progress linear both;
-}
 .pm-phone {
   padding: 0.5rem;
   border-radius: 2.1rem;
@@ -389,14 +385,6 @@
 @keyframes pm-pulse {
   50% {
     box-shadow: 0 0 0 10px rgb(116 224 179 / 0.06);
-  }
-}
-@keyframes pm-progress {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
   }
 }
 

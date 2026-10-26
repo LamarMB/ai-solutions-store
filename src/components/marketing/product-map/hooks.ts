@@ -1,42 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type KeyboardEvent,
-  type RefObject,
-} from "react";
-
-/**
- * «Показать за минуту»: шаги переключаются сами, пока пользователь не нажмёт
- * «Стоп» или не выберет шаг сам. Запускается только по кнопке.
- */
-export function useAutoplay(
-  count: number,
-  active: number,
-  setActive: (index: number) => void,
-  intervalMs: number,
-) {
-  const [playing, setPlaying] = useState(false);
-
-  useEffect(() => {
-    if (!playing) return;
-    const timer = window.setTimeout(() => {
-      if (active + 1 < count) setActive(active + 1);
-      else setPlaying(false);
-    }, intervalMs);
-    return () => window.clearTimeout(timer);
-  }, [playing, active, count, intervalMs, setActive]);
-
-  const start = useCallback(() => {
-    setActive(0);
-    setPlaying(true);
-  }, [setActive]);
-  const stop = useCallback(() => setPlaying(false), []);
-
-  return { playing, start, stop };
-}
+import { useEffect, useState, type KeyboardEvent, type RefObject } from "react";
 
 /**
  * Ссылки вида `#map-a5` выбирают узел без дублирующихся id в разметке:

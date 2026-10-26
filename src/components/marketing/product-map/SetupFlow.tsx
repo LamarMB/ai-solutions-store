@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import {
   SETUP_ANCHOR,
@@ -10,32 +10,18 @@ import {
   type SetupStage,
 } from "@/content/product-map";
 import { cn } from "@/lib/cn";
-import { onListKeyDown, useAutoplay, useHashSelect } from "./hooks";
-import { AutoplayButton, LiveTitle } from "./parts";
+import { onListKeyDown, useHashSelect } from "./hooks";
+import { LiveTitle } from "./parts";
 
 const STAGES: readonly SetupStage[] = setupStages;
 const STAGE_IDS = STAGES.map((s) => s.id);
-const STEP_MS = 6000;
 
 /**
  * «Как проходит внедрение»: девять этапов с линией прогресса. Сроков нет —
  * они определяются по итогам обследования.
  */
 export function SetupFlow() {
-  const [active, setActive] = useState(0);
-  const { playing, start, stop } = useAutoplay(
-    STAGES.length,
-    active,
-    setActive,
-    STEP_MS,
-  );
-  const select = useCallback(
-    (index: number) => {
-      stop();
-      setActive(index);
-    },
-    [stop],
-  );
+  const [active, select] = useState(0);
   useHashSelect("setup-", STAGE_IDS, select, SETUP_ANCHOR);
   const stage = STAGES[active];
   const progress = (active / (STAGES.length - 1)) * 100;
@@ -43,18 +29,9 @@ export function SetupFlow() {
   return (
     <div className="theme-product-map pm-canvas rounded-panel border-border border p-4 sm:p-6 lg:p-8">
       <LiveTitle text={`Этап ${active + 1}: ${stage.title}`} />
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-small text-muted max-w-xl">
-          Сроки каждого этапа определяются по итогам обследования клиники.
-        </p>
-        <AutoplayButton
-          playing={playing}
-          onStart={start}
-          onStop={stop}
-          stepKey={active}
-          stepMs={STEP_MS}
-        />
-      </div>
+      <p className="text-small text-muted max-w-xl">
+        Сроки каждого этапа определяются по итогам обследования клиники.
+      </p>
 
       {/* Широкий экран: горизонтальная лента этапов. */}
       <div className="relative mt-10 hidden lg:block">
