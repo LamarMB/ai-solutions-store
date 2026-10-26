@@ -30,8 +30,9 @@ describe("сценарий пациента", () => {
     expect(patientJourney[3].text).toMatch(/пропустить/);
   });
 
-  it("подтверждённая запись — только при интеграции, сводка — с согласия", () => {
-    expect(patientJourney[1].text).toMatch(/интеграци/);
+  it("запись подтверждается по расписанию панели, МИС — отдельно, сводка — с согласия", () => {
+    expect(patientJourney[1].text).toMatch(/панели клиники.*сразу/);
+    expect(patientJourney[1].text).toMatch(/МИС.*отдельно/);
     expect(patientJourney[4].text).toMatch(/согласи/);
   });
 });
