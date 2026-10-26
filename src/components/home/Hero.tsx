@@ -95,7 +95,7 @@ export function Hero() {
           </ul>
 
           <div className="rise-in mt-10" style={delay(300)}>
-            <p className="text-caption text-muted">Работает в каналах</p>
+            <p className="text-caption text-muted">Каналы и панель</p>
             <ul className="mt-3 flex flex-wrap gap-2">
               {hero.channels.map((c) => (
                 <li

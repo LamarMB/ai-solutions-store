@@ -206,7 +206,7 @@ function ChatCard({ className }: { className?: string }) {
           </span>
         }
       >
-        ИИ-переписка
+        Переписка с ботом
       </CardTitle>
       <div className="mt-3.5 flex flex-1 flex-col gap-2">
         <Bubble from="patient" delay={300}>
@@ -328,7 +328,7 @@ function BookingCard() {
       <div className="mt-3 flex items-center justify-between rounded-xl bg-[rgb(240_247_242/0.04)] px-3 py-2 text-[0.68rem]">
         <span className="flex items-center gap-1.5">
           <Icon name="calendar" size={12} className="text-muted" />
-          пн, 26 окт · 14:00
+          сегодня · 14:00
         </span>
         <span className="text-muted">Бот ВКонтакте</span>
       </div>
@@ -352,7 +352,7 @@ function ScheduleCard() {
     <div className="hc-card p-4">
       <CardTitle
         icon="clock"
-        aside={<span className="text-muted text-[0.62rem]">пн, 26 окт</span>}
+        aside={<span className="text-muted text-[0.62rem]">сегодня</span>}
       >
         Расписание врача
       </CardTitle>
@@ -451,7 +451,7 @@ function RequestCard() {
           size={11}
           className="text-[color:var(--hc-bright)]"
         />
-        Передано с разрешения пациента
+        Согласие действует · раздел «Обращения»
       </p>
     </div>
   );

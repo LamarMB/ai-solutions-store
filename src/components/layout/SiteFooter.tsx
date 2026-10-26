@@ -24,12 +24,12 @@ export function SiteFooter() {
               <h2 className="text-caption text-muted font-semibold tracking-wide uppercase">
                 {group.title}
               </h2>
-              <ul className="mt-3 grid gap-2">
+              <ul className="mt-2 grid">
                 {group.items.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="text-small text-ink hover:text-accent rounded-sm transition-colors"
+                      className="text-small text-ink hover:text-accent inline-block rounded-sm py-1.5 transition-colors"
                     >
                       {item.label}
                     </Link>
@@ -45,7 +45,10 @@ export function SiteFooter() {
         <Container className="text-caption text-muted flex flex-col gap-1 py-5 sm:flex-row sm:justify-between">
           <p>
             © {new Date().getFullYear()} {site.name} ·{" "}
-            <Link href="/privacy" className="hover:text-ink rounded-sm">
+            <Link
+              href="/privacy"
+              className="hover:text-ink inline-block rounded-sm py-1"
+            >
               Политика конфиденциальности
             </Link>
           </p>

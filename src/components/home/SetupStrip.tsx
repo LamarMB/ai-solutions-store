@@ -17,7 +17,7 @@ export function SetupStrip({ detailsHref }: { detailsHref: string }) {
           action={
             <Link
               href={detailsHref}
-              className="text-small text-accent hover:text-accent-hover inline-flex items-center gap-1.5 font-medium"
+              className="text-small text-accent hover:text-accent-hover inline-flex min-h-11 items-center gap-1.5 font-medium"
             >
               Подробно об этапах
               <Icon name="arrow-right" size={16} />

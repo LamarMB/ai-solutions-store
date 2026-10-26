@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requestHref, solutionHref } from "@/catalog/links";
+import { solutionHref } from "@/catalog/links";
+import { headerActions } from "@/config/navigation";
 import type { RecommendationView } from "@/consultant/recommendations";
 import { DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
@@ -59,10 +60,10 @@ export function RecommendationCard({ rec }: { rec: RecommendationView }) {
           <Icon name="arrow-right" size={16} />
         </Link>
         <Link
-          href={requestHref(rec.solutionId)}
+          href={headerActions.demo.href}
           className="glass glass-hover text-small rounded-control text-ink inline-flex h-9 items-center px-4 font-medium"
         >
-          Оставить заявку
+          {headerActions.demo.label}
         </Link>
       </div>
     </article>

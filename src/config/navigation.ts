@@ -13,7 +13,7 @@ export const mainNav = [
 
 /** Действия в шапке. */
 export const headerActions = {
-  consultant: { href: "/consultant", label: "Подобрать с ИИ" },
+  consultant: { href: "/consultant", label: "Подобрать решение" },
   request: { href: "/request", label: "Оставить заявку" },
   /** Раздел о демонстрации на главной; контакт подключается в config/demo.ts. */
   demo: { href: "/#demo", label: "Запросить демонстрацию" },
@@ -31,7 +31,7 @@ export const footerNav = [
   },
   {
     title: "Связаться",
-    items: [headerActions.request, headerActions.consultant],
+    items: [headerActions.demo, headerActions.consultant],
   },
 ] as const satisfies readonly { title: string; items: readonly NavItem[] }[];
 

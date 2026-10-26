@@ -37,11 +37,11 @@ export function PatientPath({ detailsHref }: { detailsHref: string }) {
   const n = overviewSteps.length;
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20">
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20">
       {/* Узкий экран: карточки «шаг + экран» листаются по горизонтали. */}
       <ol
         aria-label="Путь пациента"
-        className="-mx-4 flex snap-x snap-mandatory [scrollbar-width:none] gap-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:hidden"
+        className="relative -mx-4 flex snap-x snap-mandatory [scrollbar-width:none] gap-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:hidden"
       >
         {overviewSteps.map((step, i) => (
           <li
@@ -174,7 +174,7 @@ export function PatientPath({ detailsHref }: { detailsHref: string }) {
       </div>
       <Link
         href={detailsHref}
-        className="text-small text-accent inline-flex items-center gap-1.5 font-medium lg:hidden"
+        className="text-small text-accent inline-flex min-h-11 items-center gap-1.5 font-medium lg:hidden"
       >
         Подробная карта системы
         <Icon name="arrow-right" size={16} />

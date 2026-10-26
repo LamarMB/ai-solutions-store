@@ -7,7 +7,8 @@ import {
   getSolutionById,
   getSolutions,
 } from "@/catalog";
-import { requestHref, solutionHref } from "@/catalog/links";
+import { solutionHref } from "@/catalog/links";
+import { headerActions } from "@/config/navigation";
 import { MATURITY_NOTES } from "@/catalog/maturity";
 import { solutionSeoDescription, solutionSeoTitle } from "@/catalog/seo";
 import { PackagePicker } from "@/components/catalog/PackagePicker";
@@ -159,7 +160,9 @@ export default async function SolutionPage({
         {solution.packages.length > 0 ? (
           <>
             <p className="text-small text-muted mt-2">
-              Выберите пакет и оставьте заявку — мы уточним задачу и условия.
+              Приём заявок через сайт пока не открыт: форма заявки работает в
+              тестовом режиме и ничего не отправляет. Чтобы обсудить внедрение,
+              запросите демонстрацию.
             </p>
             <div className="mt-6">
               <PackagePicker
@@ -182,8 +185,8 @@ export default async function SolutionPage({
                 задачи. Цена — по запросу.
               </p>
             </div>
-            <ButtonLink href={requestHref(solution.id)} className="shrink-0">
-              Обсудить решение
+            <ButtonLink href={headerActions.demo.href} className="shrink-0">
+              Как с нами связаться
               <Icon name="arrow-right" size={18} />
             </ButtonLink>
           </Card>
@@ -256,7 +259,7 @@ export default async function SolutionPage({
       <div className="mt-14">
         <Link
           href="/catalog"
-          className="text-small text-accent hover:text-accent-hover inline-flex items-center gap-2 rounded-full font-medium"
+          className="text-small text-accent hover:text-accent-hover inline-flex min-h-11 items-center gap-2 rounded-full font-medium"
         >
           <Icon name="arrow-right" size={16} className="rotate-180" />
           Вернуться в каталог

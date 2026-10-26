@@ -2,10 +2,10 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { headerActions, mainNav } from "@/config/navigation";
 
-/** Финальный призыв к действию: каталог или заявка. */
+/** Финальный призыв к действию: каталог или демонстрация. */
 export function CtaPanel({
   title = "Освободим администраторов клиники от рутины",
-  text = "Выберите решение в каталоге или оставьте заявку — обсудим задачи клиники и подходящий тариф.",
+  text = "Посмотрите решения в каталоге или запросите демонстрацию ИИ-администратора на демо-клинике.",
 }: {
   title?: string;
   text?: string;
@@ -27,11 +27,11 @@ export function CtaPanel({
           <Icon name="arrow-right" size={18} />
         </ButtonLink>
         <ButtonLink
-          href={headerActions.request.href}
+          href={headerActions.demo.href}
           variant="secondary"
           size="lg"
         >
-          {headerActions.request.label}
+          {headerActions.demo.label}
         </ButtonLink>
       </div>
     </div>
