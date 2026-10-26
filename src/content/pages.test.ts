@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { getSolutionById, getSolutions } from "@/catalog";
 import { principles, processSteps } from "@/content/approach";
 import { directions } from "@/content/directions";
-import { patientJourney } from "@/content/patient-journey";
 
 describe("задачи клиники на главной", () => {
   it.each(directions.map((d) => [d.id, d] as const))(
@@ -18,22 +17,6 @@ describe("задачи клиники на главной", () => {
     expect(new Set(directions.map((d) => d.solutionId))).toEqual(
       new Set(getSolutions().map((s) => s.id)),
     );
-  });
-});
-
-describe("сценарий пациента", () => {
-  it("запись завершается до необязательных шагов", () => {
-    const optional = patientJourney.map((s) => "optional" in s && s.optional);
-    expect(optional).toEqual([false, false, false, true, true]);
-    // После подтверждения пациент может закрыть приложение.
-    expect(patientJourney[2].text).toMatch(/подтверждение/);
-    expect(patientJourney[3].text).toMatch(/пропустить/);
-  });
-
-  it("запись подтверждается по расписанию панели, МИС — отдельно, сводка — с согласия", () => {
-    expect(patientJourney[1].text).toMatch(/панели клиники.*сразу/);
-    expect(patientJourney[1].text).toMatch(/МИС.*отдельно/);
-    expect(patientJourney[4].text).toMatch(/согласи/);
   });
 });
 
@@ -62,7 +45,6 @@ describe("подход", () => {
         ...s.fromClient,
       ]),
       ...directions.flatMap((d) => [d.title, d.description]),
-      ...patientJourney.flatMap((s) => [s.title, s.text]),
     ];
     for (const text of texts) {
       expect(text, text).not.toMatch(

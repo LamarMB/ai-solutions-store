@@ -11,12 +11,19 @@ import { requestHref, solutionHref } from "@/catalog/links";
 import { MATURITY_NOTES } from "@/catalog/maturity";
 import { solutionSeoDescription, solutionSeoTitle } from "@/catalog/seo";
 import { PackagePicker } from "@/components/catalog/PackagePicker";
+import { ProductMap } from "@/components/marketing/product-map/ProductMap";
+import { SetupFlow } from "@/components/marketing/product-map/SetupFlow";
 import { Badge, DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { Section } from "@/components/ui/Section";
+import {
+  MAP_ANCHOR,
+  PRODUCT_MAP_SOLUTION_ID,
+  SETUP_ANCHOR,
+} from "@/content/product-map";
 import { pageMetadata } from "@/lib/seo";
 
 export function generateStaticParams() {
@@ -44,6 +51,8 @@ export default async function SolutionPage({
   const categoryTitles = new Map(getCategories().map((c) => [c.id, c.title]));
   const industryTitles = new Map(getIndustries().map((i) => [i.id, i.title]));
   const maturityNote = MATURITY_NOTES[solution.maturity];
+  // Интерактивная карта продукта есть только у ИИ-администратора.
+  const hasProductMap = solution.id === PRODUCT_MAP_SOLUTION_ID;
   const overview = [
     { id: "audience-title", title: "Для кого", items: solution.audience },
     {
@@ -124,6 +133,25 @@ export default async function SolutionPage({
         </div>
       )}
 
+      {hasProductMap && (
+        <section
+          id={MAP_ANCHOR}
+          aria-labelledby="product-map-title"
+          className="mt-14 scroll-mt-24"
+        >
+          <h2 id="product-map-title" className="text-h2 font-semibold">
+            Как работает система
+          </h2>
+          <p className="text-muted mt-2 max-w-prose">
+            Путь пациента от первого сообщения до записи и работа персонала.
+            Нажмите на шаг, чтобы увидеть подробности и экран демо-версии.
+          </p>
+          <div className="mt-6">
+            <ProductMap />
+          </div>
+        </section>
+      )}
+
       <section aria-labelledby="packages-title" className="mt-14">
         <h2 id="packages-title" className="text-h2 scroll-mt-28 font-semibold">
           Пакеты внедрения
@@ -162,32 +190,50 @@ export default async function SolutionPage({
         )}
       </section>
 
-      <section aria-labelledby="stages-title" className="mt-14">
-        <h2 id="stages-title" className="text-h2 font-semibold">
-          Этапы внедрения
-        </h2>
-        <ol className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {solution.implementationStages.map((stage, index) => (
-            <li key={stage.title}>
-              <Card className="h-full">
-                <span
-                  aria-hidden="true"
-                  className="glass text-small grid size-9 place-items-center rounded-full font-semibold tabular-nums"
-                >
-                  {index + 1}
-                </span>
-                <h3 className="text-body mt-4 font-semibold">
-                  <span className="sr-only">Этап {index + 1}. </span>
-                  {stage.title}
-                </h3>
-                <p className="text-small text-muted mt-2">
-                  {stage.description}
-                </p>
-              </Card>
-            </li>
-          ))}
-        </ol>
-      </section>
+      {hasProductMap ? (
+        <section
+          id={SETUP_ANCHOR}
+          aria-labelledby="stages-title"
+          className="mt-14 scroll-mt-24"
+        >
+          <h2 id="stages-title" className="text-h2 font-semibold">
+            Как проходит внедрение
+          </h2>
+          <p className="text-muted mt-2 max-w-prose">
+            От знакомства с клиникой до запуска и поддержки.
+          </p>
+          <div className="mt-6">
+            <SetupFlow />
+          </div>
+        </section>
+      ) : (
+        <section aria-labelledby="stages-title" className="mt-14">
+          <h2 id="stages-title" className="text-h2 font-semibold">
+            Этапы внедрения
+          </h2>
+          <ol className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {solution.implementationStages.map((stage, index) => (
+              <li key={stage.title}>
+                <Card className="h-full">
+                  <span
+                    aria-hidden="true"
+                    className="glass text-small grid size-9 place-items-center rounded-full font-semibold tabular-nums"
+                  >
+                    {index + 1}
+                  </span>
+                  <h3 className="text-body mt-4 font-semibold">
+                    <span className="sr-only">Этап {index + 1}. </span>
+                    {stage.title}
+                  </h3>
+                  <p className="text-small text-muted mt-2">
+                    {stage.description}
+                  </p>
+                </Card>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <div className="mt-14 grid gap-4 lg:grid-cols-3">
         <InfoList
