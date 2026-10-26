@@ -6,7 +6,11 @@ import { DemoSection } from "@/components/home/DemoSection";
 import { Faq } from "@/components/home/Faq";
 import { Hero } from "@/components/home/Hero";
 import { MobileDemoBar } from "@/components/home/MobileDemoBar";
-import { HeroParallax, RevealOnScroll } from "@/components/home/Motion";
+import {
+  HeroParallax,
+  HeroPause,
+  RevealOnScroll,
+} from "@/components/home/Motion";
 import { PatientPath } from "@/components/home/PatientPath";
 import { Pricing } from "@/components/home/Pricing";
 import { SectionIntro } from "@/components/home/SectionIntro";
@@ -83,6 +87,7 @@ export default function Home() {
 
       <RevealOnScroll />
       <HeroParallax />
+      <HeroPause />
       <MobileDemoBar />
     </>
   );

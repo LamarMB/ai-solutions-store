@@ -93,3 +93,20 @@ export function HeroParallax() {
   }, []);
   return null;
 }
+
+/**
+ * Микроанимации первого экрана (кольца, точки, «печатает…») ставятся на паузу,
+ * когда экран не виден: атрибут data-paused на #hero (globals.css).
+ */
+export function HeroPause() {
+  useEffect(() => {
+    const hero = document.getElementById("hero");
+    if (!hero || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => {
+      hero.toggleAttribute("data-paused", !entry.isIntersecting);
+    });
+    observer.observe(hero);
+    return () => observer.disconnect();
+  }, []);
+  return null;
+}

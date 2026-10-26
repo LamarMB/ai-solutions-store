@@ -214,6 +214,256 @@
 }
 
 /*
+ * Первый экран главной (Hero): почти чёрная сцена с изумрудным свечением,
+ * яркий зелёный акцент и наклонная «консоль» — иллюстрация интерфейса продукта.
+ * Анимации — только transform и opacity; на паузе, когда экран не виден
+ * (#hero[data-paused]); при reduced-motion отключаются глобальным правилом.
+ */
+.hero-stage {
+  --hc-bright: #3ee6a3;
+  --hc-bright-2: #20c987;
+  --hc-card: rgb(12 28 22 / 0.86);
+  --hc-card-2: rgb(18 40 31 / 0.9);
+  --hc-line: rgb(132 221 176 / 0.13);
+  --hc-line-strong: rgb(132 221 176 / 0.24);
+  background-color: #050b09;
+  background-image:
+    radial-gradient(42% 52% at 78% 46%, rgb(22 160 108 / 0.2), transparent 70%),
+    radial-gradient(30% 40% at 4% 92%, rgb(22 160 108 / 0.1), transparent 70%),
+    linear-gradient(180deg, transparent 72%, var(--bg) 100%);
+}
+.text-bright {
+  color: var(--hc-bright);
+}
+
+@layer components {
+  /* Главная кнопка первого экрана — насыщенный зелёный, как акцент. */
+  .btn-bright {
+    color: #03140d;
+    background-image: linear-gradient(
+      180deg,
+      var(--hc-bright),
+      var(--hc-bright-2)
+    );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.35),
+      0 12px 32px -12px rgb(46 230 160 / 0.55);
+    transition:
+      box-shadow 200ms ease,
+      filter 200ms ease;
+  }
+  .btn-bright:hover {
+    filter: brightness(1.05);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.45),
+      0 16px 40px -12px rgb(46 230 160 / 0.7);
+  }
+  .btn-outline {
+    color: var(--ink);
+    border: 1px solid rgb(240 247 242 / 0.28);
+    transition:
+      border-color 200ms ease,
+      background-color 200ms ease;
+  }
+  .btn-outline:hover {
+    border-color: rgb(240 247 242 / 0.5);
+    background-color: rgb(240 247 242 / 0.04);
+  }
+
+  /* Консоль: перспектива и наклон только на широком экране. */
+  .hc-tilt {
+    transform-origin: 0% 50%;
+  }
+  @media (min-width: 1024px) {
+    .hc-tilt {
+      transform: perspective(2200px) rotateY(-13deg) rotateX(5deg)
+        rotateZ(0.6deg);
+    }
+  }
+  .hc-console {
+    border: 1px solid var(--hc-line-strong);
+    border-radius: 1.5rem;
+    background-color: rgb(7 17 13 / 0.92);
+    box-shadow:
+      inset 0 1px 0 rgb(240 247 242 / 0.06),
+      0 60px 120px -40px rgb(0 0 0 / 0.9),
+      0 0 0 1px rgb(0 0 0 / 0.4),
+      0 0 80px -30px rgb(46 230 160 / 0.35);
+  }
+  .hc-card {
+    border: 1px solid var(--hc-line);
+    border-radius: 1rem;
+    background-color: var(--hc-card);
+    background-image: linear-gradient(
+      180deg,
+      rgb(240 247 242 / 0.035),
+      transparent 50%
+    );
+  }
+  .hc-chip {
+    border: 1px solid var(--hc-line-strong);
+    border-radius: 9999px;
+    background-color: rgb(7 17 13 / 0.88);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.9);
+  }
+  /* Светящееся «ядро» ИИ в центре консоли. */
+  .hc-core {
+    background:
+      radial-gradient(
+        circle at 50% 50%,
+        rgb(62 230 163 / 0.5),
+        transparent 32%
+      ),
+      radial-gradient(
+        circle at 50% 50%,
+        rgb(22 160 108 / 0.35),
+        transparent 62%
+      );
+  }
+  .hc-ring {
+    border: 1px solid rgb(62 230 163 / 0.28);
+    border-radius: 9999px;
+  }
+  /* Пунктирная «волна» точек слева внизу — декоративная. */
+  .hc-wave path {
+    fill: none;
+    stroke: url(#hc-wave-grad);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 0.1 9;
+  }
+}
+
+@keyframes hc-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes hc-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+}
+@keyframes hc-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+@keyframes hc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes hc-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes hc-travel {
+  from {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(var(--hc-travel, 120px));
+    opacity: 0;
+  }
+}
+@keyframes hc-book {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+@keyframes hc-drift {
+  to {
+    transform: translateX(-36px);
+  }
+}
+.hc-in {
+  animation: hc-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: var(--d, 0ms);
+}
+.hc-pulse {
+  animation: hc-pulse 2.4s ease-in-out infinite;
+}
+.hc-typing span {
+  animation: hc-dot 1.2s ease-in-out infinite;
+}
+.hc-typing span:nth-child(2) {
+  animation-delay: 150ms;
+}
+.hc-typing span:nth-child(3) {
+  animation-delay: 300ms;
+}
+.hc-spin {
+  animation: hc-spin 36s linear infinite;
+}
+.hc-spin-rev {
+  animation: hc-spin 52s linear infinite reverse;
+}
+.hc-float {
+  animation: hc-float 7s ease-in-out infinite;
+}
+.hc-travel {
+  animation: hc-travel 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation-delay: var(--d, 0ms);
+}
+.hc-book {
+  animation: hc-book 500ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: var(--d, 1600ms);
+}
+.hc-drift {
+  animation: hc-drift 14s linear infinite alternate;
+}
+/*
+ * При reduced-motion глобальное правило укорачивает длительность, но не
+ * задержку: элементы с задержкой оставались бы скрытыми. Отключаем полностью.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .rise-in,
+  .hc-in,
+  .hc-book,
+  .hc-pulse,
+  .hc-typing span,
+  .hc-spin,
+  .hc-spin-rev,
+  .hc-float,
+  .hc-travel,
+  .hc-drift {
+    animation: none !important;
+  }
+}
+#hero[data-paused] *,
+#hero[data-paused] *::before,
+#hero[data-paused] *::after {
+  animation-play-state: paused !important;
+}
+
+/*
  * Появление блоков при прокрутке. Скрываются только когда скрипт включил
  * наблюдение (html.reveal-ready): без JS и при reduced-motion всё видно сразу.
  */
