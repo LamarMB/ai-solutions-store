@@ -313,17 +313,20 @@ function BookingDetails({
             </dl>
             {editable ? (
               <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Button
-                  onClick={() =>
-                    update(
-                      { action: "complete" },
-                      "Приём отмечен как состоявшийся",
-                    )
-                  }
-                  disabled={busy}
-                >
-                  Приём состоялся
-                </Button>
+                {/* Будущий приём отметить нельзя — сервер проверяет и время. */}
+                {booking.date <= today && (
+                  <Button
+                    onClick={() =>
+                      update(
+                        { action: "complete" },
+                        "Приём отмечен как состоявшийся",
+                      )
+                    }
+                    disabled={busy}
+                  >
+                    Приём состоялся
+                  </Button>
+                )}
                 <Button
                   variant="secondary"
                   onClick={() => setMode("move")}

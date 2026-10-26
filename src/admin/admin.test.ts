@@ -530,6 +530,15 @@ describe("записи", () => {
       date: "2026-10-20",
       time: "10:00",
     });
+    // До начала приёма отметка «состоялся» запрещена: запись остаётся у пациента.
+    const early = await t.call("PATCH", `bookings/${id}`, {
+      action: "complete",
+    });
+    expect(early.status).toBe(409);
+    expect(early.json.error).toMatch(/после его начала/);
+    expect(t.store.getBooking(id)?.status).toBe("confirmed");
+    t.advance(25 * 60 * 60 * 1000); // вт, 20 октября, 10:00
+    await t.login();
     expect(
       (await t.call("PATCH", `bookings/${id}`, { action: "complete" })).json
         .data,

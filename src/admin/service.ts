@@ -246,6 +246,14 @@ export class AdminService {
           "Отменить можно только подтверждённую запись.",
         );
     } else if (data.action === "complete") {
+      // До начала приёма отметка «состоялся» убрала бы запись из «Моих
+      // записей» пациента в боте и приложении — отменить её он бы не смог.
+      const now = localDateTime(this.now(), this.clinic.timeZone);
+      if (`${booking.date} ${booking.time}` > `${now.date} ${now.time}`)
+        throw new AdminError(
+          409,
+          "Отметить приём как состоявшийся можно после его начала.",
+        );
       if (!this.schedule.complete(id))
         throw new AdminError(
           409,

@@ -11,7 +11,7 @@
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline";
 import { createDemoBot, type Button, type Reply } from "@/bot";
-import { createLogger } from "@/bot/config";
+import { createLogger, medicalCipherFromEnv } from "@/bot/config";
 import { loadLocalEnv } from "@/bot/env";
 
 const arg = (name: string) =>
@@ -32,9 +32,15 @@ const openai =
         model: process.env.OPENAI_MODEL?.trim() || "gpt-5.6-luna",
       }
     : undefined;
+// Как у бота ВКонтакте (scripts/vk-bot.mts): с MEDICAL_DATA_KEY — обращения с
+// согласием и шифрование разговоров, с VK_MINIAPP_ID — меню «Открыть приложение».
+const cipher = medicalCipherFromEnv();
+const miniApp = Boolean(process.env.VK_MINIAPP_ID?.trim());
 const { bot, store } = createDemoBot({
   dbPath,
   openai,
+  cipher,
+  miniApp,
   log: createLogger("sim"),
 });
 
@@ -55,7 +61,8 @@ function print(replies: Reply[]) {
 
 const rl = createInterface({ input: stdin, output: stdout, terminal: false });
 console.log(
-  `Симулятор бота · собеседник ${peerId} · база ${dbPath} · ${openai ? `OpenAI ${openai.model}` : "правила"}`,
+  `Симулятор бота · собеседник ${peerId} · база ${dbPath} · ${openai ? `OpenAI ${openai.model}` : "правила"} · ` +
+    `обращения с согласием: ${cipher ? "да" : "нет (нет MEDICAL_DATA_KEY)"} · приложение: ${miniApp ? "да" : "нет"}`,
 );
 // Незавершённый диалог продолжается с того же шага (как после перезапуска бота).
 print(await bot.handle(peerId, { type: "resume" }));
