@@ -90,6 +90,172 @@
   display: none;
 }
 
+/*
+ * Публичный сайт — «тёмный лесной зелёный»: глубокий фон, плотные зелёные
+ * поверхности, мятный акцент. Включается элементом .theme-site в каркасе сайта
+ * (SiteChrome); админ-панель и Mini App остаются в своих темах.
+ * Контраст: основной текст ≥ 11:1, второстепенный ≥ 6:1, акцент ≥ 7:1.
+ */
+:root:has(.theme-site) {
+  --bg: #0b1513;
+  --surface: #172a21;
+  --surface-2: #1f3a2d;
+  --surface-soft: #10201a;
+  --border: rgb(240 247 242 / 0.08);
+  --border-strong: rgb(240 247 242 / 0.16);
+  --ink: #f0f7f2;
+  --muted: #a9bfb3;
+  --accent: #84ddb0;
+  --accent-hover: #9be7c0;
+  --accent-ink: #0b1513;
+  --accent-soft: #1b3a2c;
+  --demo-bg: #1a1c10;
+  --demo-ink: #e3cf94;
+  --success: #84ddb0;
+  --warning: #e3cf94;
+  --danger: #ff8f87;
+  --glass-fill: rgb(11 21 19 / 0.72);
+  --glass-sheen: rgb(240 247 242 / 0.05);
+  --glass-sheen-hover: rgb(240 247 242 / 0.1);
+  --glass-edge: rgb(240 247 242 / 0.1);
+  --glass-edge-hover: rgb(240 247 242 / 0.2);
+  --glass-highlight: rgb(240 247 242 / 0.08);
+  --glass-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.6);
+  --primary-top: #9be7c0;
+  --primary-bottom: #84ddb0;
+  /* Тени: мягкие и тёмные, без цветного свечения. */
+  --shadow-float:
+    0 1px 0 rgb(240 247 242 / 0.06) inset, 0 30px 60px -30px rgb(0 0 0 / 0.85),
+    0 12px 24px -16px rgb(0 0 0 / 0.6);
+}
+
+/* Одна мягкая подсветка сверху вместо двух цветных пятен общей темы. */
+:root:has(.theme-site) body::before {
+  background-image: radial-gradient(
+    55% 38% at 72% -6%,
+    rgb(132 221 176 / 0.09),
+    transparent 72%
+  );
+}
+
+/* Главная кнопка сайта — плотная мятная, без белого блика. */
+.theme-site .liquid-primary {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 10px 24px -14px rgb(132 221 176 / 0.55);
+}
+.theme-site .liquid-primary:hover {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 14px 30px -14px rgb(132 221 176 / 0.6);
+}
+
+/*
+ * Компоненты сайта — в слое components: утилиты Tailwind (например,
+ * border-accent/50 или rounded-r-none) могут их уточнять.
+ */
+@layer components {
+  /* Подпись над заголовком раздела: мятная точка и прописные буквы. */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--accent);
+    font-size: var(--text-caption);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background-color: currentColor;
+  }
+
+  /* Тонкая сетка первого экрана: растворяется к краям. */
+  .hero-grid {
+    background-image:
+      linear-gradient(rgb(240 247 242 / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(240 247 242 / 0.045) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(70% 60% at 60% 30%, #000 30%, transparent 75%);
+  }
+
+  /* Рамки экранов демо: телефон и окно браузера. */
+  .frame-phone {
+    padding: 0.5rem;
+    border-radius: 2.25rem;
+    background: linear-gradient(160deg, #22402f, #0d1a15 60%);
+    box-shadow:
+      inset 0 0 0 1px rgb(240 247 242 / 0.12),
+      var(--shadow-float, 0 24px 48px -24px rgb(0 0 0 / 0.8));
+  }
+  .frame-browser {
+    border-radius: 1.125rem;
+    background-color: var(--surface-soft, var(--surface));
+    box-shadow:
+      inset 0 0 0 1px rgb(240 247 242 / 0.1),
+      var(--shadow-float, 0 24px 48px -24px rgb(0 0 0 / 0.8));
+  }
+
+  /* Плотная поверхность раздела с тонкой светлой кромкой сверху. */
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-panel);
+    background-color: var(--surface-soft, var(--surface));
+    background-image: linear-gradient(
+      180deg,
+      rgb(240 247 242 / 0.035),
+      transparent 40%
+    );
+  }
+}
+
+/*
+ * Появление блоков при прокрутке. Скрываются только когда скрипт включил
+ * наблюдение (html.reveal-ready): без JS и при reduced-motion всё видно сразу.
+ */
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 700ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: calc(var(--reveal-i, 0) * 70ms);
+}
+.reveal-ready [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Первый экран: мягкий подъём вторичных элементов (заголовок не скрывается). */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+.rise-in {
+  animation: rise-in 800ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: var(--rise-delay, 0ms);
+}
+
+/* Аккордеон частых вопросов: значок поворачивается при открытии. */
+.faq-item[open] .faq-icon {
+  transform: rotate(45deg);
+}
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
 /* Пока открыта клавиатура (фокус в поле), нижнее меню Mini App скрыто. */
 :root:has(.theme-miniapp input:focus) .ma-bottom-nav {
   display: none;
@@ -424,6 +590,16 @@
 
   --container-page: 80rem;
   --container-prose: 68ch;
+
+  /* Крупная шкала сайта: первый экран, заголовки разделов, вводный текст. */
+  --text-hero: clamp(2.75rem, 1.6rem + 4vw, 4.625rem);
+  --text-hero--line-height: 1.02;
+  --text-hero--letter-spacing: -0.035em;
+  --text-section: clamp(2rem, 1.35rem + 2.5vw, 3.5rem);
+  --text-section--line-height: 1.06;
+  --text-section--letter-spacing: -0.03em;
+  --text-lead: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  --text-lead--line-height: 1.6;
 }
 
 @theme inline {
@@ -446,6 +622,8 @@
   /* Только для карты продукта (.theme-product-map). */
   --color-pm-bg: var(--pm-bg);
   --color-pm-gold: var(--pm-gold);
+  /* Только для сайта (.theme-site); вне его — обычная поверхность. */
+  --color-surface-soft: var(--surface-soft, var(--surface));
 }
 
 /* Регистрация свойства позволяет плавно менять блик при наведении. */

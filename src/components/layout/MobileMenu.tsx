@@ -90,11 +90,11 @@ export function MobileMenu() {
 
           <div className="border-border grid gap-3 border-t px-4 py-5 sm:px-6">
             <Link
-              href={headerActions.request.href}
+              href={headerActions.demo.href}
               onClick={close}
               className={buttonClasses({ size: "lg" })}
             >
-              {headerActions.request.label}
+              {headerActions.demo.label}
             </Link>
             <Link
               href={headerActions.consultant.href}

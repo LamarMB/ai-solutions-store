@@ -15,6 +15,8 @@ export const mainNav = [
 export const headerActions = {
   consultant: { href: "/consultant", label: "Подобрать с ИИ" },
   request: { href: "/request", label: "Оставить заявку" },
+  /** Раздел о демонстрации на главной; контакт подключается в config/demo.ts. */
+  demo: { href: "/#demo", label: "Запросить демонстрацию" },
 } as const satisfies Record<string, NavItem>;
 
 /** Группы ссылок подвала. */

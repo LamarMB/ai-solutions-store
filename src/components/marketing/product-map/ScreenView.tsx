@@ -86,9 +86,19 @@ function BrowserFrame({ children }: { children: ReactNode }) {
   );
 }
 
-function ChatView({ lines }: { lines: readonly ChatLine[] }) {
+/**
+ * Переписка с демо-ботом; переиспользуется на главной сайта. `className`
+ * заменяет высоту по умолчанию (cn() не сливает конфликтующие классы).
+ */
+export function ChatView({
+  lines,
+  className,
+}: {
+  lines: readonly ChatLine[];
+  className?: string;
+}) {
   return (
-    <div className="flex h-[30rem] flex-col">
+    <div className={cn("flex flex-col", className ?? "h-[30rem]")}>
       <div className="border-border flex items-center gap-2 border-b px-3 py-2.5">
         <span
           aria-hidden="true"

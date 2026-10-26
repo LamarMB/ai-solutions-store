@@ -28,8 +28,8 @@ export function SiteHeader() {
             </ButtonLink>
           </div>
           <div className="hidden sm:block">
-            <ButtonLink href={headerActions.request.href} size="sm">
-              {headerActions.request.label}
+            <ButtonLink href={headerActions.demo.href} size="sm">
+              {headerActions.demo.label}
             </ButtonLink>
           </div>
           <div className="lg:hidden">
