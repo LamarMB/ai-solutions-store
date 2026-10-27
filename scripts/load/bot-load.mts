@@ -70,8 +70,8 @@ const bot = createBot({
   sessions: store,
   interpreter: new RuleInterpreter(source),
   model,
-  consents: createConsentPort(store.consents, schedule),
-  requests: createRequestPort(store.requests),
+  consents: createConsentPort(store.consents, schedule, () => new Date()),
+  requests: createRequestPort(store.requests, () => new Date()),
   appAvailable: true,
   stats: store,
   // Виртуальные пациенты пишут чаще живых: лимит частоты не должен их отсекать.
