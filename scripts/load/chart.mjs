@@ -16,7 +16,8 @@ const args = Object.fromEntries(
 const runs = JSON.parse(readFileSync(args.in, "utf8"));
 const median = (xs) => {
   const s = [...xs].sort((a, b) => a - b);
-  return s[Math.floor((s.length - 1) / 2)];
+  const n = s.length;
+  return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
 };
 const levels = [...new Set(runs.map((r) => r.vus))].sort((a, b) => a - b);
 const series = ["p50", "p95", "p99"].map((key) => ({
