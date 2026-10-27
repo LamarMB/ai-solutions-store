@@ -46,6 +46,10 @@
   запуск `npm run bot:vk`, проверка настроек `npm run bot:check`, инструкция —
   `docs/vk-bot-run.md`. Бот отвечает только `VK_ALLOWED_USER_IDS`; повторные события
   отбрасываются по таблице `processed_events`, `random_id` детерминирован.
+- Параллельность (`docs/vk-bot-concurrency-report.md`): события разных пациентов —
+  одновременно (`KeyedQueue`, `BOT_CONCURRENCY`), одного — строго по порядку по `peer_id`;
+  позиция Long Poll сохраняется только после полной обработки пачки; VK API — не выше
+  `VK_API_RPS` (лимит ключа сообщества — 20/с). Один процесс бота на сообщество.
 - LLM — `OpenAiConversationModel` (`src/bot/llm/`, Responses API через `fetch`, без SDK,
   Structured Outputs). Модель возвращает действие из `MODEL_ACTIONS` и короткий ответ;
   решение проверяется `sanitizeDecision` (id врачей, даты, текст). Подтверждения и отмены

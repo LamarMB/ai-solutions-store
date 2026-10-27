@@ -96,6 +96,11 @@
   (руководители сообщества, версия согласия 2), тесты `src/bot/privacy-notice.test.ts`.
   Кто что видит — [medical-privacy.md](medical-privacy.md), раздел 1. Без PR и merge.
 
+- `claude/bot-concurrency` (от `claude/load-test`) — параллельная обработка сообщений
+  VK-бота с порядком по пациенту, лимиты VK/OpenAI, сохранение позиции Long Poll;
+  замеры до/после — [vk-bot-concurrency-report.md](vk-bot-concurrency-report.md). Без PR и
+  merge; на сервере не проверялось.
+
 ## Следующие шаги
 
 1. Решение владельца об обновлении VPS по `bot-menu-requests-deploy.md` (включает этап 2
