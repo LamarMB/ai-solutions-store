@@ -115,3 +115,30 @@ describe("клавиатура ВКонтакте", () => {
     expect(capabilitiesFrom(undefined)).toEqual(FULL_CAPABILITIES);
   });
 });
+
+describe("VkApi: ограничение частоты", () => {
+  it("каждая попытка, включая повтор после «слишком много запросов», проходит через лимит", async () => {
+    const takes: number[] = [];
+    const gate = { take: vi.fn(async () => void takes.push(takes.length)) };
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: { error_code: 6, error_msg: "Too many requests per second" },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ response: 1 })));
+    const api = new VkApi({
+      token: TOKEN,
+      version: "5.199",
+      fetch: fetch as typeof globalThis.fetch,
+      sleep: async () => {},
+      gate: gate as never,
+    });
+    await expect(api.call("messages.send", { peer_id: 1 })).resolves.toBe(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(gate.take).toHaveBeenCalledTimes(2);
+  });
+});

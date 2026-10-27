@@ -21,6 +21,21 @@ export type LongPollOptions = {
   maxBackoffMs?: number;
   /** Вызывается после каждого успешного ответа сервера — для отметки «бот на связи». */
   onPoll?: () => void;
+  /**
+   * Параллельная обработка: событие передаётся в очередь и не ждёт
+   * предыдущих (порядок одного пациента обеспечивает очередь). Промис —
+   * завершение обработки. Без dispatch — строго по одному через onUpdate.
+   */
+  dispatch?: (update: VkUpdate) => Promise<void>;
+  /** Обратное давление: следующий запрос событий — когда в очереди есть место. */
+  waitForCapacity?: (signal: AbortSignal) => Promise<void>;
+  /** ts, с которого продолжить после перезапуска (сохранённый onCommit). */
+  initialTs?: string;
+  /**
+   * ts, до которого все события обработаны полностью, — его можно сохранить:
+   * после перезапуска необработанные события придут снова.
+   */
+  onCommit?: (ts: string) => void;
 };
 
 /**
@@ -40,8 +55,16 @@ export async function runLongPoll(
   const wait = options.waitSeconds ?? 25;
   const maxBackoff = options.maxBackoffMs ?? 60_000;
   let server: Server | undefined;
-  let ts: string | undefined;
+  let ts: string | undefined = options.initialTs;
   let backoff = 1000;
+  // Пачки в обработке: ts фиксируется, когда пачка и все предыдущие завершены.
+  const batches: { ts: string; pending: number }[] = [];
+  const commit = () => {
+    let last: string | undefined;
+    while (batches.length > 0 && batches[0].pending === 0)
+      last = batches.shift()!.ts;
+    if (last !== undefined) options.onCommit?.(last);
+  };
 
   while (!signal.aborted) {
     try {
@@ -85,12 +108,35 @@ export async function runLongPoll(
       }
       backoff = 1000;
       options.onPoll?.();
+      if (options.dispatch) {
+        const updates = body.updates ?? [];
+        const batch = {
+          ts: body.ts !== undefined ? String(body.ts) : ts!,
+          pending: updates.length,
+        };
+        batches.push(batch);
+        for (const update of updates) {
+          void options.dispatch(update).finally(() => {
+            batch.pending -= 1;
+            commit();
+          });
+        }
+        commit();
+        // Следующая пачка запрашивается сразу; сохраняется только ts
+        // полностью обработанных пачек (onCommit).
+        ts = batch.ts;
+        await options.waitForCapacity?.(signal);
+        continue;
+      }
       for (const update of body.updates ?? []) {
         if (signal.aborted) break;
         await options.onUpdate(update);
       }
       // ts сдвигается только после обработки: при падении события придут снова.
-      if (body.ts !== undefined) ts = String(body.ts);
+      if (body.ts !== undefined) {
+        ts = String(body.ts);
+        options.onCommit?.(ts);
+      }
     } catch (error) {
       if (signal.aborted) break;
       if (error instanceof VkApiError && FATAL_VK_CODES.has(error.code)) {

@@ -1,3 +1,5 @@
+import type { RateGate } from "@/bot/concurrency";
+
 /** Ошибка VK API с кодом. Сообщение — от ВКонтакте, без параметров запроса. */
 export class VkApiError extends Error {
   constructor(
@@ -16,6 +18,8 @@ const RETRY_VK_CODES = new Set([6, 10]);
 
 export type VkApiOptions = {
   token: string;
+  /** Ограничение частоты вызовов (лимит VK API для ключа сообщества). */
+  gate?: RateGate;
   version: string;
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
@@ -47,6 +51,7 @@ export class VkApi {
     const retries = this.options.retries ?? 3;
     for (let attempt = 0; ; attempt++) {
       try {
+        await this.options.gate?.take();
         return await this.once<T>(method, params);
       } catch (error) {
         // Сетевые сбои и временные ошибки ВКонтакте повторяем, остальные — нет.

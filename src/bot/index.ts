@@ -35,7 +35,16 @@ export function createDemoBot({
   clinic?: ClinicSource;
   now?: () => Date;
   /** Без ключа — только правила: бот работает по кнопкам и ключевым словам. */
-  openai?: { apiKey: string; model: string; dailyLimit?: number };
+  openai?: {
+    apiKey: string;
+    model: string;
+    dailyLimit?: number;
+    /** Одновременных запросов к OpenAI (OPENAI_CONCURRENCY). */
+    concurrency?: number;
+    /** Только для локальных тестов: адрес и fetch заглушки вместо OpenAI. */
+    baseUrl?: string;
+    fetch?: typeof fetch;
+  };
   notifier?: AdminNotifier;
   handoffHours?: number;
   /** Срок хранения разговора без активности, часов. */
@@ -64,6 +73,9 @@ export function createDemoBot({
           apiKey: openai.apiKey,
           model: openai.model,
           dailyLimit: openai.dailyLimit,
+          maxConcurrent: openai.concurrency,
+          baseUrl: openai.baseUrl,
+          fetch: openai.fetch,
           now,
           onError: log,
         }),

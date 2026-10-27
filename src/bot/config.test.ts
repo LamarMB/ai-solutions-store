@@ -35,8 +35,41 @@ describe("настройки бота", () => {
       apiKey: KEY,
       model: "gpt-5.6-luna",
       dailyLimit: 100,
+      concurrency: 4,
     });
     expect(result.ok && result.config.vk.adminUserId).toBe(555);
+  });
+
+  it("параллельная обработка: значения по умолчанию и пределы", () => {
+    const defaults = loadBotConfig(base);
+    expect(defaults.ok && defaults.config.queue).toEqual({
+      concurrency: 8,
+      limit: 500,
+      vkPerSecond: 15,
+    });
+    const custom = loadBotConfig({
+      ...base,
+      BOT_CONCURRENCY: "1",
+      BOT_QUEUE_LIMIT: "100",
+      VK_API_RPS: "20",
+    });
+    expect(custom.ok && custom.config.queue).toEqual({
+      concurrency: 1,
+      limit: 100,
+      vkPerSecond: 20,
+    });
+    // Выше лимита VK API (20 в секунду) и без параллельности нельзя.
+    const wrong = loadBotConfig({
+      ...base,
+      BOT_CONCURRENCY: "0",
+      VK_API_RPS: "50",
+    });
+    expect(wrong.ok).toBe(false);
+    if (wrong.ok) return;
+    expect(wrong.errors.map((e) => e.split(":")[0]).sort()).toEqual([
+      "BOT_CONCURRENCY",
+      "VK_API_RPS",
+    ]);
   });
 
   it("пустые строки из .env считаются незаданными", () => {

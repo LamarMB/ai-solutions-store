@@ -49,6 +49,14 @@ const BotEnvSchema = z.object({
   ),
   OPENAI_MODEL: z.string().trim().min(1).default("gpt-5.6-luna"),
   OPENAI_DAILY_REQUEST_LIMIT: z.coerce.number().int().positive().default(500),
+  /** Одновременных запросов к OpenAI; сверх — ожидание, затем ответ по правилам. */
+  OPENAI_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+  /** Пациентов, чьи сообщения обрабатываются одновременно (1 — строго по одному). */
+  BOT_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(8),
+  /** Событий в очереди; при заполнении бот не забирает новые события из ВКонтакте. */
+  BOT_QUEUE_LIMIT: z.coerce.number().int().min(10).max(10_000).default(500),
+  /** Запросов к VK API в секунду (лимит ключа сообщества — 20). */
+  VK_API_RPS: z.coerce.number().int().min(1).max(20).default(15),
   BOT_DB_PATH: z.string().default(".data/bot.sqlite"),
   BOT_HANDOFF_HOURS: z.coerce.number().positive().max(72).default(12),
   BOT_HISTORY_HOURS: z.coerce.number().positive().max(168).default(24),
@@ -92,7 +100,15 @@ export type BotConfig = {
     /** ID VK Mini App клиники для кнопки open_app. */
     miniAppId?: number;
   };
-  openai?: { apiKey: string; model: string; dailyLimit: number };
+  openai?: {
+    apiKey: string;
+    model: string;
+    dailyLimit: number;
+    /** Одновременных запросов к OpenAI. */
+    concurrency: number;
+  };
+  /** Параллельная обработка событий ВКонтакте. */
+  queue: { concurrency: number; limit: number; vkPerSecond: number };
   dbPath: string;
   handoffHours: number;
   /** Срок хранения разговора без активности, часов. */
@@ -138,8 +154,14 @@ export function loadBotConfig(
             apiKey: e.OPENAI_API_KEY as string,
             model: e.OPENAI_MODEL,
             dailyLimit: e.OPENAI_DAILY_REQUEST_LIMIT,
+            concurrency: e.OPENAI_CONCURRENCY,
           }
         : undefined,
+      queue: {
+        concurrency: e.BOT_CONCURRENCY,
+        limit: e.BOT_QUEUE_LIMIT,
+        vkPerSecond: e.VK_API_RPS,
+      },
       dbPath: e.BOT_DB_PATH,
       handoffHours: e.BOT_HANDOFF_HOURS,
       historyHours: e.BOT_HISTORY_HOURS,

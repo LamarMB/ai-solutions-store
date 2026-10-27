@@ -272,3 +272,64 @@ describe("OpenAI: разговорная модель", () => {
     expect(await model.decide(input())).toBeUndefined();
   });
 });
+
+describe("OpenAI: параллельные запросы", () => {
+  it("не больше OPENAI_CONCURRENCY одновременно; не дождались места — ответ по правилам", async () => {
+    let active = 0;
+    let peak = 0;
+    const releases: (() => void)[] = [];
+    const fetchMock = vi.fn(async () => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise<void>((r) => releases.push(r));
+      active--;
+      return apiResponse(decision());
+    });
+    const { model, errors } = setup(fetchMock as unknown as typeof fetch, {
+      maxConcurrent: 2,
+      queueWaitMs: 30,
+    });
+    const calls = [1, 2, 3].map((peerId) =>
+      model.decide({ ...input(), peerId }),
+    );
+    // Третий не дождался места за 30 мс — сразу undefined (бот ответит по правилам).
+    expect(await calls[2]).toBeUndefined();
+    expect(errors).toContain("openai busy: answered by rules");
+    for (const release of releases) release();
+    expect(await calls[0]).toBeDefined();
+    expect(await calls[1]).toBeDefined();
+    expect(peak).toBe(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("429 и 5xx — один повтор с паузой; 400 — без повтора", async () => {
+    const slept: number[] = [];
+    const statuses = [429, 200];
+    const retrying = vi.fn(async () => {
+      const status = statuses.shift()!;
+      return status === 200
+        ? apiResponse(decision())
+        : new Response(JSON.stringify({ error: { code: "rate_limit" } }), {
+            status,
+          });
+    });
+    const first = setup(retrying as unknown as typeof fetch, {
+      sleep: async (ms: number) => void slept.push(ms),
+    });
+    expect(await first.model.decide(input())).toBeDefined();
+    expect(retrying).toHaveBeenCalledTimes(2);
+    expect(slept).toEqual([500]);
+
+    const bad = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: { code: "invalid_request" } }), {
+          status: 400,
+        }),
+    );
+    const second = setup(bad as unknown as typeof fetch, {
+      sleep: async () => {},
+    });
+    expect(await second.model.decide(input())).toBeUndefined();
+    expect(bad).toHaveBeenCalledTimes(1);
+  });
+});

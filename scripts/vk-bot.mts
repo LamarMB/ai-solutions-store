@@ -6,10 +6,11 @@
  * Настройки — в .env.local (образец — .env.example). Остановка — Ctrl+C.
  */
 import { createDemoBot } from "@/bot";
+import { KeyedQueue, RateGate } from "@/bot/concurrency";
 import { createLogger, loadBotConfig } from "@/bot/config";
 import { VkApi } from "@/bot/vk/api";
 import { runLongPoll } from "@/bot/vk/longpoll";
-import { createVkRunner, VkAdminNotifier } from "@/bot/vk/runner";
+import { createVkRunner, peerOf, VkAdminNotifier } from "@/bot/vk/runner";
 import { loadLocalEnv } from "@/bot/env";
 
 const log = createLogger("vk-bot");
@@ -26,6 +27,8 @@ const { config } = result;
 const api = new VkApi({
   token: config.vk.token,
   version: config.vk.apiVersion,
+  // Все вызовы VK API (ответы, уведомления, Long Poll) — в пределах лимита сообщества.
+  gate: new RateGate(config.queue.vkPerSecond),
 });
 const notifier = config.vk.adminUserId
   ? new VkAdminNotifier(api, config.vk.groupId, config.vk.adminUserId)
@@ -73,10 +76,23 @@ const prune = () => {
 prune();
 const pruneTimer = setInterval(prune, 3_600_000);
 
+// Сообщения разных пациентов — параллельно, одного — строго по порядку.
+const queue = new KeyedQueue<number>({
+  concurrency: config.queue.concurrency,
+  limit: config.queue.limit,
+  onError: (error) =>
+    log(`обработка события: ${error instanceof Error ? error.name : "error"}`),
+});
+/** Сколько ждать завершения очереди при остановке (systemd ждёт 90 с). */
+const DRAIN_MS = 30_000;
+// Позиция Long Poll, до которой события обработаны полностью: после
+// перезапуска бот продолжит с неё и получит необработанные события снова.
+const savedTs = store.getBotStatus().longpoll_ts?.value;
+
 const controller = new AbortController();
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
-    log("остановка…");
+    log("остановка: новые события не принимаются, завершаю очередь…");
     controller.abort();
   });
 }
@@ -89,7 +105,9 @@ log(
     `шифрование и передача врачу: ${config.cipher ? "включены" : "выключены (нет MEDICAL_DATA_KEY)"}, ` +
     `вопросы о симптомах: ${config.medicalQuestions ? "да" : "нет"}, ` +
     `кнопка «Открыть приложение»: ${config.vk.miniAppId ? "да" : "нет (запись через бота)"}, ` +
-    `обращения с согласием: ${config.cipher ? "да" : "нет (нет MEDICAL_DATA_KEY)"}`,
+    `обращения с согласием: ${config.cipher ? "да" : "нет (нет MEDICAL_DATA_KEY)"}, ` +
+    `параллельно пациентов: ${config.queue.concurrency}, очередь до ${config.queue.limit}, ` +
+    `VK API до ${config.queue.vkPerSecond}/с${config.openai ? `, OpenAI одновременно до ${config.openai.concurrency}` : ""}`,
 );
 
 try {
@@ -103,6 +121,12 @@ try {
       api,
       groupId: config.vk.groupId,
       onUpdate: runner.onUpdate,
+      dispatch: (update) =>
+        queue.push(peerOf(update), () => runner.onUpdate(update)),
+      waitForCapacity: (signal) => queue.waitForCapacity(signal),
+      initialTs: savedTs,
+      onCommit: (ts) =>
+        store.setBotStatus("longpoll_ts", ts, new Date().toISOString()),
       log,
       // Отметка для админ-панели: бот получает события ВКонтакте.
       onPoll: () =>
@@ -121,6 +145,13 @@ try {
   );
   process.exitCode = 1;
 } finally {
+  // Штатная остановка: доделываем принятые события, чтобы не потерять ответы.
+  const drained = await queue.drain(DRAIN_MS);
+  if (!drained)
+    log(
+      `за ${DRAIN_MS / 1000} с не завершены: выполнялось ${queue.running} (могут остаться без ответа), ` +
+        `ждало ${queue.queued} (придут снова после запуска — позиция Long Poll сохранена до них)`,
+    );
   store.setBotStatus(
     "stopped_at",
     new Date().toISOString(),

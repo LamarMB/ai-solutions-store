@@ -1,3 +1,4 @@
+import { Semaphore } from "@/bot/concurrency";
 import { z } from "zod";
 
 export type OpenAiClientOptions = {
@@ -15,7 +16,27 @@ export type OpenAiClientOptions = {
   cooldownMs?: number;
   /** Сообщения об ошибках без текста пациента и без ключа. */
   onError?: (message: string) => void;
+  /** Одновременных запросов (по умолчанию 4); остальные ждут. */
+  maxConcurrent?: number;
+  /** Сколько ждать свободного места; не дождались — ответ по правилам. */
+  queueWaitMs?: number;
+  /** Повторов при 429 и 5xx (по умолчанию 1) с паузой 0,5 с × 2^попытка. */
+  retries?: number;
+  sleep?: (ms: number) => Promise<void>;
 };
+
+/** HTTP-ошибка OpenAI: 429 и 5xx можно повторить. */
+class OpenAiHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+  get retryable(): boolean {
+    return this.status === 429 || this.status >= 500;
+  }
+}
 
 /**
  * Рассуждающие модели (gpt-5…, o…) по умолчанию думают долго и дорого —
@@ -66,10 +87,15 @@ export class OpenAiClient {
   private day = "";
   private dayCount = 0;
   private readonly peerCalls = new Map<number, number[]>();
+  private readonly slots: Semaphore;
+  private readonly sleep: (ms: number) => Promise<void>;
 
   constructor(readonly options: OpenAiClientOptions) {
     this.fetch = options.fetch ?? globalThis.fetch;
     this.now = options.now ?? (() => new Date());
+    this.slots = new Semaphore(options.maxConcurrent ?? 4);
+    this.sleep =
+      options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   }
 
   get model(): string {
@@ -80,9 +106,16 @@ export class OpenAiClient {
     peerId: number,
     request: StructuredRequest,
   ): Promise<unknown | undefined> {
-    if (!this.allowCall(peerId)) return undefined;
+    if (this.now().getTime() < this.failedUntil) return undefined;
+    // Все места заняты дольше queueWaitMs — не держим пациента: отвечают правила.
+    const release = await this.slots.acquire(this.options.queueWaitMs ?? 3000);
+    if (!release) {
+      this.options.onError?.("openai busy: answered by rules");
+      return undefined;
+    }
     try {
-      return await this.send(request);
+      if (!this.allowCall(peerId)) return undefined;
+      return await this.sendWithRetry(request);
     } catch (error) {
       this.failedUntil =
         this.now().getTime() + (this.options.cooldownMs ?? 60_000);
@@ -90,6 +123,25 @@ export class OpenAiClient {
         `openai request failed: ${error instanceof Error ? error.message : "unknown"}`,
       );
       return undefined;
+    } finally {
+      release();
+    }
+  }
+
+  private async sendWithRetry(request: StructuredRequest): Promise<unknown> {
+    const retries = this.options.retries ?? 1;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.send(request);
+      } catch (error) {
+        if (
+          !(error instanceof OpenAiHttpError) ||
+          !error.retryable ||
+          attempt >= retries
+        )
+          throw error;
+        await this.sleep(500 * 2 ** attempt);
+      }
     }
   }
 
@@ -146,7 +198,8 @@ export class OpenAiClient {
       const error = (await response.json().catch(() => undefined)) as
         { error?: { code?: unknown } } | undefined;
       const code = error?.error?.code;
-      throw new Error(
+      throw new OpenAiHttpError(
+        response.status,
         `http ${response.status}${typeof code === "string" ? ` (${code.slice(0, 60)})` : ""}`,
       );
     }

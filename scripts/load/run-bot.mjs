@@ -1,9 +1,11 @@
 /**
  * Серия нагрузочных прогонов VK-бота (bot-load.mts) на свежих копиях
- * ЛОКАЛЬНОЙ тестовой базы. Процесс бота — на ядрах SERVER_CPUS.
+ * ЛОКАЛЬНОЙ тестовой базы: «до» (последовательно) и «после» (параллельно).
+ * Процесс бота — на ядрах --cpus.
  *
  *   node scripts/load/run-bot.mjs --template=…/template.sqlite --out=dir \
- *     --levels=10,25,50 --model-ms=0,1500 --repeats=1 --duration=60
+ *     --levels=10,25,50 --modes=sequential,parallel --model=none --duration=60 \
+ *     [--extra="--vk-rps=15 --concurrency=8"]
  *
  * Задержки заглушек VK и модели — допущения, а не замеры внешних сервисов.
  */
@@ -26,23 +28,28 @@ const args = Object.fromEntries(
 const OUT = args.out ?? ".data/load-bot";
 const TEMPLATE = args.template;
 const LEVELS = (args.levels ?? "10,25,50,100,200,500").split(",").map(Number);
-const MODELS = (args["model-ms"] ?? "0").split(",").map(Number);
-const MAX_FOR_MODEL = Number(args["model-max-patients"] ?? 50);
+const MODES = (args.modes ?? "sequential,parallel").split(",");
+const MODEL = args.model ?? "none";
+const MODEL_MS = args["model-ms"] ?? "1500";
 const REPEATS = Number(args.repeats ?? 1);
-const CPUS = args["server-cpus"] ?? "0,1";
+const CPUS = args.cpus ?? "0,1";
+const EXTRA = (args.extra ?? "").split(" ").filter(Boolean);
+const PARALLEL_EXTRA = (args["parallel-extra"] ?? "--vk-rps=15")
+  .split(" ")
+  .filter(Boolean);
+const TAG = args.tag ?? MODEL;
 mkdirSync(OUT, { recursive: true });
 
 const results = [];
-for (const modelMs of MODELS) {
-  for (const patients of LEVELS) {
-    // С медленной моделью очередь растёт уже на малых уровнях — выше не нужно.
-    if (modelMs > 0 && patients > MAX_FOR_MODEL) continue;
+for (const patients of LEVELS) {
+  for (const mode of MODES) {
     for (let rep = 1; rep <= REPEATS; rep++) {
-      const db = join(OUT, `bot-${modelMs}-${patients}-${rep}.sqlite`);
+      const name = `${TAG}-${mode}-${patients}-${rep}`;
+      const db = join(OUT, `${name}.sqlite`);
       for (const f of [db, `${db}-wal`, `${db}-shm`])
         rmSync(f, { force: true });
       copyFileSync(TEMPLATE, db);
-      const file = join(OUT, `bot-${modelMs}-${patients}-${rep}.json`);
+      const file = join(OUT, `${name}.json`);
       const line = execFileSync(
         "taskset",
         [
@@ -53,18 +60,32 @@ for (const modelMs of MODELS) {
           "scripts/load/bot-load.mts",
           `--db=${db}`,
           `--patients=${patients}`,
+          `--mode=${mode}`,
+          `--model=${MODEL}`,
+          `--model-ms=${MODEL === "client" ? MODEL_MS : 0}`,
           `--warmup=${args.warmup ?? 10}`,
           `--duration=${args.duration ?? 60}`,
           `--think=${args.think ?? "3000-10000"}`,
-          `--model-ms=${modelMs}`,
           `--vk-ms=${args["vk-ms"] ?? 100}`,
+          ...(mode === "parallel" ? PARALLEL_EXTRA : []),
+          ...EXTRA,
           `--out=${file}`,
         ],
         { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
       );
       console.log(line.trim());
-      results.push({ rep, ...JSON.parse(readFileSync(file, "utf8")) });
+      results.push({
+        name,
+        rep,
+        ...JSON.parse(readFileSync(file, "utf8")),
+      });
+      rmSync(db, { force: true });
+      rmSync(`${db}-wal`, { force: true });
+      rmSync(`${db}-shm`, { force: true });
     }
   }
 }
-writeFileSync(join(OUT, "summary.json"), JSON.stringify(results, null, 1));
+writeFileSync(
+  join(OUT, `summary-${TAG}.json`),
+  JSON.stringify(results, null, 1),
+);

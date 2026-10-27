@@ -60,6 +60,18 @@ export function eventKey(update: VkUpdate): string | undefined {
   return undefined;
 }
 
+/**
+ * Пациент (peer_id), к которому относится событие, — ключ очереди: события
+ * одного пациента обрабатываются строго по порядку. 0 — событие без пациента.
+ */
+export function peerOf(update: VkUpdate): number {
+  const object = update.object ?? {};
+  const message = object.message as { peer_id?: unknown } | undefined;
+  const peer =
+    update.type === "message_new" ? message?.peer_id : object.peer_id;
+  return typeof peer === "number" && Number.isFinite(peer) ? peer : 0;
+}
+
 function splitText(text: string): string[] {
   if (text.length <= MESSAGE_LIMIT) return [text];
   const parts: string[] = [];

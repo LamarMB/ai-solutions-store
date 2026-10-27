@@ -173,3 +173,111 @@ describe("Bots Long Poll", () => {
     expect(tsSeen).toEqual(["10", "10", "11"]);
   });
 });
+
+describe("Bots Long Poll: параллельная обработка", () => {
+  /** Сервер с заданными ответами; события завершает сам тест. */
+  function parallel(
+    steps: unknown[],
+    options: { initialTs?: string; capacity?: () => Promise<void> } = {},
+  ) {
+    const controller = new AbortController();
+    const polled: (string | null)[] = [];
+    const pending = new Map<string, () => void>();
+    const committed: string[] = [];
+    let capacityChecks = 0;
+    const run = runLongPoll(
+      {
+        api: { call: async () => server("k", "10") } as unknown as VkApi,
+        groupId: 1,
+        fetch: (async (url: string) => {
+          polled.push(new URL(url).searchParams.get("ts"));
+          const step = steps.shift();
+          if (!step) {
+            // Ждём остановки: как сервер, который держит запрос без событий.
+            await new Promise((r) =>
+              controller.signal.addEventListener("abort", r, { once: true }),
+            );
+            throw new DOMException("aborted", "AbortError");
+          }
+          return new Response(JSON.stringify(step));
+        }) as typeof fetch,
+        sleep: async () => {},
+        onUpdate: async () => {
+          throw new Error("в параллельном режиме не используется");
+        },
+        dispatch: (u) =>
+          new Promise<void>((done) => pending.set(u.event_id!, done)),
+        waitForCapacity: async () => {
+          capacityChecks++;
+          await options.capacity?.();
+        },
+        initialTs: options.initialTs,
+        onCommit: (ts) => committed.push(ts),
+      },
+      controller.signal,
+    );
+    return {
+      run,
+      polled,
+      pending,
+      committed,
+      stop: () => controller.abort(),
+      capacityChecks: () => capacityChecks,
+    };
+  }
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+
+  it("следующая пачка запрашивается, не дожидаясь обработки; ts фиксируется по порядку пачек", async () => {
+    const t = parallel([
+      { ts: "11", updates: [update("a"), update("b")] },
+      { ts: "12", updates: [update("c")] },
+    ]);
+    await tick();
+    // Обе пачки получены, хотя ни одно событие ещё не обработано.
+    expect(t.polled).toEqual(["10", "11", "12"]);
+    expect([...t.pending.keys()]).toEqual(["a", "b", "c"]);
+    expect(t.committed).toEqual([]);
+    // Вторая пачка готова раньше первой — фиксировать её ts ещё нельзя.
+    t.pending.get("c")!();
+    await tick();
+    expect(t.committed).toEqual([]);
+    t.pending.get("a")!();
+    await tick();
+    expect(t.committed).toEqual([]);
+    t.pending.get("b")!();
+    await tick();
+    expect(t.committed).toEqual(["12"]);
+    expect(t.capacityChecks()).toBe(2);
+    t.stop();
+    await t.run;
+  });
+
+  it("после перезапуска продолжает с сохранённого ts", async () => {
+    const t = parallel([{ ts: "8", updates: [] }], { initialTs: "7" });
+    await tick();
+    expect(t.polled[0]).toBe("7");
+    expect(t.committed).toEqual(["8"]);
+    t.stop();
+    await t.run;
+  });
+
+  it("очередь заполнена — новые события не запрашиваются, пока нет места", async () => {
+    let free!: () => void;
+    const room = new Promise<void>((r) => (free = r));
+    const t = parallel(
+      [
+        { ts: "11", updates: [update("a")] },
+        { ts: "12", updates: [] },
+      ],
+      { capacity: () => room },
+    );
+    await tick();
+    expect(t.polled).toEqual(["10"]);
+    free();
+    await tick();
+    expect(t.polled).toEqual(["10", "11", "12"]);
+    t.pending.get("a")!();
+    t.stop();
+    await t.run;
+  });
+});
