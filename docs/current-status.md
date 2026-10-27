@@ -101,6 +101,10 @@
   замеры до/после — [vk-bot-concurrency-report.md](vk-bot-concurrency-report.md). Без PR и
   merge; на сервере не проверялось.
 
+- `claude/scaling-plan` (от `claude/bot-concurrency`) — отчёт нагрузочного тестирования
+  ([load-test-report.md](load-test-report.md)) и план масштабирования на 5–100 клиник
+  ([scaling-plan.md](scaling-plan.md)). Только документы; ничего не развёрнуто.
+
 ## Следующие шаги
 
 1. Решение владельца об обновлении VPS по `bot-menu-requests-deploy.md` (включает этап 2
