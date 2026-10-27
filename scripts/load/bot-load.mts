@@ -81,11 +81,9 @@ const bot = createBot({
 // --- Заглушка VK API: messages.send с задержкой, ответ — пациенту ---------
 type Waiter = (labels: { label: string; payload?: string }[]) => void;
 const waiting = new Map<number, Waiter>();
-let sends = 0;
 const fakeFetch = (async (_url: string, init?: RequestInit) => {
   const body = new URLSearchParams(String(init?.body ?? ""));
   await sleep(VK_MS);
-  sends++;
   const peer = Number(body.get("peer_id"));
   const keyboard = body.get("keyboard");
   const labels: { label: string; payload?: string }[] = [];
