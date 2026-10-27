@@ -6,7 +6,11 @@ import {
   RATE_LIMIT_TEXT,
   TOO_LONG_TEXT,
 } from "@/bot/conversation/guard";
-import { parseSession } from "@/bot/conversation/memory";
+import {
+  newSession,
+  parseSession,
+  serializeSession,
+} from "@/bot/conversation/memory";
 import {
   sanitizeDecision,
   type ConversationInput,
@@ -79,6 +83,8 @@ const clinicModel = () =>
 function setup(model?: ConversationModel) {
   let now = START;
   const store = new SqliteStore(":memory:");
+  // Разговор уже начат: предупреждение первого ответа проверяет privacy-notice.test.ts.
+  store.save(PEER, serializeSession(newSession()), START.toISOString());
   const schedule = new ClinicSchedule(fictionalClinic, store, () => now);
   const bot = createBot({
     clinic: fictionalClinic,

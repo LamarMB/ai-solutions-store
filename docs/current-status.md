@@ -91,6 +91,11 @@
   «Приём состоялся» до начала приёма, `bot:sim` как бот ВКонтакте. Отчёт и сценарий
   показа — [demo-readiness.md](demo-readiness.md). Без PR и merge.
 
+- `claude/privacy-notice` (от `claude/demo-audit`) — предупреждение о видимости переписки
+  в первом ответе каждого нового разговора, уточнённые тексты передачи обращения
+  (руководители сообщества, версия согласия 2), тесты `src/bot/privacy-notice.test.ts`.
+  Кто что видит — [medical-privacy.md](medical-privacy.md), раздел 1. Без PR и merge.
+
 ## Следующие шаги
 
 1. Решение владельца об обновлении VPS по `bot-menu-requests-deploy.md` (включает этап 2

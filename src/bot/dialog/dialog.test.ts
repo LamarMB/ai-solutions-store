@@ -485,6 +485,7 @@ describe("понимание текста: подсказки проверяют
     const { bot } = withInterpreter(
       fixed({ intent: "question", answer: "Да, есть парковка. ".repeat(100) }),
     );
+    await send(bot, 1, { type: "start" }); // разговор уже начат — без предупреждения
     const r = await send(bot, 1, { type: "text", text: "Есть парковка?" });
     expect(r[0].text.length).toBeLessThan(ANSWER_MAX + 100);
     expect(buttons(r).length).toBeGreaterThan(0);

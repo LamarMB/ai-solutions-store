@@ -190,6 +190,9 @@ describe("карта продукта: реплики бота совпадаю�
     });
     const out: ChatLine[] = [];
     let buttons: Button[] = [];
+    // Переписка — фрагмент начатого разговора (во ВКонтакте — после «Начать»):
+    // предупреждение о видимости переписки уже показано в приветствии.
+    await bot.handle(1, { type: "start" });
     const push = (replies: Awaited<ReturnType<typeof bot.handle>>) => {
       for (const r of replies) {
         buttons = r.buttons.flat();

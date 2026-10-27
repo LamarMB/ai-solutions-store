@@ -234,7 +234,7 @@ describe("живая демонстрация: 12 сценариев на одн
     const first = await t.bot.handle(ANNA, { type: "start" });
     expect(text(first)).toMatch(/Я помощник клиники/);
     expect(text(first)).toMatch(/Диагнозы не ставлю/);
-    expect(text(first)).toMatch(/могут читать администраторы сообщества/);
+    expect(text(first)).toMatch(/могут читать руководители сообщества/);
     const price = await t.say("Сколько стоит приём терапевта?");
     expect(text(price)).toMatch(/Приём терапевта — 2 000 ₽/);
     expect(labels(price)).toEqual([
@@ -406,7 +406,7 @@ describe("живая демонстрация: 12 сценариев на одн
         .requests,
     ).toHaveLength(0);
     r = await t.press(r, "Разрешаю передачу");
-    expect(text(r)).toMatch(/Передал администратору клиники обращение №1/);
+    expect(text(r)).toMatch(/Передал в панель клиники обращение №1/);
     expect(t.notices).toEqual([{ peerId: ANNA, requestId: 1 }]);
     const content = await admin("GET", "requests/1/content");
     expect(content.json.data).toMatchObject({

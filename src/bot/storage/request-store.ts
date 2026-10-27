@@ -6,7 +6,8 @@ import type { MedicalCipher } from "@/bot/storage/medical-crypto";
  * Версия текста согласия на передачу обращения администратору. Меняется, если
  * меняется формулировка, которую видит пациент (dialog.ts, requestPreview).
  */
-export const REQUEST_CONSENT_VERSION = 1;
+// 2 — уточнено, что руководители сообщества ВКонтакте видят переписку и без согласия.
+export const REQUEST_CONSENT_VERSION = 2;
 /** Сколько хранится обращение; после отметки «обработано» — не дольше 7 дней. */
 export const REQUEST_TTL_DAYS = 30;
 export const REQUEST_DONE_TTL_DAYS = 7;

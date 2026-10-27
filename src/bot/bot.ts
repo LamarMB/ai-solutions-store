@@ -12,6 +12,7 @@ import {
 } from "@/bot/conversation/guard";
 import type { ConversationModel } from "@/bot/conversation/model";
 import { handleTurn, REVOKE_RE } from "@/bot/conversation/orchestrator";
+import { mentionsVisibility, PRIVACY_NOTICE } from "@/bot/dialog/dialog";
 import { normalizeText } from "@/bot/dialog/rule-interpreter";
 import type {
   BotEvent,
@@ -20,7 +21,11 @@ import type {
   RequestPort,
   TextInterpreter,
 } from "@/bot/dialog/types";
-import { detectRedFlags, urgencyOf } from "@/bot/conversation/safety";
+import {
+  detectRedFlags,
+  EMERGENCY_TEXT,
+  urgencyOf,
+} from "@/bot/conversation/safety";
 import type { ScheduleProvider } from "@/bot/schedule/schedule";
 import { localDateTime } from "@/bot/schedule/time";
 import type { SessionStore, StatsStore } from "@/bot/storage/types";
@@ -89,12 +94,15 @@ export function createBot(deps: BotDeps) {
     for (const key of keys) deps.stats.incrementStat(day, key);
   }
 
-  function loadSession(peerId: number): Session {
+  /** Нет сохранённого разговора или он забыт по сроку — новый разговор. */
+  function isNewConversation(peerId: number): boolean {
     const saved = deps.sessions.load(peerId);
-    if (!saved) return newSession();
-    if (now().getTime() - Date.parse(saved.updatedAt) > historyMs)
-      return newSession();
-    return parseSession(saved.state);
+    return !saved || now().getTime() - Date.parse(saved.updatedAt) > historyMs;
+  }
+
+  function loadSession(peerId: number): Session {
+    if (isNewConversation(peerId)) return newSession();
+    return parseSession(deps.sessions.load(peerId)!.state);
   }
 
   function isPaused(peerId: number): boolean {
@@ -154,23 +162,24 @@ export function createBot(deps: BotDeps) {
       }
       // Снимок данных клиники на время хода: изменения из панели — со следующего сообщения.
       const clinic = resolveClinic(deps.clinic);
-      const { session, replies, effects, stats } = await handleTurn(
-        loadSession(peerId),
-        event,
-        {
-          peerId,
-          clinic,
-          schedule: deps.schedule,
-          interpreter: deps.interpreter,
-          model: deps.model,
-          today: localDateTime(now(), clinic.timeZone).date,
-          now: now(),
-          consents: deps.consents,
-          requests: deps.requests,
-          appAvailable: deps.appAvailable,
-          medicalQuestions: deps.medicalQuestions,
-        },
-      );
+      const firstContact = isNewConversation(peerId);
+      const turn = await handleTurn(loadSession(peerId), event, {
+        peerId,
+        clinic,
+        schedule: deps.schedule,
+        interpreter: deps.interpreter,
+        model: deps.model,
+        today: localDateTime(now(), clinic.timeZone).date,
+        now: now(),
+        consents: deps.consents,
+        requests: deps.requests,
+        appAvailable: deps.appAvailable,
+        medicalQuestions: deps.medicalQuestions,
+      });
+      const { session, effects, stats } = turn;
+      const replies = firstContact
+        ? withPrivacyNotice(turn.replies)
+        : turn.replies;
       count(stats);
       deps.sessions.save(
         peerId,
@@ -217,3 +226,21 @@ export function createBot(deps: BotDeps) {
 }
 
 export type Bot = ReturnType<typeof createBot>;
+
+/**
+ * Предупреждение о том, кто видит переписку, — в первом ответе нового
+ * разговора, даже если пациент не нажал «Начать», а сразу написал вопрос.
+ * Добавляется в текст первого ответа (кнопки сохраняются), один раз за
+ * разговор; если ответ уже предупреждает (приветствие, обращение к
+ * администратору), не повторяется. При экстренных признаках — после
+ * совета звонить 103/112, чтобы он шёл первым.
+ */
+function withPrivacyNotice(replies: Reply[]): Reply[] {
+  if (replies.length === 0 || replies.some((r) => mentionsVisibility(r.text)))
+    return replies;
+  const [first, ...rest] = replies;
+  const text = first.text.includes(EMERGENCY_TEXT)
+    ? `${first.text}\n\n${PRIVACY_NOTICE}`
+    : `${PRIVACY_NOTICE}\n\n${first.text}`;
+  return [{ ...first, text }, ...rest];
+}

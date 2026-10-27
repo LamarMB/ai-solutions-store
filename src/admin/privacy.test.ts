@@ -702,7 +702,10 @@ describe("7. бот по-прежнему записывает пациенто�
     const t = await setup();
     const r = await t.bot.handle(PEER, { type: "start" });
     expect(text(r)).toContain(PRIVACY_NOTICE);
-    expect(PRIVACY_NOTICE).toMatch(/администраторы сообщества ВКонтакте/);
+    expect(PRIVACY_NOTICE).toMatch(/не закрытая/);
+    expect(PRIVACY_NOTICE).toMatch(
+      /руководители сообщества клиники во ВКонтакте/,
+    );
   });
 
   it("режим без вопросов о симптомах сразу предлагает специалиста", async () => {
@@ -837,7 +840,7 @@ describe("10. передача администратору не обходит 
     let r = await t.say("Позовите администратора");
     expect(text(r)).toContain(HANDOFF_COMPOSE_TEXT);
     expect(text(r)).toMatch(
-      /администраторы сообщества ВКонтакте могут видеть всю переписку этого диалога/,
+      /администратор, который вам ответит, и другие руководители сообщества клиники во ВКонтакте видят всю переписку этого диалога/,
     );
     r = await t.press(r, "Позвать без описания");
     expect(text(r)).toMatch(/никакой текст не передавался/);
