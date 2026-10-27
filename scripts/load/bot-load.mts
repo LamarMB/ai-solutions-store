@@ -41,6 +41,8 @@ const [THINK_MIN, THINK_MAX] = arg("think", "3000-10000")!
 const MODEL_MS = Number(arg("model-ms", "0"));
 const VK_MS = Number(arg("vk-ms", "100"));
 const FIRST_PEER = 9_100_001;
+/** Ответ, не пришедший за это время, считается потерянным (тайм-аут). */
+const REPLY_TIMEOUT_MS = 30_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)];
@@ -160,7 +162,7 @@ function send(peer: number, text: string, payload?: string) {
           if (measuring) timeouts++;
           resolve([]);
         }
-      }, 120_000);
+      }, REPLY_TIMEOUT_MS);
     },
   );
   queue.push(() =>
@@ -191,10 +193,22 @@ const QUESTIONS = [
   "Как добраться?",
 ];
 
+const STOP = Symbol("stop");
 async function patient(index: number, until: number) {
+  try {
+    await patientLoop(index, until);
+  } catch (e) {
+    if (e !== STOP) throw e;
+  }
+}
+
+async function patientLoop(index: number, until: number) {
   const peer = FIRST_PEER + index;
-  const think = () =>
-    sleep(THINK_MIN + Math.random() * Math.max(0, THINK_MAX - THINK_MIN));
+  // После окончания замера пациент выходит на ближайшей паузе.
+  const think = async () => {
+    await sleep(THINK_MIN + Math.random() * Math.max(0, THINK_MAX - THINK_MIN));
+    if (performance.now() >= until) throw STOP;
+  };
   const press = (
     labels: { label: string; payload?: string }[],
     match: RegExp,

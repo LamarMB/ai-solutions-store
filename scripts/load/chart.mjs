@@ -59,11 +59,18 @@ for (let p = yMin; p <= yMax; p++) {
     `<text x="${M.l - 8}" y="${y(v) + 4}" text-anchor="end" fill="#5b6b63">${v >= 1000 ? `${v / 1000} с` : `${v} мс`}</text>`,
   );
 }
+let lastLabel = -Infinity;
 for (const v of levels) {
   parts.push(
     `<line x1="${x(v)}" x2="${x(v)}" y1="${M.t}" y2="${H - M.b}" stroke="#eef2ef"/>`,
-    `<text x="${x(v)}" y="${H - M.b + 18}" text-anchor="middle" fill="#5b6b63">${v}</text>`,
   );
+  // Подписи близких уровней не накладываются: пропускаем слишком близкие.
+  if (x(v) - lastLabel >= 34 || v === levels.at(-1)) {
+    parts.push(
+      `<text x="${x(v)}" y="${H - M.b + 18}" text-anchor="middle" fill="#5b6b63">${v}</text>`,
+    );
+    lastLabel = x(v);
+  }
 }
 parts.push(
   `<text x="${(M.l + W - M.r) / 2}" y="${H - 14}" text-anchor="middle" fill="#1d2b25">одновременных пациентов (лог. шкала)</text>`,

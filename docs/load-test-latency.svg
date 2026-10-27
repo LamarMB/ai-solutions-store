@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" width="720" height="420" font-family="system-ui, sans-serif" font-size="12">
+<rect width="720" height="420" fill="#ffffff"/>
+<text x="70" y="22" font-size="14" font-weight="600" fill="#1d2b25">Задержка HTTP API (Mini App + панель) от числа одновременных пациентов</text>
+<line x1="70" x2="610" y1="364" y2="364" stroke="#e3e8e5"/>
+<text x="62" y="368" text-anchor="end" fill="#5b6b63">1 мс</text>
+<line x1="70" x2="610" y1="299.2" y2="299.2" stroke="#e3e8e5"/>
+<text x="62" y="303.2" text-anchor="end" fill="#5b6b63">10 мс</text>
+<line x1="70" x2="610" y1="234.4" y2="234.4" stroke="#e3e8e5"/>
+<text x="62" y="238.4" text-anchor="end" fill="#5b6b63">100 мс</text>
+<line x1="70" x2="610" y1="169.6" y2="169.6" stroke="#e3e8e5"/>
+<text x="62" y="173.6" text-anchor="end" fill="#5b6b63">1 с</text>
+<line x1="70" x2="610" y1="104.80000000000001" y2="104.80000000000001" stroke="#e3e8e5"/>
+<text x="62" y="108.80000000000001" text-anchor="end" fill="#5b6b63">10 с</text>
+<line x1="70" x2="610" y1="40" y2="40" stroke="#e3e8e5"/>
+<text x="62" y="44" text-anchor="end" fill="#5b6b63">100 с</text>
+<line x1="70" x2="70" y1="40" y2="364" stroke="#eef2ef"/>
+<text x="70" y="382" text-anchor="middle" fill="#5b6b63">10</text>
+<line x1="196.48110569019815" x2="196.48110569019815" y1="40" y2="364" stroke="#eef2ef"/>
+<text x="196.48110569019815" y="382" text-anchor="middle" fill="#5b6b63">25</text>
+<line x1="292.16036856339935" x2="292.16036856339935" y1="40" y2="364" stroke="#eef2ef"/>
+<text x="292.16036856339935" y="382" text-anchor="middle" fill="#5b6b63">50</text>
+<line x1="387.83963143660065" x2="387.83963143660065" y1="40" y2="364" stroke="#eef2ef"/>
+<text x="387.83963143660065" y="382" text-anchor="middle" fill="#5b6b63">100</text>
+<line x1="418.64147425359744" x2="418.64147425359744" y1="40" y2="364" stroke="#eef2ef"/>
+<line x1="443.8084123140654" x2="443.8084123140654" y1="40" y2="364" stroke="#eef2ef"/>
+<text x="443.8084123140654" y="382" text-anchor="middle" fill="#5b6b63">150</text>
+<line x1="465.08675525612307" x2="465.08675525612307" y1="40" y2="364" stroke="#eef2ef"/>
+<line x1="483.5188943098019" x2="483.5188943098019" y1="40" y2="364" stroke="#eef2ef"/>
+<text x="483.5188943098019" y="382" text-anchor="middle" fill="#5b6b63">200</text>
+<line x1="610" x2="610" y1="40" y2="364" stroke="#eef2ef"/>
+<text x="610" y="382" text-anchor="middle" fill="#5b6b63">500</text>
+<text x="340" y="406" text-anchor="middle" fill="#1d2b25">одновременных пациентов (лог. шкала)</text>
+<line x1="70" x2="610" y1="150.09325628097403" y2="150.09325628097403" stroke="#b23b3b" stroke-dasharray="6 4"/>
+<text x="616" y="154.09325628097403" fill="#b23b3b">порог 2 с</text>
+<path d="M70.0,305.0 L196.5,304.3 L292.2,297.1 L387.8,258.6 L418.6,235.2 L443.8,221.3 L465.1,205.6 L483.5,201.5 L610.0,204.7" fill="none" stroke="#2f7d5b" stroke-width="2.5"/>
+<circle cx="70" cy="304.98427574916803" r="3.5" fill="#2f7d5b"><title>p50 при 10: 8 мс</title></circle>
+<circle cx="196.48110569019815" cy="304.3084095493229" r="3.5" fill="#2f7d5b"><title>p50 при 25: 8 мс</title></circle>
+<circle cx="292.16036856339935" cy="297.06317082667636" r="3.5" fill="#2f7d5b"><title>p50 при 50: 11 мс</title></circle>
+<circle cx="387.83963143660065" cy="258.61813573373126" r="3.5" fill="#2f7d5b"><title>p50 при 100: 42 мс</title></circle>
+<circle cx="418.64147425359744" cy="235.24033421994469" r="3.5" fill="#2f7d5b"><title>p50 при 125: 97 мс</title></circle>
+<circle cx="443.8084123140654" cy="221.27152291076314" r="3.5" fill="#2f7d5b"><title>p50 при 150: 159 мс</title></circle>
+<circle cx="465.08675525612307" cy="205.6451010635405" r="3.5" fill="#2f7d5b"><title>p50 при 175: 278 мс</title></circle>
+<circle cx="483.5188943098019" cy="201.52847478859667" r="3.5" fill="#2f7d5b"><title>p50 при 200: 322 мс</title></circle>
+<circle cx="610" cy="204.72207978310516" r="3.5" fill="#2f7d5b"><title>p50 при 500: 287 мс</title></circle>
+<text x="618" y="208.72207978310516" fill="#2f7d5b" font-weight="600">p50</text>
+<path d="M70.0,248.6 L196.5,248.1 L292.2,240.6 L387.8,213.0 L418.6,191.0 L443.8,172.0 L465.1,159.1 L483.5,116.4 L610.0,104.8" fill="none" stroke="#c47a12" stroke-width="2.5"/>
+<circle cx="70" cy="248.6175532066561" r="3.5" fill="#c47a12"><title>p95 при 10: 60 мс</title></circle>
+<circle cx="196.48110569019815" cy="248.13161808941828" r="3.5" fill="#c47a12"><title>p95 при 25: 61 мс</title></circle>
+<circle cx="292.16036856339935" cy="240.60566619640548" r="3.5" fill="#c47a12"><title>p95 при 50: 80 мс</title></circle>
+<circle cx="387.83963143660065" cy="213.01632802066985" r="3.5" fill="#c47a12"><title>p95 при 100: 214 мс</title></circle>
+<circle cx="418.64147425359744" cy="191.030768442961" r="3.5" fill="#c47a12"><title>p95 при 125: 467 мс</title></circle>
+<circle cx="443.8084123140654" cy="171.976916710271" r="3.5" fill="#c47a12"><title>p95 при 150: 919 мс</title></circle>
+<circle cx="465.08675525612307" cy="159.12277540551827" r="3.5" fill="#c47a12"><title>p95 при 175: 1451 мс</title></circle>
+<circle cx="483.5188943098019" cy="116.44458911666999" r="3.5" fill="#c47a12"><title>p95 при 200: 6611 мс</title></circle>
+<circle cx="610" cy="104.79713074789936" r="3.5" fill="#c47a12"><title>p95 при 500: 10001 мс</title></circle>
+<text x="618" y="108.79713074789936" fill="#c47a12" font-weight="600">p95</text>
+<path d="M70.0,237.0 L196.5,230.5 L292.2,224.8 L387.8,199.8 L418.6,167.4 L443.8,142.1 L465.1,124.9 L483.5,104.8 L610.0,104.8" fill="none" stroke="#b23b3b" stroke-width="2.5"/>
+<circle cx="70" cy="236.99023560935666" r="3.5" fill="#b23b3b"><title>p99 при 10: 91 мс</title></circle>
+<circle cx="196.48110569019815" cy="230.4903713502134" r="3.5" fill="#b23b3b"><title>p99 при 25: 115 мс</title></circle>
+<circle cx="292.16036856339935" cy="224.7663627149029" r="3.5" fill="#b23b3b"><title>p99 при 50: 141 мс</title></circle>
+<circle cx="387.83963143660065" cy="199.8052602238956" r="3.5" fill="#b23b3b"><title>p99 при 100: 342 мс</title></circle>
+<circle cx="418.64147425359744" cy="167.38025375399624" r="3.5" fill="#b23b3b"><title>p99 при 125: 1082 мс</title></circle>
+<circle cx="443.8084123140654" cy="142.14253647124815" r="3.5" fill="#b23b3b"><title>p99 при 150: 2653 мс</title></circle>
+<circle cx="465.08675525612307" cy="124.89868159248934" r="3.5" fill="#b23b3b"><title>p99 при 175: 4896 мс</title></circle>
+<circle cx="483.5188943098019" cy="104.79848129768038" r="3.5" fill="#b23b3b"><title>p99 при 200: 10001 мс</title></circle>
+<circle cx="610" cy="104.79584913373549" r="3.5" fill="#b23b3b"><title>p99 при 500: 10001 мс</title></circle>
+<text x="618" y="108.79584913373549" fill="#b23b3b" font-weight="600">p99</text>
+</svg>
