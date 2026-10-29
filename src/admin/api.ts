@@ -232,6 +232,8 @@ const ROUTES: Record<string, Permission | null> = {
   "GET requests": "requests.handle",
   "GET requests/:id/content": "requests.handle",
   "PATCH requests/:id": "requests.handle",
+  // VK ID — только в теле запроса: в адресе он попал бы в журналы nginx.
+  "POST patients/:id": "patient_data.manage",
   "GET my/bookings": "own_bookings.read",
   "GET my/:id/medical": "own_medical.request",
 };
@@ -365,6 +367,15 @@ async function dispatch(
       return ok(
         service.updateRequest(session, intId(id), await readJson(request)),
       );
+    case "POST patients/:id": {
+      const body = (await readJson(request)) as { vkId?: unknown };
+      const vkId = String(body.vkId ?? "");
+      if (id === "search") return ok(service.patientSummary(vkId));
+      if (id === "export") return ok(service.patientExport(vkId, user));
+      if (id === "erase") return ok(service.patientErase(vkId, body, user));
+      return fail(404, "Не найдено.");
+    }
+
     case "GET my/bookings":
       return ok(service.myBookings(session, query));
     case "GET my/:id/medical":

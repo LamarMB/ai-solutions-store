@@ -19,6 +19,7 @@ import {
   SpecialtySchema,
 } from "@/admin/schemas";
 import { AdminError } from "@/admin/errors";
+import { RETAINED_ALWAYS } from "@/bot/storage/patient-store";
 import {
   buildImportPlan,
   priceTemplateCsv,
@@ -741,4 +742,130 @@ export class AdminService {
     );
     return { counts: plan.counts, ...this.getSettings() };
   }
+
+  // --- Данные пациента по VK ID (docs/patient-data.md) -----------------------
+
+  /** VK ID пациента: положительное целое (записи из панели — без VK ID). */
+  private vkId(value: string | number): number {
+    const id = Number(value);
+    if (
+      !Number.isSafeInteger(id) ||
+      id <= 0 ||
+      String(value).trim() !== String(id)
+    )
+      throw new AdminError(
+        400,
+        "VK ID — положительное число (например, 123456789).",
+      );
+    return id;
+  }
+
+  /** Что хранится о пациенте и что изменит удаление. Только количества. */
+  patientSummary(value: string) {
+    const id = this.vkId(value);
+    const counts = this.store.patients.counts(id, this.today());
+    const found = Object.values(counts).some((n) => n > 0);
+    return {
+      vkId: id,
+      found,
+      counts,
+      retained: [...this.store.patients.retainedLogs(id), ...RETAINED_ALWAYS],
+      withheld: WITHHELD,
+      token: this.store.patients.fingerprint(id),
+    };
+  }
+
+  /**
+   * Выгрузка JSON для ответа на запрос пациента. В журнал — только факт
+   * выгрузки, без VK ID.
+   */
+  patientExport(value: string, userId: number) {
+    const id = this.vkId(value);
+    const counts = this.store.patients.counts(id, this.today());
+    if (!Object.values(counts).some((n) => n > 0))
+      throw new AdminError(
+        404,
+        "Данных пациента с таким VK ID в этой клинике нет.",
+      );
+    const data = this.store.patients.export(id);
+    this.store.admin.audit(
+      userId,
+      "patient_export",
+      "patient",
+      null,
+      this.now().toISOString(),
+    );
+    return {
+      format: "demo-med-patient-data",
+      version: 1,
+      exportedAt: this.now().toISOString(),
+      clinic: this.store.clinic.getSettings().name,
+      vkId: id,
+      data,
+      withheld: WITHHELD,
+      retainedAfterDeletion: RETAINED_ALWAYS,
+    };
+  }
+
+  /**
+   * Удаление после подтверждения: VK ID введён повторно и данные не менялись
+   * с предпросмотра (token). Одна транзакция; другие пациенты не затрагиваются.
+   */
+  patientErase(value: string, input: unknown, userId: number) {
+    const id = this.vkId(value);
+    const body = (input ?? {}) as { confirm?: unknown; token?: unknown };
+    if (String(body.confirm ?? "").trim() !== String(id))
+      throw new AdminError(
+        400,
+        "Для подтверждения введите VK ID пациента ещё раз.",
+        {
+          confirm: "Введите тот же VK ID.",
+        },
+      );
+    const today = this.today();
+    if (
+      !Object.values(this.store.patients.counts(id, today)).some((n) => n > 0)
+    )
+      throw new AdminError(
+        404,
+        "Данных пациента с таким VK ID в этой клинике нет.",
+      );
+    if (body.token !== this.store.patients.fingerprint(id))
+      throw new AdminError(
+        409,
+        "Данные пациента изменились после предпросмотра — проверьте ещё раз.",
+      );
+    const deleted = this.store.patients.erase(id, today);
+    // Журнал: только действие и количества — без VK ID и содержания.
+    this.store.admin.audit(
+      userId,
+      "patient_erase",
+      "patient",
+      Object.entries(deleted)
+        .filter(([, n]) => n > 0)
+        .map(([k, n]) => `${k}:${n}`)
+        .join(","),
+      this.now().toISOString(),
+    );
+    return { deleted, retained: RETAINED_ALWAYS };
+  }
 }
+
+/** Что есть в базе, но не выгружается через панель, и почему. */
+const WITHHELD = [
+  {
+    category: "Содержимое разговора с ботом (жалоба, ответы, реплики)",
+    reason:
+      "медицинские сведения не выдаются владельцу и администратору ни одним API; в выгрузке — только факт хранения и дата. Хранится не дольше BOT_HISTORY_HOURS, удаляется полностью",
+  },
+  {
+    category: "Сведения, переданные врачу по согласию",
+    reason:
+      "медицинские сведения; в выгрузке — получатель, цель, статус и даты согласия",
+  },
+  {
+    category: "Тексты обращений к администратору",
+    reason:
+      "читает только роль «администратор» с записью в журнал; в выгрузке — даты и статус",
+  },
+];

@@ -6,6 +6,7 @@ import type { Clinic } from "@/bot/clinic/types";
 import { AdminStore } from "@/bot/storage/admin-store";
 import { ClinicStore } from "@/bot/storage/clinic-store";
 import { ConsentStore } from "@/bot/storage/consent-store";
+import { PatientDataStore } from "@/bot/storage/patient-store";
 import { PhotoStore } from "@/bot/storage/photo-store";
 import { RequestStore } from "@/bot/storage/request-store";
 import { isEncrypted, type MedicalCipher } from "@/bot/storage/medical-crypto";
@@ -418,6 +419,8 @@ export class SqliteStore
   readonly consents: ConsentStore;
   readonly requests: RequestStore;
   readonly photos: PhotoStore;
+  /** Данные пациента по VK ID: выгрузка и удаление по его запросу. */
+  readonly patients: PatientDataStore;
   private readonly cipher?: MedicalCipher;
 
   /**
@@ -436,6 +439,7 @@ export class SqliteStore
     this.consents = new ConsentStore(this.db, cipher);
     this.requests = new RequestStore(this.db, cipher);
     this.photos = new PhotoStore(this.db);
+    this.patients = new PatientDataStore(this.db);
   }
 
   /** Версия схемы базы (PRAGMA user_version). */

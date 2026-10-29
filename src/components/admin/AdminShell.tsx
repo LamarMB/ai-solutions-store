@@ -69,6 +69,12 @@ const NAV: {
     permission: "staff.manage",
   },
   {
+    href: "/admin/patients",
+    label: "Данные пациента",
+    icon: "search",
+    permission: "patient_data.manage",
+  },
+  {
     href: "/admin/access-log",
     label: "Журнал доступа",
     icon: "shield",
