@@ -21,7 +21,8 @@
     "bot:stats": "tsx scripts/bot-stats.mts",
     "admin:user": "tsx scripts/admin-user.mts",
     "db:backup": "tsx scripts/db-backup.mts",
-    "doctors:demo-photos": "tsx scripts/demo-photos.mts"
+    "doctors:demo-photos": "tsx scripts/demo-photos.mts",
+    "clinic": "tsx scripts/clinic-instance.mts"
   },
   "dependencies": {
     "@vkontakte/vk-bridge": "3.0.2",

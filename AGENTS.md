@@ -21,15 +21,15 @@
 7. В память и документы не записывать секреты, токены, пароли, ключи, медицинские
    сведения и персональные данные.
 
-| Задача касается                                                   | Обязательно перед изменениями                                                    | Подробности по необходимости                                                      |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| VK-бот, GPT, SQLite, админ-панель, скрипты                        | [docs/rules/bot-and-panel.md](docs/rules/bot-and-panel.md)                       | [docs/architecture.md](docs/architecture.md), `docs/conversational-bot-deploy.md` |
-| Роли, доступ, медицинские сведения, согласия                      | раздел «Роли и медицинская конфиденциальность» ниже                              | [docs/medical-privacy.md](docs/medical-privacy.md)                                |
-| Обновление VPS, развёртывание, откат                              | [docs/current-status.md](docs/current-status.md)                                 | `docs/privacy-update-vps.md`, `docs/admin-panel-deploy.md`, `docs/vk-bot-run.md`  |
-| VK Mini App (`/miniapp`, `/api/miniapp`)                          | [docs/rules/bot-and-panel.md](docs/rules/bot-and-panel.md), раздел «VK Mini App» | [docs/vk-mini-app-deploy.md](docs/vk-mini-app-deploy.md)                          |
-| Публичный сайт: каталог, заявки, консультант, SEO, дизайн, тексты | [docs/rules/site.md](docs/rules/site.md)                                         | `docs/requests.md`, `docs/consultant.md`, `docs/seo.md`                           |
-| Почему так устроено, что отклонено                                | —                                                                                | [docs/decisions.md](docs/decisions.md)                                            |
-| Этапы и планы                                                     | —                                                                                | `docs/roadmap.md` (длинный — искать нужный этап поиском)                          |
+| Задача касается                                                   | Обязательно перед изменениями                                                    | Подробности по необходимости                                                                         |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| VK-бот, GPT, SQLite, админ-панель, скрипты                        | [docs/rules/bot-and-panel.md](docs/rules/bot-and-panel.md)                       | [docs/architecture.md](docs/architecture.md), `docs/conversational-bot-deploy.md`                    |
+| Роли, доступ, медицинские сведения, согласия                      | раздел «Роли и медицинская конфиденциальность» ниже                              | [docs/medical-privacy.md](docs/medical-privacy.md)                                                   |
+| Обновление VPS, развёртывание, откат                              | [docs/current-status.md](docs/current-status.md)                                 | `docs/clinic-instance-deploy.md` (новая клиника), `docs/admin-panel-deploy.md`, `docs/vk-bot-run.md` |
+| VK Mini App (`/miniapp`, `/api/miniapp`)                          | [docs/rules/bot-and-panel.md](docs/rules/bot-and-panel.md), раздел «VK Mini App» | [docs/vk-mini-app-deploy.md](docs/vk-mini-app-deploy.md)                                             |
+| Публичный сайт: каталог, заявки, консультант, SEO, дизайн, тексты | [docs/rules/site.md](docs/rules/site.md)                                         | `docs/requests.md`, `docs/consultant.md`, `docs/seo.md`                                              |
+| Почему так устроено, что отклонено                                | —                                                                                | [docs/decisions.md](docs/decisions.md)                                                               |
+| Этапы и планы                                                     | —                                                                                | `docs/roadmap.md` (длинный — искать нужный этап поиском)                                             |
 
 ## Цель
 

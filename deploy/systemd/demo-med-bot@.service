@@ -1,0 +1,43 @@
+# VK-бот клиники %i. Установка: deploy/clinic/new-clinic.sh, инструкция —
+# docs/clinic-instance-deploy.md. Секретов в файле нет: только EnvironmentFile.
+[Unit]
+Description=Demo-Med VK bot (%i)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=dm-%i
+Group=dm-%i
+WorkingDirectory=/opt/demo-med/current
+EnvironmentFile=/etc/demo-med/clinics/%i.env
+Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--max-old-space-size=256
+# Настройки проверяются до запуска: ошибка — бот не стартует, причина в журнале.
+ExecStartPre=/usr/bin/node node_modules/tsx/dist/cli.mjs scripts/clinic-instance.mts check --self
+ExecStart=/usr/bin/node node_modules/tsx/dist/cli.mjs scripts/vk-bot.mts
+Restart=on-failure
+RestartSec=5
+# Бот дожидается обработки очереди до 30 с (scripts/vk-bot.mts).
+TimeoutStopSec=60
+SyslogIdentifier=demo-med-%i-bot
+
+# Изоляция: пишет только в каталог своей клиники, остальное — только чтение.
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+ReadWritePaths=/var/lib/demo-med/%i
+MemoryMax=400M
+
+[Install]
+WantedBy=multi-user.target

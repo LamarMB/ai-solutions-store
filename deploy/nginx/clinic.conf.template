@@ -1,0 +1,64 @@
+# nginx для клиники {{CLINIC_ID}} — создан командой
+# deploy/clinic/new-clinic.sh nginx {{CLINIC_ID}}. Наружу — только панель и Mini App;
+# публичный сайт закрыт. Секретов здесь нет.
+
+server {
+  listen 80;
+  listen [::]:80;
+  server_name {{PANEL_DOMAIN}};
+  access_log /var/log/nginx/demo-med-{{CLINIC_ID}}.access.log;
+  error_log /var/log/nginx/demo-med-{{CLINIC_ID}}.error.log;
+
+  # Проверка домена для Let's Encrypt (certbot certonly --webroot).
+  location /.well-known/acme-challenge/ {
+    root /var/www/letsencrypt;
+  }
+  location / {
+    return 301 https://$host$request_uri;
+  }
+}
+
+# --- https ---
+server {
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  http2 on;
+  server_name {{PANEL_DOMAIN}};
+
+  ssl_certificate /etc/letsencrypt/live/{{PANEL_DOMAIN}}/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/{{PANEL_DOMAIN}}/privkey.pem;
+  add_header Strict-Transport-Security "max-age=31536000" always;
+
+  access_log /var/log/nginx/demo-med-{{CLINIC_ID}}.access.log;
+  error_log /var/log/nginx/demo-med-{{CLINIC_ID}}.error.log;
+  # Фото врачей до 2 МБ, прайс CSV до 1 МБ.
+  client_max_body_size 4m;
+
+  {{REAL_IP}}
+
+  # Приложение берёт ПОСЛЕДНИЙ адрес X-Forwarded-For (src/lib/client-key.ts):
+  # перезаписываем его адресом клиента, чтобы подставленный заголовок не обходил
+  # ограничения попыток входа.
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-For $remote_addr;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host "";
+
+  # Панель. Токен приглашения — во фрагменте адреса (#…), в журнал не попадает.
+  location ~ ^/(admin|api/admin|_next)(/|$) {
+    proxy_pass http://127.0.0.1:{{PANEL_PORT}};
+  }
+
+  # Mini App: строка запуска (VK ID и подпись) — в адресе, поэтому без журнала.
+  # Ограничение по IP сюда не распространять: пациенты открывают с любых адресов.
+  location ~ ^/(miniapp|api/miniapp)(/|$) {
+    access_log off;
+    proxy_pass http://127.0.0.1:{{PANEL_PORT}};
+  }
+
+  location / {
+    return 404;
+  }
+}

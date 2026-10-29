@@ -1,0 +1,39 @@
+# Панель администратора и VK Mini App клиники %i (Next.js, только 127.0.0.1;
+# наружу — через nginx). Секретов в файле нет: только EnvironmentFile.
+[Unit]
+Description=Demo-Med panel (%i)
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=dm-%i
+Group=dm-%i
+WorkingDirectory=/opt/demo-med/current
+EnvironmentFile=/etc/demo-med/clinics/%i.env
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=NODE_OPTIONS=--max-old-space-size=384
+ExecStartPre=/usr/bin/node node_modules/tsx/dist/cli.mjs scripts/clinic-instance.mts check --self --port-free
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p ${PANEL_PORT}
+Restart=on-failure
+RestartSec=5
+SyslogIdentifier=demo-med-%i-panel
+
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+ReadWritePaths=/var/lib/demo-med/%i
+MemoryMax=600M
+
+[Install]
+WantedBy=multi-user.target
