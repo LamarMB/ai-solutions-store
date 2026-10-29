@@ -37,8 +37,19 @@ export type ScheduleException = {
   to?: string;
 };
 
-/** Услуга с ценой в рублях. Цены вымышленные. */
-export type Service = { title: string; specialtyId: string; priceRub: number };
+/**
+ * Услуга с ценой в рублях. `id` — номер строки в базе (есть у услуг из базы):
+ * сохраняется при правке в панели и при импорте прайса.
+ */
+export type Service = {
+  id?: number;
+  title: string;
+  specialtyId: string;
+  priceRub: number;
+};
+
+/** Услуг в справочнике клиники — не больше (панель и импорт прайса). */
+export const SERVICES_MAX = 1000;
 
 export type Clinic = {
   name: string;

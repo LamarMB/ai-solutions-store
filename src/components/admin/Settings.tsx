@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import type { Service, Specialty } from "@/bot/clinic/types";
+import { useMemo, useState } from "react";
+import { SERVICES_MAX, type Service, type Specialty } from "@/bot/clinic/types";
 import type { ClinicSettings } from "@/bot/storage/clinic-store";
 import { api, ApiError, useResource } from "@/components/admin/client";
+import { PriceImport } from "@/components/admin/PriceImport";
 import {
   ErrorNote,
   Field,
@@ -23,24 +24,38 @@ type SettingsData = {
   specialties: Specialty[];
 };
 
-type ServiceRow = { title: string; specialtyId: string; priceRub: string };
+/** Строка формы; `id` — номер услуги в базе (нет у добавленных в форме). */
+type ServiceRow = {
+  id?: number;
+  title: string;
+  specialtyId: string;
+  priceRub: string;
+};
+
+/** С этого числа услуг в форме появляется поиск. */
+const SEARCH_FROM = 20;
+
+/** Номер ответа сервера: форма создаётся заново, когда приходят новые данные. */
+const dataKeys = new WeakMap<SettingsData, number>();
+let lastKey = 0;
+const keyOf = (data: SettingsData) => {
+  if (!dataKeys.has(data)) dataKeys.set(data, ++lastKey);
+  return dataKeys.get(data)!;
+};
 
 export function Settings() {
-  const { data, error, loading, reload } =
+  const { data, error, loading, reload, setData } =
     useResource<SettingsData>("settings");
-  const [version, setVersion] = useState(0);
   if (loading && !data) return <Loading />;
   if (error && !data) return <ErrorNote message={error} onRetry={reload} />;
   if (!data) return null;
-  // Форма создаётся заново после сохранения — с данными, которые вернул сервер.
+  // После сохранения и импорта форма создаётся заново — с данными, которые
+  // вернул сервер (в том числе с номерами новых услуг).
   return (
     <SettingsForm
-      key={version}
+      key={keyOf(data)}
       data={data}
-      onSaved={() => {
-        reload();
-        setVersion((v) => v + 1);
-      }}
+      onSaved={(next) => setData(() => next)}
     />
   );
 }
@@ -50,14 +65,17 @@ function SettingsForm({
   onSaved,
 }: {
   data: SettingsData;
-  onSaved: () => void;
+  onSaved: (next: SettingsData) => void;
 }) {
   const toast = useToast();
   const [settings, setSettings] = useState<ClinicSettings>(data.settings);
   const [tips, setTips] = useState(data.settings.visitTips.join("\n"));
-  const [services, setServices] = useState<ServiceRow[]>(() =>
-    data.services.map((s) => ({ ...s, priceRub: String(s.priceRub) })),
+  const initialServices = useMemo(
+    () => data.services.map((s) => ({ ...s, priceRub: String(s.priceRub) })),
+    [data.services],
   );
+  const [services, setServices] = useState<ServiceRow[]>(initialServices);
+  const [query, setQuery] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -70,7 +88,7 @@ function SettingsForm({
     setErrors({});
     setFormError(undefined);
     try {
-      await api("settings", {
+      const next = await api<SettingsData>("settings", {
         method: "PUT",
         body: {
           settings: {
@@ -81,6 +99,7 @@ function SettingsForm({
               .filter(Boolean),
           },
           services: services.map((s) => ({
+            id: s.id,
             title: s.title,
             specialtyId: s.specialtyId,
             priceRub: Number(s.priceRub),
@@ -88,7 +107,7 @@ function SettingsForm({
         },
       });
       toast("Настройки сохранены. Бот отвечает пациентам по новым данным.");
-      onSaved();
+      onSaved(next);
     } catch (e) {
       if (e instanceof ApiError) {
         setFormError(e.message);
@@ -232,21 +251,43 @@ function SettingsForm({
                 { title: "", specialtyId: "", priceRub: "0" },
               ])
             }
-            disabled={services.length >= 50}
+            disabled={services.length >= SERVICES_MAX}
           >
             Добавить услугу
           </Button>
         }
       >
         <p className="text-small text-muted mb-4">
-          Цены демонстрационные. Стоимость приёма конкретного врача задаётся в
-          разделе «Врачи».
+          Услуг: {services.length} из {SERVICES_MAX}. Стоимость приёма
+          конкретного врача задаётся в разделе «Врачи». Большой прайс удобнее
+          загрузить из CSV — ниже.
         </p>
+        {services.length >= SEARCH_FROM && (
+          <div className="mb-4 max-w-md">
+            <Field label="Найти услугу">
+              {(props) => (
+                <Input
+                  {...props}
+                  type="search"
+                  value={query}
+                  placeholder="Название услуги"
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+        )}
         {services.length === 0 ? (
           <p className="text-small text-muted">Услуг нет.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {services.map((s, index) => {
+              // Поиск только скрывает строки: номер строки нужен для ошибок полей.
+              if (
+                query.trim() &&
+                !s.title.toLowerCase().includes(query.trim().toLowerCase())
+              )
+                return null;
               const err = (k: string) => errors[`services.${index}.${k}`];
               const update = (patch: Partial<ServiceRow>) =>
                 setServices((list) =>
@@ -256,7 +297,7 @@ function SettingsForm({
                 );
               return (
                 <li
-                  key={index}
+                  key={s.id ?? `new-${index}`}
                   className="border-border grid gap-3 border-t pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[2fr_1.2fr_0.8fr_auto] sm:items-end"
                 >
                   <Field label="Услуга" error={err("title")}>
@@ -318,6 +359,17 @@ function SettingsForm({
           {busy ? "Сохраняю…" : "Сохранить настройки"}
         </Button>
       </div>
+      <PriceImport
+        specialties={data.specialties}
+        dirty={JSON.stringify(services) !== JSON.stringify(initialServices)}
+        onImported={(next) =>
+          onSaved({
+            settings: next.settings,
+            services: next.services,
+            specialties: next.specialties,
+          })
+        }
+      />
     </>
   );
 }

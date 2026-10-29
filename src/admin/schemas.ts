@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BOOKING_STATUSES } from "@/bot/storage/types";
 import { isDate, isTime, toMinutes } from "@/bot/schedule/time";
 import { STAFF_ROLES } from "@/bot/storage/admin-store";
+import { SERVICES_MAX } from "@/bot/clinic/types";
 import {
   detectRedFlags,
   detectTrauma,
@@ -178,12 +179,21 @@ export const SettingsSchema = z.object({
   services: z
     .array(
       z.object({
+        /** Номер услуги в базе: есть — обновляется она же, нет — новая услуга. */
+        id: z.int().positive().optional(),
         title: text(2, 100, "Название услуги"),
         specialtyId: z.string().max(40),
         priceRub: price,
       }),
     )
-    .max(50, "Не больше 50 услуг"),
+    .max(SERVICES_MAX, `Не больше ${SERVICES_MAX} услуг`)
+    .refine(
+      (list) => {
+        const ids = list.flatMap((s) => (s.id ? [s.id] : []));
+        return new Set(ids).size === ids.length;
+      },
+      { message: "Услуга повторяется в списке — обновите страницу" },
+    ),
 });
 
 const staffLogin = z

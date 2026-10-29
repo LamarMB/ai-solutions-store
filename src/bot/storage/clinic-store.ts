@@ -284,31 +284,90 @@ export class ClinicStore {
     return (
       this.db
         .prepare(
-          "SELECT title, specialty_id, price_rub FROM services ORDER BY sort, id",
+          "SELECT id, title, specialty_id, price_rub FROM services ORDER BY sort, id",
         )
         .all() as {
+        id: number;
         title: string;
         specialty_id: string | null;
         price_rub: number;
       }[]
     ).map((s) => ({
+      id: s.id,
       title: s.title,
       specialtyId: s.specialty_id ?? "",
       priceRub: s.price_rub,
     }));
   }
 
-  /** Список услуг заменяется целиком — так проще и безопаснее редактировать таблицу. */
+  /**
+   * Список услуг из панели — целиком, одной транзакцией: услуги с известным `id`
+   * обновляются на месте (номер сохраняется), без `id` — добавляются, убранные
+   * из списка — удаляются. Порядок — как в списке.
+   */
   replaceServices(services: Service[]): void {
     this.transaction(() => {
-      this.db.exec("DELETE FROM services");
-      const insert = this.db.prepare(
-        "INSERT INTO services (title, specialty_id, price_rub, sort) VALUES (?, ?, ?, ?)",
+      const existing = new Set(this.listServices().map((s) => s.id!));
+      const kept = new Set(
+        services.flatMap((s) =>
+          s.id !== undefined && existing.has(s.id) ? [s.id] : [],
+        ),
       );
-      services.forEach((s, i) =>
-        insert.run(s.title, s.specialtyId || null, s.priceRub, i),
+      const remove = this.db.prepare("DELETE FROM services WHERE id = ?");
+      for (const id of existing) if (!kept.has(id)) remove.run(id);
+      this.writeServices(
+        services.map((s, i) => ({
+          ...s,
+          id: s.id !== undefined && kept.has(s.id) ? s.id : undefined,
+          sort: i,
+        })),
       );
     });
+  }
+
+  /**
+   * Импорт прайса: обновление найденных услуг (по `id`) и добавление новых в
+   * конец списка. Ничего не удаляет. Одна транзакция — всё или ничего.
+   */
+  importServices(
+    updates: readonly (Service & { id: number })[],
+    inserts: readonly Service[],
+  ): void {
+    this.transaction(() => {
+      const existing = new Set(this.listServices().map((s) => s.id!));
+      for (const u of updates)
+        if (!existing.has(u.id)) throw new Error(`service ${u.id} not found`);
+      const sort = (
+        this.db
+          .prepare("SELECT COALESCE(MAX(sort), -1) + 1 AS n FROM services")
+          .get() as { n: number }
+      ).n;
+      this.writeServices([
+        ...updates.map((u) => ({ ...u, sort: undefined })),
+        ...inserts.map((s, i) => ({ ...s, id: undefined, sort: sort + i })),
+      ]);
+    });
+  }
+
+  /** Обновление по id (sort не задан — прежний) или вставка без id. */
+  private writeServices(rows: readonly (Service & { sort?: number })[]): void {
+    const update = this.db.prepare(
+      "UPDATE services SET title = ?, specialty_id = ?, price_rub = ?, sort = COALESCE(?, sort) WHERE id = ?",
+    );
+    const insert = this.db.prepare(
+      "INSERT INTO services (title, specialty_id, price_rub, sort) VALUES (?, ?, ?, ?)",
+    );
+    for (const s of rows) {
+      if (s.id !== undefined)
+        update.run(
+          s.title,
+          s.specialtyId || null,
+          s.priceRub,
+          s.sort ?? null,
+          s.id,
+        );
+      else insert.run(s.title, s.specialtyId || null, s.priceRub, s.sort ?? 0);
+    }
   }
 
   // --- Врачи ---------------------------------------------------------------

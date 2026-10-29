@@ -4,7 +4,10 @@ import {
   doctorsText,
   rubles,
   prepText,
+  pageLines,
+  priceGroups,
   pricesText,
+  PRICES_TEXT_MAX,
   routeText,
 } from "@/bot/clinic/knowledge";
 import type { Clinic } from "@/bot/clinic/types";
@@ -161,6 +164,7 @@ export function handleMeaning(
     case "admin":
       return startHandoff(ctx);
     case "question": {
+      if (meaning.topic === "prices") return pricesReply(state, ctx);
       const answer = meaning.topic
         ? infoText(meaning.topic, ctx.clinic, ctx.demo)
         : meaning.answer?.trim().slice(0, ANSWER_MAX);
@@ -249,9 +253,20 @@ function handleAction(
     case "back":
       return show(previous(state), ctx);
     case "info":
+      if (action.k === "prices")
+        return pricesReply(
+          state.step === "handoff" ? { step: "menu" } : state,
+          ctx,
+        );
       return show(state.step === "handoff" ? { step: "menu" } : state, ctx, [
         infoText(action.k, ctx.clinic, ctx.demo),
       ]);
+    case "pr":
+      return pricesReply(
+        state.step === "handoff" ? { step: "menu" } : state,
+        ctx,
+        action,
+      );
     case "admin":
       return startHandoff(ctx);
     case "app":
@@ -533,6 +548,100 @@ export function greet(ctx: DialogContext): DialogResult {
       "Напишите, что нужно, — подберу врача, запишу, отвечу на вопросы. Диагнозы не ставлю и лечение не назначаю.\n" +
       PRIVACY_NOTICE,
   ]);
+}
+
+/** Направлений на одной странице выбора: вместе с навигацией — не больше 10 кнопок. */
+export const PRICE_GROUPS_PER_PAGE = 8;
+/** Подпись кнопки ВКонтакте — до 40 символов. */
+const label40 = (text: string) =>
+  text.length > 40 ? `${text.slice(0, 39)}…` : text;
+
+/**
+ * Ответ о ценах. Короткий прайс — одним сообщением, как раньше. Большой —
+ * выбор направления, затем цены направления по страницам: каждое сообщение
+ * короче лимита ВКонтакте, ничего не обрезается. Состояние диалога не меняется.
+ */
+function pricesReply(
+  state: DialogState,
+  ctx: DialogContext,
+  action?: { s?: string; p?: number },
+): DialogResult {
+  const full = pricesText(ctx.clinic, ctx.demo);
+  if (!action && full.length <= PRICES_TEXT_MAX)
+    return show(state, ctx, [full]);
+  const note = ctx.demo === false ? "" : " (тестовые, клиника вымышленная)";
+  const groups = priceGroups(ctx.clinic);
+  const group =
+    action?.s !== undefined ? groups.find((g) => g.id === action.s) : undefined;
+  const page = action?.p ?? 0;
+  const reply = (text: string, buttons: Button[][]): DialogResult => ({
+    state,
+    replies: [{ text, buttons }],
+  });
+
+  if (!group) {
+    if (groups.length === 0) return show(state, ctx, [full]);
+    const pages = Math.ceil(groups.length / PRICE_GROUPS_PER_PAGE);
+    const current = Math.min(page, pages - 1);
+    const shown = groups.slice(
+      current * PRICE_GROUPS_PER_PAGE,
+      (current + 1) * PRICE_GROUPS_PER_PAGE,
+    );
+    return reply(
+      `Цены${note}: выберите направление.` +
+        (pages > 1 ? ` Страница ${current + 1} из ${pages}.` : ""),
+      [
+        ...chunk(
+          shown.map((g) => ({
+            label: label40(g.title),
+            action: { a: "pr", s: g.id } as Action,
+          })),
+          2,
+        ),
+        [
+          ...(pages > 1
+            ? [
+                {
+                  label: "Ещё направления",
+                  action: {
+                    a: "pr",
+                    p: (current + 1) % pages,
+                  } as Action,
+                },
+              ]
+            : []),
+          MENU,
+        ],
+      ],
+    );
+  }
+
+  const title = `Цены — ${group.title}${note}`;
+  const pages = pageLines(group.lines, PRICES_TEXT_MAX - title.length - 20);
+  const current = Math.min(page, pages.length - 1);
+  return reply(
+    `${title}` +
+      (pages.length > 1 ? ` (${current + 1} из ${pages.length})` : "") +
+      `:\n${pages[current].join("\n")}`,
+    [
+      ...(current + 1 < pages.length
+        ? [
+            [
+              {
+                label: "Ещё цены",
+                action: { a: "pr", s: group.id, p: current + 1 } as Action,
+              },
+            ],
+          ]
+        : []),
+      [
+        ...(groups.length > 1
+          ? [{ label: "Другие направления", action: { a: "pr" } as Action }]
+          : []),
+        MENU,
+      ],
+    ],
+  );
 }
 
 function stale(state: DialogState, ctx: DialogContext): DialogResult {

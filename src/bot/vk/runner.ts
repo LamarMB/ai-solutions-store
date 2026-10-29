@@ -79,11 +79,17 @@ export function peerOf(update: VkUpdate): number {
   return typeof peer === "number" && Number.isFinite(peer) ? peer : 0;
 }
 
-function splitText(text: string): string[] {
-  if (text.length <= MESSAGE_LIMIT) return [text];
+/** Длинный текст — на части не длиннее лимита, по возможности по границе строки. */
+export function splitText(text: string): string[] {
   const parts: string[] = [];
-  for (let i = 0; i < text.length; i += MESSAGE_LIMIT)
-    parts.push(text.slice(i, i + MESSAGE_LIMIT));
+  let rest = text;
+  while (rest.length > MESSAGE_LIMIT) {
+    const newline = rest.lastIndexOf("\n", MESSAGE_LIMIT);
+    const cut = newline > MESSAGE_LIMIT / 2 ? newline : MESSAGE_LIMIT;
+    parts.push(rest.slice(0, cut));
+    rest = rest.slice(newline === cut ? cut + 1 : cut);
+  }
+  parts.push(rest);
   return parts;
 }
 

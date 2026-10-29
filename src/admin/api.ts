@@ -12,6 +12,7 @@ import {
 import { can, type Permission } from "@/admin/permissions";
 import { PHOTO_MAX_BYTES, PHOTO_TYPES } from "@/bot/storage/image";
 import { LoginSchema, describeZodError } from "@/admin/schemas";
+import { PRICE_CSV_MAX_BYTES } from "@/admin/price-import";
 import { AdminError, type AdminService } from "@/admin/service";
 
 export type AdminApiDeps = {
@@ -44,9 +45,25 @@ async function readImage(request: Request): Promise<Uint8Array> {
   const type = request.headers.get("content-type")?.split(";")[0].trim();
   if (!type || !(PHOTO_TYPES as readonly string[]).includes(type))
     throw new AdminError(415, "Нужна фотография JPEG, PNG или WebP.");
+  return readBytes(request, PHOTO_MAX_BYTES, "не больше 2 МБ");
+}
+
+/** Файл прайса CSV (src/admin/price-import.ts): кодировку проверяет разбор. */
+async function readCsv(request: Request): Promise<Uint8Array> {
+  const type = request.headers.get("content-type")?.split(";")[0].trim();
+  if (type !== "text/csv") throw new AdminError(415, "Нужен файл CSV.");
+  return readBytes(request, PRICE_CSV_MAX_BYTES, "не больше 1 МБ");
+}
+
+/** Тело запроса с ограничением размера, без доверия Content-Length. */
+async function readBytes(
+  request: Request,
+  max: number,
+  limit: string,
+): Promise<Uint8Array> {
   const declared = Number(request.headers.get("content-length") ?? 0);
-  if (declared > PHOTO_MAX_BYTES)
-    throw new AdminError(413, "Файл слишком большой: не больше 2 МБ.");
+  if (declared > max)
+    throw new AdminError(413, `Файл слишком большой: ${limit}.`);
   const reader = request.body?.getReader();
   if (!reader) throw new AdminError(400, "Пустой файл.");
   const chunks: Uint8Array[] = [];
@@ -55,9 +72,9 @@ async function readImage(request: Request): Promise<Uint8Array> {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.length;
-    if (size > PHOTO_MAX_BYTES) {
+    if (size > max) {
       await reader.cancel();
-      throw new AdminError(413, "Файл слишком большой: не больше 2 МБ.");
+      throw new AdminError(413, `Файл слишком большой: ${limit}.`);
     }
     chunks.push(value);
   }
@@ -70,12 +87,14 @@ async function readImage(request: Request): Promise<Uint8Array> {
   return bytes;
 }
 
-async function readJson(request: Request): Promise<unknown> {
+/** Настройки клиники вместе со справочником услуг (до SERVICES_MAX) — больше. */
+const SETTINGS_JSON_MAX = 512 * 1024;
+
+async function readJson(request: Request, max = 64 * 1024): Promise<unknown> {
   if (!request.headers.get("content-type")?.includes("application/json"))
     throw new AdminError(415, "Ожидается JSON.");
   const text = await request.text();
-  if (text.length > 64 * 1024)
-    throw new AdminError(413, "Слишком большой запрос.");
+  if (text.length > max) throw new AdminError(413, "Слишком большой запрос.");
   try {
     return text ? JSON.parse(text) : {};
   } catch {
@@ -192,6 +211,9 @@ const ROUTES: Record<string, Permission | null> = {
   "DELETE exceptions/:id": "schedule.write",
   "GET settings": "settings.read",
   "PUT settings": "settings.write",
+  "GET price-template": "settings.read",
+  "POST price-import": "settings.write",
+  "PUT price-import": "settings.write",
   "GET staff": "staff.manage",
   "PATCH staff/:id": "staff.manage",
   "POST invites": "staff.manage",
@@ -285,7 +307,32 @@ async function dispatch(
     case "GET settings":
       return ok(service.getSettings());
     case "PUT settings":
-      return ok(service.updateSettings(await readJson(request), user));
+      return ok(
+        service.updateSettings(
+          await readJson(request, SETTINGS_JSON_MAX),
+          user,
+        ),
+      );
+
+    case "GET price-template":
+      return new Response(service.priceTemplate(), {
+        headers: {
+          ...NO_STORE,
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": 'attachment; filename="price.csv"',
+        },
+      });
+    // Предпросмотр импорта (без изменений) и применение показанного плана.
+    case "POST price-import":
+      return ok(service.previewPriceImport(await readCsv(request)));
+    case "PUT price-import":
+      return ok(
+        service.applyPriceImport(
+          await readCsv(request),
+          String(query.token ?? ""),
+          user,
+        ),
+      );
 
     case "GET staff":
       return ok(service.staff.list());

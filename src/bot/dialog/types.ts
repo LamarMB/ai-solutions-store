@@ -75,6 +75,15 @@ export const ActionSchema = z.discriminatedUnion("a", [
   z.strictObject({ a: z.literal("cxok") }),
   /** Справка из данных клиники. */
   z.strictObject({ a: z.literal("info"), k: z.enum(INFO_TOPICS) }),
+  /**
+   * Большой прайс: без s — выбор направления (p — страница списка), с s —
+   * цены направления (s "" — услуги без специальности), p — страница цен.
+   */
+  z.strictObject({
+    a: z.literal("pr"),
+    s: z.string().max(40).optional(),
+    p: z.int().min(0).max(200).optional(),
+  }),
   /** Позвать администратора (с подтверждением) и подтверждение. */
   z.strictObject({ a: z.literal("admin") }),
   z.strictObject({ a: z.literal("hoff") }),

@@ -19,6 +19,12 @@ import {
   SpecialtySchema,
 } from "@/admin/schemas";
 import { AdminError } from "@/admin/errors";
+import {
+  buildImportPlan,
+  priceTemplateCsv,
+  PriceImportError,
+  type ImportPlan,
+} from "@/admin/price-import";
 import { StaffService } from "@/admin/staff";
 import type { AdminSession } from "@/bot/storage/admin-store";
 import type { RedFlag } from "@/bot/conversation/safety";
@@ -664,5 +670,75 @@ export class AdminService {
     });
     this.audit(userId, "update", "settings", "clinic");
     return this.getSettings();
+  }
+
+  // --- Импорт прайса (src/admin/price-import.ts) ---------------------------
+
+  /** Шаблон CSV: заголовок и текущие услуги с id. */
+  priceTemplate(): string {
+    return priceTemplateCsv(
+      this.store.clinic.listServices(),
+      this.store.clinic.listSpecialties(),
+    );
+  }
+
+  private importPlan(bytes: Uint8Array): ImportPlan {
+    try {
+      return buildImportPlan(
+        bytes,
+        this.store.clinic.listServices(),
+        this.store.clinic.listSpecialties(),
+      );
+    } catch (error) {
+      if (error instanceof PriceImportError)
+        throw new AdminError(400, error.message);
+      throw error;
+    }
+  }
+
+  /** Предпросмотр: что изменится. База не меняется. */
+  previewPriceImport(bytes: Uint8Array): ImportPlan {
+    return this.importPlan(bytes);
+  }
+
+  /**
+   * Применение после подтверждения: план строится заново внутри транзакции
+   * и должен совпасть с показанным (token). Ошибки в файле или изменённый за
+   * это время справочник — отказ без изменений. Отсутствующие в файле услуги
+   * не удаляются.
+   */
+  applyPriceImport(bytes: Uint8Array, token: string, userId: number) {
+    const plan = this.store.clinic.transaction(() => {
+      const plan = this.importPlan(bytes);
+      if (plan.counts.error > 0)
+        throw new AdminError(
+          400,
+          "В файле есть ошибки — исправьте их и загрузите файл снова.",
+        );
+      if (plan.token !== token)
+        throw new AdminError(
+          409,
+          "Справочник или файл изменились после предпросмотра — проверьте файл ещё раз.",
+        );
+      const service = (r: ImportPlan["rows"][number]) => ({
+        title: r.title,
+        specialtyId: r.specialtyId,
+        priceRub: r.priceRub!,
+      });
+      this.store.clinic.importServices(
+        plan.rows
+          .filter((r) => r.status === "update")
+          .map((r) => ({ id: r.id!, ...service(r) })),
+        plan.rows.filter((r) => r.status === "new").map(service),
+      );
+      return plan;
+    });
+    this.audit(
+      userId,
+      "import",
+      "services",
+      `new ${plan.counts.new}, updated ${plan.counts.update}`,
+    );
+    return { counts: plan.counts, ...this.getSettings() };
   }
 }
