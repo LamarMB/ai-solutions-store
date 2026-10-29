@@ -5,6 +5,7 @@ import type {
   Interpretation,
   TextInterpreter,
 } from "@/bot/dialog/types";
+import { specialtyHint } from "@/bot/conversation/specialties";
 import { addDays } from "@/bot/schedule/time";
 
 export const normalizeText = (text: string) =>
@@ -56,15 +57,6 @@ const TOPICS: [InfoTopic, string[]][] = [
   ["prep", ["подготов", "что взять", "документы взять", "паспорт"]],
   ["doctors", ["какие врачи", "кто принимает", "врачи", "специалист"]],
 ];
-
-/** Ключевые слова направлений — дополняют названия из справочника. */
-const SPECIALTY_STEMS: Record<string, string[]> = {
-  therapist: ["терапевт"],
-  dentist: ["стоматолог", "зуб", "дантист"],
-  pediatrician: ["педиатр", "ребен", "детск", "дет"],
-  ent: ["лор", "отоларинголог", "оториноларинголог", "ухо", "горл", "нос"],
-  orthopedist: ["ортопед", "травматолог"],
-};
 
 /** Правила на ключевых словах — не языковая модель. Работают без сети. */
 export class RuleInterpreter implements TextInterpreter {
@@ -137,11 +129,10 @@ export class RuleInterpreter implements TextInterpreter {
         hints.specialtyId = doctor.specialtyId;
       }
     }
-    if (!hints.specialtyId) {
-      const found = Object.entries(SPECIALTY_STEMS).find(([, stems]) =>
-        hasStem(text, stems),
-      );
-      if (found) hints.specialtyId = found[0];
+    // Направление — только из справочника клиники и только с принимающими врачами.
+    if (!hints.specialtyId && this.source) {
+      const id = specialtyHint(text, resolveClinic(this.source));
+      if (id) hints.specialtyId = id;
     }
     if (context) {
       if (hasStem(text, ["сегодня"])) hints.date = context.today;

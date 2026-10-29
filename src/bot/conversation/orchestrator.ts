@@ -32,10 +32,14 @@ import {
 } from "@/bot/conversation/guard";
 import { classifyScope, OUT_OF_SCOPE_TEXT } from "@/bot/conversation/scope";
 import {
-  AREA_SPECIALTY,
+  activeSpecialties,
+  requestedSpecialty,
+  specialtyForArea,
+  type RequestedSpecialty,
+} from "@/bot/conversation/specialties";
+import {
   complaintSummary,
   detectComplaint,
-  detectMissingSpecialty,
   QUESTION_PLAN,
   questionText,
   type QuestionKey,
@@ -401,7 +405,11 @@ function applyRules(
   if (found && changes) {
     // Прежние факты к новой жалобе не относятся.
     if (next.complaint) next = withoutComplaint(next);
-    next.complaint = { area: found.area, summary: complaintSummary(safeRaw) };
+    next.complaint = {
+      area: found.area,
+      summary: complaintSummary(safeRaw),
+      ...(found.others ? { others: found.others } : {}),
+    };
   }
   const trauma = detectTrauma(raw);
   if (next.pending === "trauma" && !trauma) {
@@ -497,6 +505,15 @@ async function execute(
       ? continueComplaint(flow, conv, ctx, { prefix: [MEDICAL_ADVICE_REFUSAL] })
       : step(conv, show(flow, ctx, [MEDICAL_ADVICE_REFUSAL]));
   }
+  // Пациент назвал специалиста, которого нет в справочнике или у которого нет
+  // принимающих врачей: модель не может записать «вместо него» к другому.
+  const requested = requestedSpecialty(raw, ctx.clinic);
+  if (
+    requested &&
+    requested.status !== "available" &&
+    SPECIALTY_ACTIONS.has(decision.action)
+  )
+    return step(conv, unavailable(requested, ctx));
   const reminder = conv.urgency === "emergency" ? [EMERGENCY_REMINDER] : [];
   const hints = withFlowContext(
     {
@@ -508,6 +525,7 @@ async function execute(
     },
     flow,
     conv,
+    ctx,
   );
 
   switch (decision.action) {
@@ -582,14 +600,20 @@ async function execute(
       // Текст обращения — слова пациента, не формулировка модели.
       return step(conv, startHandoff(ctx, raw));
 
-    case "specialist_unavailable":
+    case "specialist_unavailable": {
       // Модель ошиблась, а направление в клинике есть — показываем его врачей.
-      if (decision.specialtyId)
+      const named =
+        requested ??
+        (decision.specialtyId
+          ? specialtyStatus(decision.specialtyId, ctx)
+          : undefined);
+      if (named?.status === "available")
         return step(
           conv,
-          show({ step: "doctor", specialtyId: decision.specialtyId }, ctx),
+          show({ step: "doctor", specialtyId: named.specialty.id }, ctx),
         );
-      return step(conv, unavailable(detectMissingSpecialty(raw), ctx));
+      return step(conv, unavailable(named, ctx));
+    }
 
     case "small_talk":
       return step(conv, show(flow, ctx, notes));
@@ -610,8 +634,11 @@ async function fallback(
       ? continueComplaint(flow, conv, ctx, { prefix: [MEDICAL_ADVICE_REFUSAL] })
       : step(conv, show(flow, ctx, [MEDICAL_ADVICE_REFUSAL]));
   }
-  const missing = detectMissingSpecialty(raw);
-  if (missing) return step(conv, unavailable(missing, ctx));
+  // Названный специалист есть только в справочнике клиники: нет его или нет
+  // принимающих врачей — честно говорим и предлагаем администратора.
+  const requested = requestedSpecialty(raw, ctx.clinic);
+  if (requested && requested.status !== "available")
+    return step(conv, unavailable(requested, ctx));
 
   const meaning = await ctx.interpreter.interpret(raw, {
     peerId: ctx.peerId,
@@ -635,8 +662,14 @@ async function fallback(
   if (nearest || (meaning.intent === "book" && !area)) {
     if (conv.complaint && !nearest && !meaning.date && !meaning.time) {
       // «Просто запишите» во время расспросов — сразу к подходящему специалисту.
+      if (conv.complaint.others && !conv.specialtyId)
+        return step(
+          { ...conv, pending: undefined },
+          ambiguous(conv.complaint, ctx),
+        );
       const specialtyId =
-        conv.specialtyId ?? AREA_SPECIALTY[conv.complaint.area];
+        conv.specialtyId ??
+        specialtyForArea(ctx.clinic, conv.complaint.area)?.id;
       const next = { ...conv, pending: undefined, specialtyId };
       return step(next, suggestSpecialty(specialtyId, next, ctx, []));
     }
@@ -679,7 +712,7 @@ function bookFromText(
   // Просто «записаться» начинает выбор направления заново.
   const hints =
     nearest || meaning.date || meaning.time
-      ? withFlowContext(meaning, flow, conv)
+      ? withFlowContext(meaning, flow, conv, ctx)
       : meaning;
   const reminder = conv.urgency === "emergency" ? [EMERGENCY_REMINDER] : [];
   if (nearest && hints.specialtyId) {
@@ -693,14 +726,17 @@ function withFlowContext(
   meaning: Interpretation,
   flow: DialogState,
   conv: Conversation,
+  ctx: TurnContext,
 ): Interpretation {
   const result = { ...meaning };
   if (!result.specialtyId && !result.doctorId) {
     const flowSpecialty = "specialtyId" in flow ? flow.specialtyId : undefined;
-    result.specialtyId =
-      flowSpecialty ??
-      conv.specialtyId ??
-      (conv.complaint && AREA_SPECIALTY[conv.complaint.area]);
+    // Неоднозначная жалоба — направление выбирает пациент, не бот.
+    const fromComplaint =
+      conv.complaint && !conv.complaint.others
+        ? specialtyForArea(ctx.clinic, conv.complaint.area)?.id
+        : undefined;
+    result.specialtyId = flowSpecialty ?? conv.specialtyId ?? fromComplaint;
     if ("doctorId" in flow && result.specialtyId === flowSpecialty)
       result.doctorId = flow.doctorId;
   }
@@ -757,12 +793,17 @@ function continueComplaint(
     };
   }
 
-  const fallbackSpecialty = AREA_SPECIALTY[complaint.area];
+  // Несколько разных жалоб — бот не решает, какой специалист нужен.
+  if (complaint.others && conv.urgency !== "emergency")
+    return step(
+      { ...conv, pending: undefined },
+      ambiguous(complaint, ctx, [...prefix, ...(options.suggestion ?? [])]),
+    );
   const specialtyId =
     options.specialtyId &&
     ctx.schedule.listSpecialties().some((s) => s.id === options.specialtyId)
       ? options.specialtyId
-      : fallbackSpecialty;
+      : specialtyForArea(ctx.clinic, complaint.area)?.id;
   const next: Conversation = { ...conv, pending: undefined, specialtyId };
   return step(
     next,
@@ -812,7 +853,22 @@ function suggestSpecialty(
   const specialty = ctx.schedule
     .listSpecialties()
     .find((s) => s.id === specialtyId);
-  if (!specialty) return unavailable(undefined, ctx);
+  if (!specialty) {
+    // После экстренных признаков — только напоминание, без поиска специалиста.
+    if (conv.urgency === "emergency")
+      return {
+        state: { step: "menu" },
+        replies: [
+          {
+            text: [...notes, EMERGENCY_REMINDER].join("\n\n"),
+            buttons: [[ADMIN_BUTTON], [MENU_BUTTON]],
+          },
+        ],
+      };
+    return specialtyId
+      ? unavailable(specialtyStatus(specialtyId, ctx), ctx)
+      : noRoute(ctx, notes);
+  }
   if (conv.urgency === "emergency") {
     // После экстренных признаков бот сам запись не предлагает.
     return {
@@ -862,22 +918,110 @@ function offerNearest(
   ]);
 }
 
-function unavailable(who: string | undefined, ctx: TurnContext): DialogResult {
+/** Действия модели, которые ведут к записи или выбору направления. */
+const SPECIALTY_ACTIONS = new Set<ModelDecision["action"]>([
+  "suggest_specialty",
+  "list_doctors",
+  "list_available_slots",
+  "start_booking",
+  "nearest_slot",
+  "specialist_unavailable",
+]);
+
+/** Есть ли направление справочника и принимают ли его врачи. */
+function specialtyStatus(
+  specialtyId: string,
+  ctx: TurnContext,
+): RequestedSpecialty | undefined {
+  const specialty = ctx.clinic.specialties.find((s) => s.id === specialtyId);
+  if (!specialty) return undefined;
+  return activeSpecialties(ctx.clinic).some((s) => s.id === specialtyId)
+    ? { status: "available", specialty }
+    : { status: "inactive", specialty };
+}
+
+/** «Выбрать направление» — только если в клинике есть принимающие врачи. */
+const chooseButton = (ctx: TurnContext): Button[][] =>
+  activeSpecialties(ctx.clinic).length > 0
+    ? [[{ label: "Выбрать направление", action: { a: "book" } }]]
+    : [];
+
+/**
+ * Названного специалиста нет в справочнике или все его врачи отключены. Бот
+ * не придумывает специалиста и не записывает «вместо него» — предлагает
+ * администратора и список направлений, которые есть.
+ */
+function unavailable(
+  found: RequestedSpecialty | undefined,
+  ctx: TurnContext,
+): DialogResult {
   const clinic = ctx.clinic.name;
+  const text =
+    found?.status === "inactive"
+      ? `${clinic}: сейчас нельзя записаться ${found.specialty.toWhom} — нет принимающих врачей.`
+      : `${clinic}: нет ${found?.status === "absent" ? found.genitive : "такого специалиста"}.`;
   return {
     state: { step: "menu" },
     replies: [
       {
-        text:
-          `${clinic}: нет ${who ?? "такого специалиста"}. ` +
-          "Могу позвать администратора — он подскажет, куда обратиться, — или записать к терапевту на первичный приём.",
+        text: `${text} Администратор подскажет, куда обратиться.`,
+        buttons: [...chooseButton(ctx), [ADMIN_BUTTON, MENU_BUTTON]],
+      },
+    ],
+  };
+}
+
+/** Для области жалобы в справочнике нет направления с принимающими врачами. */
+function noRoute(ctx: TurnContext, notes: string[] = []): DialogResult {
+  return {
+    state: { step: "menu" },
+    replies: [
+      {
+        text: [
+          ...notes,
+          "Подходящего направления в справочнике клиники я не нашёл. Диагнозы я не ставлю — администратор подскажет, к какому специалисту записаться.",
+        ].join("\n\n"),
+        buttons: [[ADMIN_BUTTON], ...chooseButton(ctx), [MENU_BUTTON]],
+      },
+    ],
+  };
+}
+
+/**
+ * Неоднозначная жалоба (несколько разных областей): бот не выбирает
+ * специалиста и не обещает, что кто-то из них точно подходит. Пациент
+ * выбирает направление сам или спрашивает администратора.
+ */
+function ambiguous(
+  complaint: NonNullable<Conversation["complaint"]>,
+  ctx: TurnContext,
+  notes: string[] = [],
+): DialogResult {
+  const options = [
+    ...new Map(
+      [complaint.area, ...(complaint.others ?? [])]
+        .map((area) => specialtyForArea(ctx.clinic, area))
+        .filter((s) => s !== undefined)
+        .map((s) => [s.id, s]),
+    ).values(),
+  ];
+  if (options.length === 0) return noRoute(ctx, notes);
+  return {
+    state: { step: "specialty" },
+    replies: [
+      {
+        text: [
+          ...notes,
+          "Вы описали несколько разных жалоб. Диагнозы я не ставлю и не могу сказать, какой специалист нужен в первую очередь. " +
+            "Выберите направление, с которого хотите начать, или спросите администратора — он подскажет.",
+        ].join("\n\n"),
         buttons: [
-          [
+          ...options.map((s) => [
             {
-              label: "Записаться к терапевту",
-              action: { a: "near", s: "therapist" },
+              label: s.title.slice(0, 40),
+              action: { a: "spec", s: s.id } as const,
             },
-          ],
+          ]),
           [ADMIN_BUTTON, MENU_BUTTON],
         ],
       },

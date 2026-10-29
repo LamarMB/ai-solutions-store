@@ -12,6 +12,8 @@ import {
   type ConversationModel,
   type ModelDecision,
 } from "@/bot/conversation/model";
+import { specialtyForArea } from "@/bot/conversation/specialties";
+import { COMPLAINT_AREAS, type ComplaintArea } from "@/bot/conversation/triage";
 import type { DialogState } from "@/bot/dialog/types";
 import { weekday } from "@/bot/schedule/time";
 import type { OpenAiClient } from "@/bot/llm/openai-client";
@@ -29,6 +31,26 @@ const WEEKDAYS = [
   "суббота",
   "воскресенье",
 ];
+
+const AREA_WORDS: Record<ComplaintArea, string> = {
+  joint: "суставы, спина, последствия травм",
+  dental: "зубы",
+  ent: "ухо, горло, нос",
+  child: "дети",
+  general: "общее недомогание, температура, простуда",
+};
+
+/**
+ * Куда вести жалобу каждой области — по справочнику клиники: id направления с
+ * принимающими врачами или «нет в клинике». Без id демонстрационной клиники.
+ */
+function areaGuide(clinic: Clinic): string {
+  const parts = COMPLAINT_AREAS.map((area) => {
+    const specialty = specialtyForArea(clinic, area);
+    return `${AREA_WORDS[area]} — ${specialty ? specialty.id : "направления нет в клинике"}`;
+  });
+  return `Направления клиники по жалобам: ${parts.join("; ")}.`;
+}
 
 /** Инструкции модели: роль, действия, медицинские ограничения и справка клиники. */
 export function conversationInstructions(clinic: Clinic, demo = true): string {
@@ -61,7 +83,7 @@ export function conversationInstructions(clinic: Clinic, demo = true): string {
 - question "red_flags" — есть ли тревожные признаки (для суставов: сильный отёк, деформация, сильная боль, из-за которой трудно наступать).
 Короткие ответы пациента («нет», «три дня») относятся к последнему вопросу бота. Когда известного достаточно — action "suggest_specialty" с подходящим specialty_id.
 
-Направления клиники: суставы, спина, последствия травм — orthopedist; зубы — dentist; ухо, горло, нос — ent; дети — pediatrician; общее недомогание, температура, простуда — therapist. Если нужного специалиста нет в справке — action "specialist_unavailable" (не предлагай несуществующих врачей).
+${areaGuide(clinic)} Если нужного специалиста нет в справке — action "specialist_unavailable" (не предлагай несуществующих врачей). Если жалоб несколько и они о разном — не выбирай специалиста сам: action "ask_clarification" или "handoff_to_admin".
 
 Действия:
 - ask_clarification — уточняющий вопрос (question — его ключ или null);

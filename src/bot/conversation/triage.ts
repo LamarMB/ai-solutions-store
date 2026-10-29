@@ -1,9 +1,10 @@
 import { clauses, normalizeForRules } from "@/bot/conversation/safety";
 
 /**
- * Административная маршрутизация жалобы: к какому направлению клиники
- * записать и какие общие вопросы задать перед этим. Это не диагностика:
- * вопросы нужны только чтобы не пропустить признаки срочности.
+ * Административная маршрутизация жалобы: область жалобы и какие общие вопросы
+ * задать перед записью. Это не диагностика: вопросы нужны только чтобы не
+ * пропустить признаки срочности. Направление клиники для области — по
+ * справочнику (conversation/specialties.ts).
  */
 export const COMPLAINT_AREAS = [
   "joint",
@@ -16,15 +17,6 @@ export type ComplaintArea = (typeof COMPLAINT_AREAS)[number];
 
 export const QUESTION_KEYS = ["trauma", "duration", "red_flags"] as const;
 export type QuestionKey = (typeof QUESTION_KEYS)[number];
-
-/** Направление вымышленной клиники для каждой области жалоб. */
-export const AREA_SPECIALTY: Record<ComplaintArea, string> = {
-  joint: "orthopedist",
-  dental: "dentist",
-  ent: "ent",
-  child: "pediatrician",
-  general: "therapist",
-};
 
 /**
  * Что нужно уточнить перед записью. Зубы и ЛОР — без вопросов: пациент сам
@@ -200,41 +192,30 @@ const SYMPTOM_STEMS = [
  * названа прямо («колено», «зуб»); иначе это общее недомогание или ответ на
  * вопрос («без травмы», «отёка нет»), который не меняет тему разговора.
  */
-export function detectComplaint(
-  text: string,
-): { area: ComplaintArea; explicit: boolean } | undefined {
+export function detectComplaint(text: string):
+  | {
+      area: ComplaintArea;
+      explicit: boolean;
+      /**
+       * Другие области в том же сообщении («болит зуб и колено»): жалоба
+       * неоднозначна, бот не выбирает специалиста сам. У ребёнка — педиатр.
+       */
+      others?: ComplaintArea[];
+    }
+  | undefined {
   const norm = normalizeForRules(text);
   if (!has(norm, SYMPTOM_STEMS)) return undefined;
-  for (const [area, stems, words] of AREA_STEMS) {
-    if (has(norm, stems) || hasWord(norm, words))
-      return { area, explicit: true };
-  }
-  return { area: "general", explicit: false };
+  const found = AREA_STEMS.filter(
+    ([, stems, words]) => has(norm, stems) || hasWord(norm, words),
+  ).map(([area]) => area);
+  if (found.length === 0) return { area: "general", explicit: false };
+  const [area, ...others] = found;
+  return area === "child" || others.length === 0
+    ? { area, explicit: true }
+    : { area, explicit: true, others };
 }
 
 /** Короткое описание жалобы для памяти диалога (первая фраза, без лишнего). */
 export function complaintSummary(text: string): string {
   return (clauses(text)[0] ?? "").slice(0, 120);
-}
-
-/** Направления, которых нет в вымышленной клинике, — честно говорим об этом. */
-const MISSING_SPECIALTIES: [string[], string][] = [
-  [["кардиолог"], "кардиолога"],
-  [["гинеколог"], "гинеколога"],
-  [["дерматолог", "дерматовенеролог"], "дерматолога"],
-  [["окулист", "офтальмолог"], "офтальмолога"],
-  [["невролог", "невропатолог"], "невролога"],
-  [["уролог", "андролог"], "уролога"],
-  [["хирург"], "хирурга"],
-  [["психолог", "психиатр", "психотерапевт"], "психолога или психиатра"],
-  [["эндокринолог"], "эндокринолога"],
-  [["гастроэнтеролог"], "гастроэнтеролога"],
-  [["маммолог"], "маммолога"],
-  [["аллерголог"], "аллерголога"],
-];
-
-/** «Нужен кардиолог» → «кардиолога» (специалиста нет в клинике). */
-export function detectMissingSpecialty(text: string): string | undefined {
-  const norm = normalizeForRules(text);
-  return MISSING_SPECIALTIES.find(([stems]) => has(norm, stems))?.[1];
 }

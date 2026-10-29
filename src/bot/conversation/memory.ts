@@ -20,8 +20,7 @@ const TurnSchema = z.object({
 export type Turn = z.infer<typeof TurnSchema>;
 
 /**
- * Память разговора: только то, что нужно для маршрутизации и записи
- * вымышленной клиники. Хранится в SQLite вместе с шагом записи, удаляется
+ * Память разговора: только то, что нужно для маршрутизации и записи. Хранится в SQLite вместе с шагом записи, удаляется
  * по сроку (BOT_HISTORY_HOURS) и по команде «сброс». В журнал не пишется.
  */
 export const ConversationSchema = z.object({
@@ -29,6 +28,8 @@ export const ConversationSchema = z.object({
     .object({
       area: z.enum(COMPLAINT_AREAS),
       summary: z.string().max(160),
+      /** Другие области в том же сообщении — специалиста выбирает пациент. */
+      others: z.array(z.enum(COMPLAINT_AREAS)).max(5).optional(),
     })
     .optional(),
   trauma: z.enum(["yes", "no"]).optional(),
