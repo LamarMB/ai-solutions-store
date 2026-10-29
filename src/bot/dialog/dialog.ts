@@ -48,6 +48,11 @@ export type DialogContext = {
   requests?: RequestPort;
   /** Настроен VK Mini App клиники: в меню — «Открыть приложение». */
   appAvailable?: boolean;
+  /**
+   * false — клиника-клиент (BOT_MODE=live): ответы без пометок «демо»,
+   * «вымышленные», «тестовое расписание». По умолчанию — демонстрационная клиника.
+   */
+  demo?: boolean;
 };
 
 export type DialogResult = {
@@ -157,7 +162,7 @@ export function handleMeaning(
       return startHandoff(ctx);
     case "question": {
       const answer = meaning.topic
-        ? infoText(meaning.topic, ctx.clinic)
+        ? infoText(meaning.topic, ctx.clinic, ctx.demo)
         : meaning.answer?.trim().slice(0, ANSWER_MAX);
       if (answer) return show(state, ctx, [answer]);
       break;
@@ -245,7 +250,7 @@ function handleAction(
       return show(previous(state), ctx);
     case "info":
       return show(state.step === "handoff" ? { step: "menu" } : state, ctx, [
-        infoText(action.k, ctx.clinic),
+        infoText(action.k, ctx.clinic, ctx.demo),
       ]);
     case "admin":
       return startHandoff(ctx);
@@ -472,7 +477,7 @@ function confirm(
         replies: [
           {
             text:
-              `Запись №${result.booking.id} подтверждена (тестовое расписание).\n` +
+              `Запись №${result.booking.id} подтверждена${ctx.demo === false ? "" : " (тестовое расписание)"}.\n` +
               describeBooking(result.booking, ctx) +
               "\n\nБольше ничего делать не нужно — диалог можно закрыть.\n" +
               "Если хотите (необязательно): памятка к визиту, как добраться, ваши записи.",
@@ -524,7 +529,7 @@ export const mentionsVisibility = (text: string) =>
 
 export function greet(ctx: DialogContext): DialogResult {
   return show({ step: "menu" }, ctx, [
-    `Здравствуйте! Я помощник клиники: ${ctx.clinic.name} (демо, данные вымышленные).\n` +
+    `Здравствуйте! Я помощник клиники: ${ctx.clinic.name}${ctx.demo === false ? "" : " (демо, данные вымышленные)"}.\n` +
       "Напишите, что нужно, — подберу врача, запишу, отвечу на вопросы. Диагнозы не ставлю и лечение не назначаю.\n" +
       PRIVACY_NOTICE,
   ]);
@@ -534,12 +539,16 @@ function stale(state: DialogState, ctx: DialogContext): DialogResult {
   return show(state, ctx, ["Эта кнопка устарела. Вот актуальные варианты."]);
 }
 
-export function infoText(topic: InfoTopic, clinic: Clinic): string {
+export function infoText(
+  topic: InfoTopic,
+  clinic: Clinic,
+  demo = true,
+): string {
   switch (topic) {
     case "prices":
-      return pricesText(clinic);
+      return pricesText(clinic, demo);
     case "doctors":
-      return doctorsText(clinic);
+      return doctorsText(clinic, demo);
     case "address":
       return addressText(clinic);
     case "prep":

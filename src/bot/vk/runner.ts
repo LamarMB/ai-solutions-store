@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { AdminNotifier, Bot } from "@/bot/bot";
+import type { BotAccess } from "@/bot/config";
 import type { BotEvent, Reply } from "@/bot/dialog/types";
 import type { ChannelStore } from "@/bot/storage/types";
 import { VkApiError, type VkApi } from "@/bot/vk/api";
@@ -23,6 +24,9 @@ const KEYBOARD_ERRORS = new Set([911, 912, 913]);
 
 export const NOT_ALLOWED_TEXT =
   "Это демонстрационный бот тестовой клиники. Сейчас он доступен только тестовым аккаунтам.";
+/** Бот клиники-клиента до открытия доступа (BOT_MODE=live со списком VK ID). */
+export const NOT_YET_OPEN_TEXT =
+  "Бот клиники пока проходит проверку и скоро заработает. Чтобы записаться сейчас, обратитесь в регистратуру клиники.";
 export const ATTACHMENTS_TEXT =
   "Бот не принимает вложения. Пожалуйста, не отправляйте фото и медицинские документы — опишите вопрос текстом или выберите действие кнопкой.";
 export const ERROR_TEXT =
@@ -32,7 +36,10 @@ export type VkRunnerOptions = {
   api: VkApi;
   bot: Bot;
   store: ChannelStore;
-  allowedUserIds: ReadonlySet<number>;
+  /** Кому отвечает бот: "all" — всем пациентам (BOT_MODE=live без списка). */
+  allowedUserIds: BotAccess;
+  /** false — клиника-клиент: ответ посторонним без слов «демонстрационный». По умолчанию true. */
+  demo?: boolean;
   /** VK Mini App клиники: кнопка «Записаться онлайн» рядом с записью в боте. */
   miniApp?: MiniAppButton;
   now?: () => Date;
@@ -87,6 +94,10 @@ function splitText(text: string): string[] {
 export function createVkRunner(options: VkRunnerOptions) {
   const now = options.now ?? (() => new Date());
   const log = options.log ?? (() => {});
+  const access = options.allowedUserIds;
+  const allowed = (id: number) => access === "all" || access.has(id);
+  const notAllowedText =
+    options.demo === false ? NOT_YET_OPEN_TEXT : NOT_ALLOWED_TEXT;
   const { api, bot, store } = options;
 
   async function send(
@@ -194,9 +205,9 @@ export function createVkRunner(options: VkRunnerOptions) {
           )
             return;
           const peerId = message.peer_id;
-          if (!options.allowedUserIds.has(message.from_id)) {
+          if (!allowed(message.from_id)) {
             log(`message from not allowed ${maskId(peerId)}`);
-            await noticeOnce(peerId, "not_allowed", NOT_ALLOWED_TEXT, eventId);
+            await noticeOnce(peerId, "not_allowed", notAllowedText, eventId);
             return;
           }
           const caps = capabilitiesFrom(object.client_info);
@@ -247,8 +258,7 @@ export function createVkRunner(options: VkRunnerOptions) {
                 `event answer failed: ${error instanceof VkApiError ? error.code : "network"}`,
               ),
             );
-          if (!options.allowedUserIds.has(user_id) || peer_id !== user_id)
-            return;
+          if (!allowed(user_id) || peer_id !== user_id) return;
           log(`message_event from ${maskId(peer_id)}`);
           await process(
             peer_id,
@@ -265,11 +275,7 @@ export function createVkRunner(options: VkRunnerOptions) {
             peer_id?: number;
             admin_author_id?: number;
           };
-          if (
-            peer_id &&
-            admin_author_id &&
-            options.allowedUserIds.has(peer_id)
-          ) {
+          if (peer_id && admin_author_id && allowed(peer_id)) {
             bot.notePeerHandledByAdmin(peer_id);
             log(`admin replied to ${maskId(peer_id)}, bot paused`);
           }
@@ -290,6 +296,8 @@ export class VkAdminNotifier implements AdminNotifier {
     private readonly groupId: number,
     private readonly adminUserId: number,
     private readonly now: () => Date = () => new Date(),
+    /** false — клиника-клиент: без пометки «демонстрационный бот». */
+    private readonly demo: boolean = true,
   ) {}
 
   /** Только ссылка на диалог и номер обращения — без текста обращения и переписки. */
@@ -300,7 +308,7 @@ export class VkAdminNotifier implements AdminNotifier {
         `handoff:${peerId}:${requestId ?? 0}:${this.now().toISOString().slice(0, 16)}`,
       ),
       message:
-        "Пациент просит администратора (демонстрационный бот). Откройте диалог в сообщениях сообщества: " +
+        `Пациент просит администратора${this.demo ? " (демонстрационный бот)" : ""}. Откройте диалог в сообщениях сообщества: ` +
         `https://vk.com/gim${this.groupId}?sel=${peerId}` +
         (requestId
           ? `\nПациент разрешил передать текст обращения №${requestId} — он в панели клиники, раздел «Обращения».`

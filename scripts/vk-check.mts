@@ -4,7 +4,7 @@
  *
  *   npm run bot:check
  */
-import { createLogger, loadBotConfig } from "@/bot/config";
+import { createLogger, describeAccess, loadBotConfig } from "@/bot/config";
 import { VkApi, VkApiError } from "@/bot/vk/api";
 import { loadLocalEnv } from "@/bot/env";
 
@@ -26,7 +26,7 @@ if (!result.ok) {
   process.exit(1);
 }
 const { config } = result;
-ok(`переменные заданы; тестовых аккаунтов: ${config.vk.allowedUserIds.size}`);
+ok(`переменные заданы; ${describeAccess(config)}`);
 
 const api = new VkApi({
   token: config.vk.token,

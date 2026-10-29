@@ -6,13 +6,17 @@ const rub = (value: number) =>
 /** Ответы на типовые вопросы — только из данных клиники, без модели. */
 export const rubles = rub;
 
-export function pricesText(clinic: Clinic): string {
+/**
+ * `demo` — демонстрационная клиника: в справке пометки «тестовые» и
+ * «вымышленные». У клиники-клиента (BOT_MODE=live) их нет.
+ */
+export function pricesText(clinic: Clinic, demo = true): string {
   // Стоимость приёма конкретного врача, если её задал администратор.
   const doctorPrices = clinic.doctors
     .filter((d) => isActiveDoctor(d) && d.priceRub !== undefined)
     .map((d) => `• Приём: ${d.name} — ${rub(d.priceRub!)}`);
   return (
-    "Цены (тестовые, клиника вымышленная):\n" +
+    (demo ? "Цены (тестовые, клиника вымышленная):\n" : "Цены:\n") +
     [
       ...clinic.services.map((s) => `• ${s.title} — ${rub(s.priceRub)}`),
       ...doctorPrices,
@@ -20,9 +24,9 @@ export function pricesText(clinic: Clinic): string {
   );
 }
 
-export function doctorsText(clinic: Clinic): string {
+export function doctorsText(clinic: Clinic, demo = true): string {
   return (
-    "Наши врачи (вымышленные):\n" +
+    (demo ? "Наши врачи (вымышленные):\n" : "Наши врачи:\n") +
     clinic.doctors
       .filter(isActiveDoctor)
       .map((d) => {
@@ -57,7 +61,7 @@ export function prepText(clinic: Clinic): string {
  * Справка о клинике для системных инструкций модели. Модель отвечает только
  * по этим данным; записи и свободное время она не видит и не создаёт.
  */
-export function clinicReference(clinic: Clinic): string {
+export function clinicReference(clinic: Clinic, demo = true): string {
   return [
     `Клиника: ${clinic.name}`,
     ...(clinic.about ? [clinic.about] : []),
@@ -79,7 +83,7 @@ export function clinicReference(clinic: Clinic): string {
             `- ${d.name} (id: ${d.id}, направление: ${d.specialtyId}). ${d.about}`,
         )
         .join("\n"),
-    pricesText(clinic),
+    pricesText(clinic, demo),
     prepText(clinic),
   ].join("\n\n");
 }

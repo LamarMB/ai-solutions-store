@@ -1,5 +1,6 @@
 /**
- * VK-бот ИИ-администратора (демонстрационный прототип) — Bots Long Poll.
+ * VK-бот ИИ-администратора — Bots Long Poll. BOT_MODE=demo (по умолчанию) —
+ * демонстрационная клиника, BOT_MODE=live — клиника-клиент.
  *
  *   npm run bot:vk
  *
@@ -7,7 +8,8 @@
  */
 import { createDemoBot } from "@/bot";
 import { KeyedQueue, RateGate } from "@/bot/concurrency";
-import { createLogger, loadBotConfig } from "@/bot/config";
+import { demoMarkers } from "@/bot/clinic/live-check";
+import { createLogger, describeAccess, loadBotConfig } from "@/bot/config";
 import { VkApi } from "@/bot/vk/api";
 import { runLongPoll } from "@/bot/vk/longpoll";
 import { createVkRunner, peerOf, VkAdminNotifier } from "@/bot/vk/runner";
@@ -31,7 +33,13 @@ const api = new VkApi({
   gate: new RateGate(config.queue.vkPerSecond),
 });
 const notifier = config.vk.adminUserId
-  ? new VkAdminNotifier(api, config.vk.groupId, config.vk.adminUserId)
+  ? new VkAdminNotifier(
+      api,
+      config.vk.groupId,
+      config.vk.adminUserId,
+      () => new Date(),
+      config.mode === "demo",
+    )
   : undefined;
 const { bot, store } = createDemoBot({
   dbPath: config.dbPath,
@@ -43,13 +51,30 @@ const { bot, store } = createDemoBot({
   cipher: config.cipher,
   medicalQuestions: config.medicalQuestions,
   miniApp: config.vk.miniAppId !== undefined,
+  demo: config.mode === "demo",
   log,
 });
+
+// Клиника-клиент не должна получить ответы с данными вымышленной клиники,
+// которые база получает при создании: сначала справочник заполняется в панели.
+if (config.mode === "live") {
+  const markers = demoMarkers(store.clinic.load());
+  if (markers.length > 0) {
+    log(
+      "BOT_MODE=live, но в справочнике клиники остались данные демонстрационной клиники:",
+    );
+    for (const field of markers) log(`  ${field}`);
+    log("Замените их в панели клиники и запустите бота снова.");
+    store.close();
+    process.exit(1);
+  }
+}
 const runner = createVkRunner({
   api,
   bot,
   store,
   allowedUserIds: config.vk.allowedUserIds,
+  demo: config.mode === "demo",
   miniApp: config.vk.miniAppId
     ? { appId: config.vk.miniAppId, groupId: config.vk.groupId }
     : undefined,
@@ -98,7 +123,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 
 log(
-  `сообщество ${config.vk.groupId}, тестовых аккаунтов: ${config.vk.allowedUserIds.size}, ` +
+  `сообщество ${config.vk.groupId}, ${describeAccess(config)}, ` +
     `OpenAI: ${config.openai ? `да (${config.openai.model})` : "нет — работают кнопки и правила"}, ` +
     `администратор: ${notifier ? "уведомления включены" : "не задан"}, база: ${config.dbPath} (схема v${store.schemaVersion}), ` +
     `история разговора: ${config.historyHours} ч, ` +

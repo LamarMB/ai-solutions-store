@@ -15,7 +15,10 @@ import { SqliteStore } from "@/bot/storage/sqlite";
 export { createBot, type Bot } from "@/bot/bot";
 export type { BotEvent, Reply, Button, Action } from "@/bot/dialog/types";
 
-/** Собирает бота вымышленной клиники с хранилищем SQLite по указанному пути. */
+/**
+ * Собирает бота с хранилищем SQLite по указанному пути. По умолчанию — бот
+ * вымышленной клиники с пометками «демо»; `demo: false` — клиника-клиент.
+ */
 export function createDemoBot({
   dbPath,
   clinic,
@@ -28,6 +31,7 @@ export function createDemoBot({
   cipher,
   medicalQuestions,
   miniApp,
+  demo = true,
   log,
 }: {
   dbPath: string;
@@ -59,6 +63,8 @@ export function createDemoBot({
   medicalQuestions?: boolean;
   /** Настроен VK Mini App клиники (кнопка «Открыть приложение» в меню). */
   miniApp?: boolean;
+  /** false — клиника-клиент (BOT_MODE=live): ответы и инструкции модели без пометок «демо». */
+  demo?: boolean;
   log?: (message: string) => void;
 }) {
   const store = new SqliteStore(dbPath, { cipher });
@@ -80,6 +86,7 @@ export function createDemoBot({
           onError: log,
         }),
         log,
+        demo,
       )
     : undefined;
   const bot = createBot({
@@ -95,6 +102,7 @@ export function createDemoBot({
     consents: createConsentPort(store.consents, schedule, now),
     requests: createRequestPort(store.requests, now),
     appAvailable: miniApp ?? false,
+    demo,
     medicalQuestions,
     stats: store,
     now,

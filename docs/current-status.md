@@ -105,6 +105,18 @@
   ([load-test-report.md](load-test-report.md)) и план масштабирования на 5–100 клиник
   ([scaling-plan.md](scaling-plan.md)). Только документы; ничего не развёрнуто.
 
+- `claude/commercial-audit` (от `claude/scaling-plan`) — аудит тарифов, экономика и план
+  до первого клиента: [tariff-audit.md](tariff-audit.md),
+  [pricing-economics.md](pricing-economics.md),
+  [first-client-roadmap.md](first-client-roadmap.md). Только документы.
+
+- `claude/jolly-bohr-j26x8f` (от `claude/commercial-audit`) — P0-1 «боевой режим»
+  бота: `BOT_MODE=live` — тексты бота, инструкции OpenAI и уведомление администратору без
+  пометок «демо», доступ всем пациентам при пустом `VK_ALLOWED_USER_IDS`, запуск
+  запрещён, пока в справочнике остались данные вымышленной клиники. По умолчанию
+  `demo` — поведение действующего бота не меняется. Тесты
+  `src/bot/live-mode.test.ts`. Без PR и merge; на сервере не проверялось.
+
 ## Следующие шаги
 
 1. Решение владельца об обновлении VPS по `bot-menu-requests-deploy.md` (включает этап 2

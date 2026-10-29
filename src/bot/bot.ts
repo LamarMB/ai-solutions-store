@@ -71,6 +71,8 @@ export type BotDeps = {
   requests?: RequestPort;
   /** Настроен VK Mini App: главная кнопка меню — «Открыть приложение». */
   appAvailable?: boolean;
+  /** false — клиника-клиент (BOT_MODE=live): ответы без пометок «демо». */
+  demo?: boolean;
   now?: () => Date;
   /** Ошибки уведомлений — без персональных данных. */
   onError?: (message: string) => void;
@@ -174,6 +176,7 @@ export function createBot(deps: BotDeps) {
         consents: deps.consents,
         requests: deps.requests,
         appAvailable: deps.appAvailable,
+        demo: deps.demo,
         medicalQuestions: deps.medicalQuestions,
       });
       const { session, effects, stats } = turn;
