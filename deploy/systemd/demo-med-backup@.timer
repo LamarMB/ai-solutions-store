@@ -1,0 +1,12 @@
+# Ежедневная резервная копия клиники %i (ночью, со случайной задержкой, чтобы
+# копии разных клиник не совпадали). Пропущенный запуск выполняется после включения.
+[Unit]
+Description=Daily encrypted backup (%i)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+RandomizedDelaySec=90min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

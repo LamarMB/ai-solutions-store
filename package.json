@@ -22,7 +22,8 @@
     "admin:user": "tsx scripts/admin-user.mts",
     "db:backup": "tsx scripts/db-backup.mts",
     "doctors:demo-photos": "tsx scripts/demo-photos.mts",
-    "clinic": "tsx scripts/clinic-instance.mts"
+    "clinic": "tsx scripts/clinic-instance.mts",
+    "backup": "tsx scripts/clinic-backup.mts"
   },
   "dependencies": {
     "@vkontakte/vk-bridge": "3.0.2",

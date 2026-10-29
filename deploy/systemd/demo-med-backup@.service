@@ -1,0 +1,37 @@
+# Резервная копия клиники %i: снимок → шифрование → внешнее хранилище → проверка
+# восстановлением → срок хранения. Запускается таймером demo-med-backup@%i.timer.
+# Получает только настройки копирования — не секреты бота и панели.
+[Unit]
+Description=Demo-Med encrypted backup (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=dm-%i
+Group=dm-%i
+WorkingDirectory=/opt/demo-med/current
+Environment=CLINIC_ID=%i
+Environment=BOT_DB_PATH=/var/lib/demo-med/%i/bot.sqlite
+EnvironmentFile=/etc/demo-med/backup/%i.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node node_modules/tsx/dist/cli.mjs scripts/clinic-backup.mts run
+SyslogIdentifier=demo-med-%i-backup
+TimeoutStartSec=30min
+Nice=10
+IOSchedulingClass=idle
+
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# База и временные файлы — только своей клиники; локальные копии — свой каталог.
+ReadWritePaths=/var/lib/demo-med/%i /var/backups/demo-med/%i
+MemoryMax=1G
