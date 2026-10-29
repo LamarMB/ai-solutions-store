@@ -8,9 +8,23 @@ export const SESSION_IDLE_MS = 8 * 60 * 60 * 1000;
 export const SESSION_MAX_MS = 7 * 24 * 60 * 60 * 1000;
 const TOUCH_INTERVAL_MS = 5 * 60 * 1000;
 
-/** Неудачные входы: 5 за 15 минут — пауза 15 минут по адресу и по логину. */
-const MAX_FAILURES = 5;
-const FAILURE_WINDOW_MS = 15 * 60 * 1000;
+/**
+ * Неудачные попытки за 15 минут; блокировка снимается, когда старые попытки
+ * выходят из окна. Лимиты разные: подбор пароля к одному логину с одного
+ * адреса останавливается быстро, а чужой адрес не может пятью ошибками
+ * закрыть вход владельцу — для этого нужны 20 ошибок с разных адресов.
+ */
+export const FAILURE_WINDOW_MS = 15 * 60 * 1000;
+export const LOGIN_LIMITS = {
+  /** Один адрес и один логин. */
+  pair: 5,
+  /** Один адрес, любые логины (перебор логинов). */
+  ip: 10,
+  /** Один логин с любых адресов (распределённый подбор). */
+  login: 20,
+} as const;
+/** Ключей в памяти ограничителя — больше: устаревшие удаляются. */
+const MAX_TRACKED_KEYS = 10_000;
 
 export type AuthConfig = {
   /** Cookie только по https. Отключать — только для локальной разработки. */
@@ -89,7 +103,13 @@ export function isSameOrigin(request: Request, config: AuthConfig): boolean {
   return config.allowedOrigins.includes(origin.replace(/\/$/, ""));
 }
 
-/** Ограничение подбора пароля. Хранится в памяти процесса панели. */
+/** Ключ и сколько неудачных попыток по нему допускается за окно. */
+export type Limit = { key: string; max: number };
+
+/**
+ * Ограничение подбора (вход и приглашения). Хранится в памяти процесса
+ * панели; от cookie и сессии не зависит — их смена счётчик не сбрасывает.
+ */
 export class LoginThrottle {
   private readonly failures = new Map<string, number[]>();
 
@@ -105,11 +125,13 @@ export class LoginThrottle {
     return list;
   }
 
-  isLocked(keys: string[]): boolean {
-    return keys.some((key) => this.recent(key).length >= MAX_FAILURES);
+  isLocked(limits: readonly Limit[]): boolean {
+    return limits.some(({ key, max }) => this.recent(key).length >= max);
   }
 
-  fail(keys: string[]) {
+  fail(keys: readonly string[]) {
+    if (this.failures.size > MAX_TRACKED_KEYS)
+      for (const key of [...this.failures.keys()]) this.recent(key);
     for (const key of keys) {
       const list = this.recent(key);
       list.push(this.now());
@@ -117,7 +139,7 @@ export class LoginThrottle {
     }
   }
 
-  reset(keys: string[]) {
+  reset(keys: readonly string[]) {
     for (const key of keys) this.failures.delete(key);
   }
 }
@@ -141,11 +163,20 @@ export class AdminAuth {
     password: string,
     clientKey: string,
   ): Promise<LoginResult> {
-    const keys = [`ip:${clientKey}`, `login:${login.toLowerCase()}`];
-    if (this.throttle.isLocked(keys)) return { ok: false, reason: "locked" };
+    // Логин без регистра и пробелов — как в базе (COLLATE NOCASE): «OWNER» не
+    // обходит счётчик «owner». Существует ли логин, счётчик не учитывает.
+    const name = login.trim().toLowerCase();
+    const pair = `pair:${clientKey}:${name}`;
+    const limits: Limit[] = [
+      { key: pair, max: LOGIN_LIMITS.pair },
+      { key: `ip:${clientKey}`, max: LOGIN_LIMITS.ip },
+      { key: `login:${name}`, max: LOGIN_LIMITS.login },
+    ];
+    if (this.throttle.isLocked(limits)) return { ok: false, reason: "locked" };
     // Попытка засчитывается до проверки пароля: пока scrypt считает, параллельные
-    // запросы иначе успевали бы пройти isLocked. Успешный вход сбрасывает счётчик.
-    this.throttle.fail(keys);
+    // запросы иначе успевали бы пройти isLocked. Успешный вход сбрасывает счётчик
+    // своего адреса и логина; общие счётчики адреса и логина остаются.
+    this.throttle.fail(limits.map((l) => l.key));
     const user = this.store.findUser(login);
     dummyHash ??= hashPassword("dummy-password-for-timing-1");
     const valid = await verifyPassword(
@@ -154,7 +185,7 @@ export class AdminAuth {
     );
     if (!user || user.disabled || !valid)
       return { ok: false, reason: "invalid" };
-    this.throttle.reset(keys);
+    this.throttle.reset([pair]);
     const token = randomBytes(32).toString("base64url");
     const at = this.now();
     this.store.pruneSessions(at.toISOString());

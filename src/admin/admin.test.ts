@@ -259,15 +259,20 @@ describe("авторизация и защита API", () => {
     expect((await t.call("GET", "me")).status).toBe(401);
   });
 
-  it("ограничитель попыток считает по адресу и по логину", () => {
+  it("ограничитель попыток: свой лимит у каждого ключа, окно 15 минут", () => {
     let now = 0;
     const throttle = new LoginThrottle(() => now);
     for (let i = 0; i < 5; i++) throttle.fail(["ip:a", "login:x"]);
-    expect(throttle.isLocked(["ip:b", "login:x"])).toBe(true);
-    expect(throttle.isLocked(["ip:a", "login:y"])).toBe(true);
-    expect(throttle.isLocked(["ip:b", "login:y"])).toBe(false);
+    expect(throttle.isLocked([{ key: "login:x", max: 5 }])).toBe(true);
+    expect(throttle.isLocked([{ key: "login:x", max: 6 }])).toBe(false);
+    expect(
+      throttle.isLocked([
+        { key: "ip:b", max: 1 },
+        { key: "ip:a", max: 5 },
+      ]),
+    ).toBe(true);
     now = 15 * 60_000 + 1;
-    expect(throttle.isLocked(["ip:a", "login:x"])).toBe(false);
+    expect(throttle.isLocked([{ key: "ip:a", max: 5 }])).toBe(false);
   });
 });
 

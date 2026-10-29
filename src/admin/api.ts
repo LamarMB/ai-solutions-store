@@ -130,10 +130,20 @@ export async function handleAdminApi(
     // Приглашение сотрудника: без сессии, по одноразовому токену.
     if (route === "invite/info" && method === "POST") {
       const body = (await readJson(request)) as { token?: unknown };
-      return ok(deps.service.staff.inviteInfo(String(body.token ?? "")));
+      return ok(
+        deps.service.staff.inviteInfo(
+          String(body.token ?? ""),
+          deps.clientKey(request),
+        ),
+      );
     }
     if (route === "invite/accept" && method === "POST")
-      return ok(await deps.service.staff.acceptInvite(await readJson(request)));
+      return ok(
+        await deps.service.staff.acceptInvite(
+          await readJson(request),
+          deps.clientKey(request),
+        ),
+      );
 
     const token = readCookie(
       request.headers.get("cookie"),

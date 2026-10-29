@@ -66,12 +66,83 @@ export async function verifyPassword(
   );
 }
 
-/** Требования к паролю — простые и понятные администратору. */
-export function passwordProblem(password: string): string | undefined {
+/**
+ * Слова, с которых начинают подбор: пароль из такого слова и цифр
+ * («Admin2026», «qwerty12345», «Пароль1234») отклоняется.
+ */
+const COMMON_WORDS = new Set([
+  "password",
+  "passw",
+  "pass",
+  "qwerty",
+  "qwertyuiop",
+  "qwe",
+  "asdf",
+  "zxcv",
+  "abc",
+  "abcd",
+  "abcdef",
+  "admin",
+  "administrator",
+  "root",
+  "user",
+  "login",
+  "welcome",
+  "letmein",
+  "iloveyou",
+  "test",
+  "demo",
+  "demomed",
+  "clinic",
+  "parol",
+  "пароль",
+  "админ",
+  "демо",
+  "демомед",
+  "клиника",
+  "йцукен",
+  "qaz",
+  "wsx",
+  "edc",
+  "zaq",
+  "q",
+  "w",
+  "e",
+  "r",
+  "t",
+  "y",
+  "a",
+  "s",
+  "d",
+  "z",
+  "x",
+]);
+
+/**
+ * Требования к паролю — простые и понятные администратору. `login` — чтобы
+ * пароль не повторял логин сотрудника.
+ */
+export function passwordProblem(
+  password: string,
+  login?: string,
+): string | undefined {
   if (password.length < PASSWORD_MIN_LENGTH)
     return `Пароль должен быть не короче ${PASSWORD_MIN_LENGTH} символов.`;
   if (password.length > 200) return "Пароль слишком длинный.";
   if (!/[a-zа-яё]/i.test(password) || !/\d/.test(password))
     return "Пароль должен содержать буквы и цифры.";
+  const lower = password.toLowerCase().replaceAll("ё", "е");
+  const name = login?.trim().toLowerCase();
+  if (name && name.length >= 3 && lower.includes(name))
+    return "Пароль не должен содержать логин.";
+  // Слово из списка и цифры/знаки («Admin2026!», «1q2w3e4r5t») — слишком просто.
+  const letters = lower
+    .replace(/[^a-zа-я]+/g, " ")
+    .trim()
+    .split(" ");
+  if (letters.every((word) => COMMON_WORDS.has(word)))
+    return "Пароль слишком простой: такие пробуют первыми. Добавьте слова, которые не угадать.";
+  if (new Set(lower).size < 5)
+    return "Пароль слишком простой: мало разных символов.";
   return undefined;
 }

@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { z } from "zod";
-import { hashToken } from "@/admin/auth";
+import { FAILURE_WINDOW_MS, hashToken, LoginThrottle } from "@/admin/auth";
 import { hashPassword, passwordProblem } from "@/admin/password";
 import {
   describeZodError,
@@ -14,6 +14,12 @@ import { AdminError } from "@/admin/errors";
 
 /** Приглашение действует 72 часа и только один раз. */
 export const INVITE_TTL_MS = 72 * 60 * 60 * 1000;
+/** Токен приглашения — 32 случайных байта в base64url (createInvite). */
+const INVITE_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
+/** Неверных токенов приглашения с одного адреса за 15 минут — больше нельзя. */
+export const INVITE_MAX_FAILURES = 10;
+const INVALID_INVITE =
+  "Приглашение недействительно: истекло, отозвано или уже использовано.";
 
 function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {
   const result = schema.safeParse(input);
@@ -32,10 +38,15 @@ function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {
  * ссылке. Владелец пароля не знает, в базе — только хэш токена приглашения.
  */
 export class StaffService {
+  /** Неверные токены приглашений по адресу клиента — защита от перебора. */
+  private readonly inviteThrottle: LoginThrottle;
+
   constructor(
     private readonly store: SqliteStore,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) {
+    this.inviteThrottle = new LoginThrottle(() => this.now().getTime());
+  }
 
   private get at() {
     return this.now().toISOString();
@@ -149,21 +160,45 @@ export class StaffService {
 
   // --- Принятие приглашения (без сессии) ------------------------------------
 
-  /** Что за приглашение — без секрета и без данных других сотрудников. */
-  inviteInfo(token: string) {
-    const invite = this.store.admin.findInvite(hashToken(token), this.at);
-    if (!invite)
+  /**
+   * Действующее приглашение по токену. Сначала — лимит попыток и формат токена
+   * (без обращения к базе), неверный токен засчитывается адресу клиента.
+   * Ответ на неверный, истёкший и использованный токен одинаковый.
+   */
+  private findInvite(token: string, clientKey: string) {
+    const key = `invite:${clientKey}`;
+    if (this.inviteThrottle.isLocked([{ key, max: INVITE_MAX_FAILURES }]))
       throw new AdminError(
-        404,
-        "Приглашение недействительно: истекло, отозвано или уже использовано.",
+        429,
+        `Слишком много попыток. Подождите ${FAILURE_WINDOW_MS / 60_000} минут.`,
       );
+    const invite = INVITE_TOKEN_RE.test(token)
+      ? this.store.admin.findInvite(hashToken(token), this.at)
+      : undefined;
+    if (!invite) {
+      this.inviteThrottle.fail([key]);
+      throw new AdminError(404, INVALID_INVITE);
+    }
+    return invite;
+  }
+
+  /** Что за приглашение — без секрета и без данных других сотрудников. */
+  inviteInfo(token: string, clientKey: string) {
+    const invite = this.findInvite(token, clientKey);
     return { login: invite.login, role: invite.role };
   }
 
-  async acceptInvite(input: unknown) {
+  /**
+   * Пароль по приглашению. Дорогой scrypt — только после проверки токена:
+   * поток запросов с выдуманными токенами не нагружает сервер.
+   */
+  async acceptInvite(input: unknown, clientKey: string) {
     const data = parse(InviteAcceptSchema, input);
-    const problem = passwordProblem(data.password);
+    const invite = this.findInvite(data.token, clientKey);
+    const problem = passwordProblem(data.password, invite.login);
     if (problem) throw new AdminError(400, problem, { password: problem });
+    // Приглашение проверяется ещё раз в транзакции: его могли отозвать или
+    // использовать, пока считался хэш.
     const result = this.store.admin.acceptInvite(
       hashToken(data.token),
       await hashPassword(data.password),
@@ -174,7 +209,7 @@ export class StaffService {
         result.reason === "taken" ? 409 : 404,
         result.reason === "taken"
           ? "Логин или врач уже заняты — попросите владельца прислать новое приглашение."
-          : "Приглашение недействительно: истекло, отозвано или уже использовано.",
+          : INVALID_INVITE,
       );
     this.store.admin.audit(
       result.userId,

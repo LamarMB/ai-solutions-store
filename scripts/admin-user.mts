@@ -152,7 +152,7 @@ try {
         ? roleFromArgs(store.admin.countUsers() === 0 ? "owner" : "admin")
         : null;
     const password = await readPassword();
-    const problem = passwordProblem(password);
+    const problem = passwordProblem(password, login);
     if (problem) fail(problem);
     const hash = await hashPassword(password);
     if (command === "create") {
