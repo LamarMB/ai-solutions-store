@@ -1,0 +1,11 @@
+# Проверки каждые 5 минут; после перезагрузки — через 2 минуты.
+[Unit]
+Description=Demo-Med monitoring every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

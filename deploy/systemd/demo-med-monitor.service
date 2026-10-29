@@ -1,0 +1,36 @@
+# Мониторинг всех клиник сервера: бот, панель, копии, сертификаты, диск, память.
+# Запускается таймером demo-med-monitor.timer. Данные клиник — только чтение.
+[Unit]
+Description=Demo-Med monitoring
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/demo-med/current
+EnvironmentFile=-/etc/demo-med/monitor.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node node_modules/tsx/dist/cli.mjs scripts/monitor.mts run
+SyslogIdentifier=demo-med-monitor
+TimeoutStartSec=3min
+StateDirectory=demo-med-monitor
+StateDirectoryMode=0700
+
+# root только для чтения чужих каталогов (настройки и базы клиник — 600/700):
+# из прав остаётся лишь чтение без проверки владельца; писать можно только
+# в своё состояние /var/lib/demo-med-monitor.
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+MemoryMax=300M
