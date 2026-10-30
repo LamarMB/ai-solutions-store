@@ -17,9 +17,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: ${{ matrix.n8n == '1' && 22 || 24 }}
       - name: n8n
         run: |
+          set +e
           mkdir -p out; export N8N_USER_FOLDER=$PWD/.n8nhome N8N_ENCRYPTION_KEY=test-only-key-123456 N8N_DIAGNOSTICS_ENABLED=false
           npm i -g n8n@${{ matrix.n8n }} > out/install.log 2>&1; n8n --version > out/version.txt 2>&1
           { n8n import:workflow --input=n8n/full.json; echo "rc=$?"; } > out/import-full.log 2>&1
@@ -31,11 +32,7 @@ jobs:
       - name: publish
         if: always()
         run: |
+          rm -rf .n8nhome
           git config user.name claude-tools; git config user.email claude-tools@users.noreply.github.com
-          mv out /tmp/out-${{ matrix.n8n }}
-          for i in 1 2 3 4 5; do
-            git fetch -q origin tmp/claude-out && git checkout -q -B o FETCH_HEAD || git checkout -q --orphan o
-            git rm -rqf . >/dev/null 2>&1; git clean -fdq -e /tmp
-            mkdir -p n8n-${{ matrix.n8n }} && cp -r /tmp/out-${{ matrix.n8n }}/. n8n-${{ matrix.n8n }}/
-            git add -A && git commit -qm "n8n ${{ matrix.n8n }}" && git push -q origin HEAD:tmp/claude-out && break; sleep 5
-          done
+          git checkout -q --orphan o && git rm -rqf . >/dev/null 2>&1; git clean -fdq -e out
+          git add out && git commit -qm "n8n ${{ matrix.n8n }}" && git push -qf origin HEAD:tmp/claude-out-n8n-${{ matrix.n8n }}
