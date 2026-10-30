@@ -429,3 +429,100 @@ describe("VK: кнопка Mini App", () => {
     expect(String(last.params.keyboard)).toContain("Администратор");
   });
 });
+
+describe("VK: главное меню — постоянная клавиатура у поля ввода", () => {
+  type Kb = {
+    inline?: boolean;
+    one_time?: boolean;
+    buttons: { action: { type: string; label: string } }[][];
+  };
+  const kb = (c: Call): Kb | undefined =>
+    c.params.keyboard
+      ? (JSON.parse(String(c.params.keyboard)) as Kb)
+      : undefined;
+  const labels = (k: Kb) => k.buttons.flat().map((b) => b.action.label);
+  const isMainMenu = (k: Kb | undefined) =>
+    !!k &&
+    labels(k).includes("Мои записи") &&
+    labels(k).includes("Администратор");
+
+  it("«Начать»: меню приходит один раз клавиатурой у поля ввода, не под сообщением", async () => {
+    const t = setup({ miniApp: true });
+    await t.runner.onUpdate(
+      t.message(PATIENT, "Начать", {
+        payload: JSON.stringify({ command: "start" }),
+      }),
+    );
+    const menu = kb(t.sent(PATIENT).at(-1)!)!;
+    expect(menu.inline).toBeUndefined();
+    expect(menu.one_time).toBe(false);
+    expect(menu.buttons[0][0].action).toMatchObject({
+      type: "open_app",
+      label: "Открыть приложение",
+    });
+    expect(menu.buttons[1].map((b) => b.action)).toEqual([
+      expect.objectContaining({ type: "text", label: "Мои записи" }),
+      expect.objectContaining({ type: "text", label: "Администратор" }),
+    ]);
+
+    // Следующие ответы с меню — без клавиатуры: постоянная уже у поля ввода.
+    const before = t.sent(PATIENT).length;
+    await t.runner.onUpdate(t.message(PATIENT, "расскажи анекдот"));
+    const next = t.sent(PATIENT).slice(before);
+    expect(next.length).toBeGreaterThan(0);
+    for (const c of next) expect(kb(c)).toBeUndefined();
+    // Ни одно сообщение не несёт главное меню inline-кнопками.
+    for (const c of t.sent(PATIENT))
+      expect(isMainMenu(kb(c)) && kb(c)!.inline).toBeFalsy();
+  });
+
+  it("контекстные кнопки (запись) остаются под сообщением", async () => {
+    const t = setup({ miniApp: true });
+    await t.runner.onUpdate(t.message(PATIENT, "меню"));
+    await t.runner.onUpdate(t.click(PATIENT, { a: "book" }));
+    const last = kb(t.sent(PATIENT).at(-1)!)!;
+    expect(last.inline).toBe(true);
+    expect(labels(last)).toContain("Терапевт");
+  });
+
+  it("кнопка постоянной клавиатуры (текстовая с payload) работает: «Мои записи»", async () => {
+    const t = setup({ miniApp: true });
+    await t.runner.onUpdate(t.message(PATIENT, "меню"));
+    await t.runner.onUpdate(
+      t.message(PATIENT, "Мои записи", {
+        payload: JSON.stringify({ a: "my" }),
+      }),
+    );
+    expect(String(t.sent(PATIENT).at(-1)!.params.message)).toMatch(/записей/i);
+  });
+
+  it("клавиатура отправляется снова: «В меню», «меню», через сутки", async () => {
+    const t = setup({ miniApp: true });
+    await t.runner.onUpdate(t.message(PATIENT, "меню"));
+    const menus = () => t.sent(PATIENT).filter((c) => isMainMenu(kb(c))).length;
+    expect(menus()).toBe(1);
+    await t.runner.onUpdate(t.message(PATIENT, "расскажи анекдот"));
+    expect(menus()).toBe(1);
+    await t.runner.onUpdate(t.click(PATIENT, { a: "menu" }));
+    expect(menus()).toBe(2);
+    await t.runner.onUpdate(t.message(PATIENT, "Меню"));
+    expect(menus()).toBe(3);
+    t.advance(25 * 60 * 60 * 1000);
+    await t.runner.onUpdate(t.message(PATIENT, "расскажи анекдот"));
+    expect(menus()).toBe(4);
+  });
+
+  it("клиент без inline-кнопок получает меню обычной клавиатурой, как раньше", async () => {
+    const t = setup();
+    const update = t.message(PATIENT, "меню");
+    (update.object as Record<string, unknown>).client_info = {
+      keyboard: true,
+      inline_keyboard: false,
+      button_actions: ["text"],
+    };
+    await t.runner.onUpdate(update);
+    const last = kb(t.sent(PATIENT).at(-1)!)!;
+    expect(last.inline).toBeUndefined();
+    expect(labels(last)).toContain("Записаться на приём");
+  });
+});

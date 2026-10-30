@@ -88,6 +88,11 @@ const ADMIN_MENU_BUTTON: Button = {
   label: "Администратор",
   action: { a: "admin" },
 };
+/** Главное меню — одно и то же везде, где бот возвращается к выбору действия. */
+export const mainMenuButtons = (ctx: DialogContext): Button[][] => [
+  [mainButton(ctx)],
+  [{ label: "Мои записи", action: { a: "my" } }, ADMIN_MENU_BUTTON],
+];
 const CALL_PLAIN: Button = {
   label: "Позвать без описания",
   action: { a: "hoff" },
@@ -738,15 +743,20 @@ export function show(
     case "menu":
       // Три действия: приложение (главное), записи, администратор. Остальное —
       // текстом: «какие врачи есть?», «сколько стоит?», «где клиника?».
-      return reply(
-        ctx.appAvailable
-          ? "«Открыть приложение» — врачи, цены и запись на приём. Или напишите, что нужно."
-          : "Чем могу помочь? Напишите, что нужно, или выберите действие.",
-        [
-          [mainButton(ctx)],
-          [{ label: "Мои записи", action: { a: "my" } }, ADMIN_MENU_BUTTON],
+      return {
+        state,
+        replies: [
+          {
+            text:
+              prefix +
+              (ctx.appAvailable
+                ? "«Открыть приложение» — врачи, цены и запись на приём. Или напишите, что нужно."
+                : "Чем могу помочь? Напишите, что нужно, или выберите действие."),
+            buttons: mainMenuButtons(ctx),
+            menu: true,
+          },
         ],
-      );
+      };
 
     case "specialty":
       return reply("Выберите направление:", [

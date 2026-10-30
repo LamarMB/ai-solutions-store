@@ -49,6 +49,7 @@ import {
   greet,
   handleEvent as handleFlowEvent,
   handleMeaning,
+  mainMenuButtons,
   matchOption,
   nearestSlot,
   show,
@@ -377,7 +378,8 @@ function offTopic(session: Session, stats: StatKey[], ctx: TurnContext): Step {
     replies: [
       {
         text: OUT_OF_SCOPE_TEXT,
-        buttons: show({ step: "menu" }, ctx).replies[0].buttons,
+        buttons: mainMenuButtons(ctx),
+        menu: true,
       },
     ],
     stats,

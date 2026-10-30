@@ -21,12 +21,22 @@ export type SentMessage = {
   n: number;
   peerId: number;
   text: string;
+  /** Кнопки под сообщением (inline-клавиатура). */
   buttons: VkButton["action"][];
+  /** Сообщение установило постоянную клавиатуру у поля ввода. */
+  setsKeyboard: boolean;
   at: string;
 };
 export type TranscriptEntry =
   | { from: "patient"; text: string; via: "text" | "button"; at: string }
-  | { from: "bot"; text: string; buttons: string[]; at: string };
+  | {
+      from: "bot";
+      text: string;
+      buttons: string[];
+      /** Подписи постоянной клавиатуры, если сообщение её установило. */
+      keyboard?: string[];
+      at: string;
+    };
 
 const CLIENT_INFO = {
   keyboard: true,
@@ -40,6 +50,10 @@ export class FakeVk {
   readonly transcript: TranscriptEntry[] = [];
   readonly calls: Record<string, number> = {};
   readonly blockedUrls: string[] = [];
+  /** Нажатий callback-кнопок — на каждое бот обязан ответить. */
+  callbacks = 0;
+  /** Постоянная клавиатура у поля ввода (как в клиенте ВКонтакте), по пациентам. */
+  private readonly keyboards = new Map<number, VkButton["action"][]>();
   private readonly queue: object[] = [];
   private ts = 1;
   private messageId = 100;
@@ -68,24 +82,30 @@ export class FakeVk {
       case "groups.getLongPollServer":
         return { server: LONG_POLL, key: KEY, ts: String(this.ts) };
       case "messages.send": {
-        const keyboard = params.get("keyboard");
-        const buttons = keyboard
-          ? (JSON.parse(keyboard) as { buttons: VkButton[][] }).buttons
-              .flat()
-              .map((b) => b.action)
-          : [];
+        const raw = params.get("keyboard");
+        const keyboard = raw
+          ? (JSON.parse(raw) as { inline?: boolean; buttons: VkButton[][] })
+          : undefined;
+        const actions = keyboard?.buttons.flat().map((b) => b.action) ?? [];
+        const peerId = Number(params.get("peer_id"));
+        // Обычная клавиатура остаётся у поля ввода до следующей обычной;
+        // inline-кнопки относятся только к своему сообщению.
+        const persistent = keyboard !== undefined && !keyboard.inline;
+        if (persistent) this.keyboards.set(peerId, actions);
         const message: SentMessage = {
           n: this.sent.length + 1,
-          peerId: Number(params.get("peer_id")),
+          peerId,
           text: params.get("message") ?? "",
-          buttons,
+          buttons: persistent ? [] : actions,
+          setsKeyboard: persistent,
           at: new Date().toISOString(),
         };
         this.sent.push(message);
         this.transcript.push({
           from: "bot",
           text: message.text,
-          buttons: buttons.map((b) => b.label),
+          buttons: message.buttons.map((b) => b.label),
+          ...(persistent ? { keyboard: actions.map((b) => b.label) } : {}),
           at: message.at,
         });
         for (const notify of this.waiters) notify();
@@ -153,17 +173,26 @@ export class FakeVk {
     });
   }
 
-  /** Нажатие кнопки последнего сообщения бота с подписью `label`. */
+  /**
+   * Нажатие кнопки с подписью `label`: сначала под последним сообщением бота с
+   * кнопками, затем на постоянной клавиатуре у поля ввода.
+   */
   press(peerId: number, label: string | RegExp) {
+    const match = (b: VkButton["action"]) =>
+      typeof label === "string" ? b.label === label : label.test(b.label);
     const last = this.sent.findLast(
       (m) => m.peerId === peerId && m.buttons.length > 0,
     );
-    const button = last?.buttons.find((b) =>
-      typeof label === "string" ? b.label === label : label.test(b.label),
-    );
-    if (!last || !button)
+    const button =
+      last?.buttons.find(match) ?? this.keyboards.get(peerId)?.find(match);
+    if (!button)
       throw new Error(
-        `кнопки «${label}» нет; последние кнопки: ${last?.buttons.map((b) => b.label).join(" | ") ?? "нет"}`,
+        `кнопки «${label}» нет; под сообщением: ${last?.buttons.map((b) => b.label).join(" | ") ?? "нет"}; у поля ввода: ${
+          this.keyboards
+            .get(peerId)
+            ?.map((b) => b.label)
+            .join(" | ") ?? "нет"
+        }`,
       );
     this.transcript.push({
       from: "patient",
@@ -172,6 +201,7 @@ export class FakeVk {
       at: new Date().toISOString(),
     });
     const n = ++this.eventN;
+    if (button.type === "callback") this.callbacks += 1;
     if (button.type === "callback")
       this.push({
         type: "message_event",
@@ -233,6 +263,11 @@ export class FakeVk {
       });
     }
     return find()!;
+  }
+
+  /** Подписи постоянной клавиатуры пациента у поля ввода. */
+  keyboardLabels(peerId: number): string[] {
+    return this.keyboards.get(peerId)?.map((b) => b.label) ?? [];
   }
 
   get lastN() {

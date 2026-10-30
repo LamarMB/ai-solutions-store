@@ -19,6 +19,14 @@ const MESSAGE_LIMIT = 4000;
 const NOTICE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 /** peer_id бесед начинаются с 2e9 — бот работает только в личных сообщениях. */
 const CHAT_PEER_START = 2_000_000_000;
+/**
+ * Главное меню — постоянная клавиатура у поля ввода, а не кнопки под каждым
+ * ответом. Повторно она отправляется по «Начать» и «В меню», при изменении кнопок
+ * и раз в сутки (если пациент очистил историю или сменил устройство).
+ */
+const MENU_KEYBOARD_KIND = "menu_keyboard";
+const MENU_KEYBOARD_REFRESH_MS = 24 * 60 * 60 * 1000;
+const MENU_WORDS = /^\s*(?:меню|начать|start)\s*[.!]?\s*$/i;
 /** Ошибки ВКонтакте о формате клавиатуры. */
 const KEYBOARD_ERRORS = new Set([911, 912, 913]);
 
@@ -106,24 +114,53 @@ export function createVkRunner(options: VkRunnerOptions) {
     options.demo === false ? NOT_YET_OPEN_TEXT : NOT_ALLOWED_TEXT;
   const { api, bot, store } = options;
 
+  /**
+   * Постоянная клавиатура главного меню, если её нужно (пере)отправить:
+   * `kind` — отметка в notices с отпечатком клавиатуры (сменились кнопки — новая).
+   */
+  function menuKeyboard(
+    peerId: number,
+    reply: Reply,
+    caps: ClientCapabilities,
+    force: boolean,
+  ): { keyboard: string; kind: string } | undefined {
+    const keyboard = toVkKeyboard(reply.buttons, caps, options.miniApp, {
+      persistent: true,
+    });
+    if (!keyboard) return undefined;
+    const kind = `${MENU_KEYBOARD_KIND}:${createHash("sha256").update(keyboard).digest("hex").slice(0, 8)}`;
+    const last = store.getNoticeAt(peerId, kind);
+    const fresh =
+      last && now().getTime() - Date.parse(last) < MENU_KEYBOARD_REFRESH_MS;
+    return force || !fresh ? { keyboard, kind } : undefined;
+  }
+
   async function send(
     peerId: number,
     replies: Reply[],
     caps: ClientCapabilities,
     key: string,
+    forceMenu = false,
   ) {
     let index = 0;
     for (const reply of replies) {
       const parts = splitText(reply.text);
+      // Главное меню у клиентов с inline-кнопками — без кнопок под сообщением.
+      const persistent = reply.menu === true && caps.keyboard && caps.inline;
+      const menu = persistent
+        ? menuKeyboard(peerId, reply, caps, forceMenu)
+        : undefined;
       for (let i = 0; i < parts.length; i++) {
         const last = i === parts.length - 1;
         const params = {
           peer_id: peerId,
           random_id: randomIdFor(`${key}:${index++}`),
           message: parts[i],
-          keyboard: last
-            ? toVkKeyboard(reply.buttons, caps, options.miniApp)
-            : undefined,
+          keyboard: !last
+            ? undefined
+            : persistent
+              ? menu?.keyboard
+              : toVkKeyboard(reply.buttons, caps, options.miniApp),
           dont_parse_links: 1,
         };
         try {
@@ -131,9 +168,10 @@ export function createVkRunner(options: VkRunnerOptions) {
         } catch (error) {
           // Клавиатуру с кнопкой Mini App ВКонтакте отклонил (911–913 — ошибки
           // формата клавиатуры): отправляем то же сообщение без неё.
-          const plain = last
-            ? toVkKeyboard(reply.buttons, caps)
-            : params.keyboard;
+          const plain =
+            last && params.keyboard
+              ? toVkKeyboard(reply.buttons, caps, undefined, { persistent })
+              : params.keyboard;
           if (
             !(error instanceof VkApiError) ||
             !KEYBOARD_ERRORS.has(error.code) ||
@@ -142,6 +180,10 @@ export function createVkRunner(options: VkRunnerOptions) {
             throw error;
           log(`open_app keyboard rejected: vk ${error.code}`);
           await api.call("messages.send", { ...params, keyboard: plain });
+        }
+        if (last && menu) {
+          store.setNoticeAt(peerId, menu.kind, now().toISOString());
+          forceMenu = false;
         }
       }
     }
@@ -167,7 +209,12 @@ export function createVkRunner(options: VkRunnerOptions) {
   ) {
     try {
       const replies = await bot.handle(peerId, event);
-      if (replies.length > 0) await send(peerId, replies, caps, key);
+      const forceMenu =
+        event.type === "start" ||
+        (event.type === "text" && MENU_WORDS.test(event.text)) ||
+        (event.type === "action" &&
+          (event.payload as { a?: unknown } | null)?.a === "menu");
+      if (replies.length > 0) await send(peerId, replies, caps, key, forceMenu);
     } catch (error) {
       log(
         `handle failed for ${maskId(peerId)}: ${error instanceof VkApiError ? `vk ${error.code}` : error instanceof Error ? error.name : "error"}`,

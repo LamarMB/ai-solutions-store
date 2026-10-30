@@ -67,7 +67,7 @@ function transcriptHtml(entries: TranscriptEntry[]) {
     .map((e) =>
       e.from === "patient"
         ? `<div class="m p"><b>Пациент${e.via === "button" ? " (кнопка)" : ""}</b>${escape(e.text)}</div>`
-        : `<div class="m b"><b>Бот</b>${escape(e.text)}${e.buttons.length ? `<div class="k">${e.buttons.map((l) => `<span>${escape(l)}</span>`).join("")}</div>` : ""}</div>`,
+        : `<div class="m b"><b>Бот</b>${escape(e.text)}${e.buttons.length ? `<div class="k">${e.buttons.map((l) => `<span>${escape(l)}</span>`).join("")}</div>` : ""}${e.keyboard ? `<div class="pk">⌨ Клавиатура у поля ввода: ${e.keyboard.map((l) => `<span>${escape(l)}</span>`).join("")}</div>` : ""}</div>`,
     )
     .join("");
   return `<!doctype html><meta charset="utf-8"><style>
@@ -75,6 +75,7 @@ body{font:14px/1.4 system-ui,sans-serif;background:#edeef0;margin:0;padding:16px
 h1{font-size:15px;background:#fff3cd;padding:8px 12px;border-radius:8px}
 .m{white-space:pre-wrap;padding:8px 12px;border-radius:12px;margin:8px 0;max-width:85%}
 .m b{display:block;font-size:12px;opacity:.6}.p{background:#cce4ff;margin-left:auto}.b{background:#fff}
+.pk{margin-top:6px;font-size:12px;color:#2a5885}.pk span{display:inline-block;background:#e5ebf1;border-radius:8px;padding:2px 8px;margin:4px 4px 0 0}
 .k span{display:inline-block;border:1px solid #c5d0db;border-radius:8px;padding:2px 8px;margin:4px 4px 0 0;font-size:12px}
 </style><h1>Переписка с ботом — ВКонтакте ИМИТИРОВАН (FakeVk), вымышленные данные</h1>${rows}`;
 }
@@ -273,9 +274,16 @@ try {
     const after = vk.lastN;
     vk.write(PATIENT, "Начать", { command: "start" });
     lastMessage = await vk.reply(PATIENT, /Здравствуйте/, after);
+    // Главное меню — постоянная клавиатура у поля ввода, не кнопки под сообщением.
     check(
-      buttons(lastMessage).some((b) => b.label === "Записаться на приём"),
-      "нет кнопки «Записаться на приём»",
+      lastMessage.setsKeyboard && lastMessage.buttons.length === 0,
+      "главное меню пришло не постоянной клавиатурой",
+    );
+    check(
+      ["Записаться на приём", "Мои записи", "Администратор"].every((l) =>
+        vk.keyboardLabels(PATIENT).includes(l),
+      ),
+      `у поля ввода: ${vk.keyboardLabels(PATIENT).join(" | ")}`,
     );
   });
 
@@ -413,10 +421,17 @@ try {
     "B9",
     "Чистота: ответы на нажатия, нет внешних запросов, ошибок и VK ID в журнале",
     async () => {
-      const callbacks =
-        vk.transcript.filter((e) => e.from === "patient" && e.via === "button")
-          .length - 1; // «Начать» — сообщение, не callback
+      const callbacks = vk.callbacks;
       report.vkCalls = { ...vk.calls };
+      const menuUnderMessage = vk.sent.filter(
+        (m) =>
+          m.buttons.some((b) => b.label === "Мои записи") &&
+          m.buttons.some((b) => b.label === "Администратор"),
+      );
+      check(
+        menuUnderMessage.length === 0,
+        `главное меню под сообщениями: ${menuUnderMessage.length}`,
+      );
       check(
         vk.calls["messages.sendMessageEventAnswer"] === callbacks,
         `ответов на нажатия ${vk.calls["messages.sendMessageEventAnswer"]} из ${callbacks}`,

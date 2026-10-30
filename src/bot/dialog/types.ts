@@ -188,8 +188,12 @@ export type ButtonColor = "primary" | "secondary" | "positive" | "negative";
 
 export type Button = { label: string; action: Action; color?: ButtonColor };
 
-/** Ответ бота: текст и кнопки рядами. Канал сам превращает их в свой формат. */
-export type Reply = { text: string; buttons: Button[][] };
+/**
+ * Ответ бота: текст и кнопки рядами. Канал сам превращает их в свой формат.
+ * `menu` — кнопки главного меню: канал может показать их постоянной клавиатурой
+ * у поля ввода, а не под каждым сообщением (ВКонтакте — src/bot/vk/runner.ts).
+ */
+export type Reply = { text: string; buttons: Button[][]; menu?: true };
 
 /** Намерение свободного текста. */
 export const INTENTS = [

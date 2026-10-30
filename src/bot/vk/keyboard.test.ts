@@ -133,3 +133,53 @@ describe("главное меню: три действия", () => {
     expect(toVkKeyboard(menu(true), caps, MINI_APP)).toBeUndefined();
   });
 });
+
+describe("постоянная клавиатура главного меню", () => {
+  it("ответ главного меню помечен для показа у поля ввода", () => {
+    const store = new SqliteStore(":memory:");
+    const reply = show(
+      { step: "menu" },
+      {
+        peerId: 7,
+        clinic: fictionalClinic,
+        schedule: new ClinicSchedule(fictionalClinic, store),
+        interpreter: new RuleInterpreter(fictionalClinic),
+        today: "2026-10-19",
+        appAvailable: true,
+      },
+    ).replies[0];
+    expect(reply.menu).toBe(true);
+  });
+
+  it("не inline, не исчезает после нажатия, open_app и текстовые кнопки с payload", () => {
+    const keyboard = parse(
+      toVkKeyboard(menu(true), FULL_CAPABILITIES, MINI_APP, {
+        persistent: true,
+      }),
+    ) as ReturnType<typeof parse> & { one_time?: boolean };
+    expect(keyboard.inline).toBeUndefined();
+    expect(keyboard.one_time).toBe(false);
+    expect(keyboard.buttons[0][0].action).toMatchObject({
+      type: "open_app",
+      app_id: 54834865,
+    });
+    expect(
+      keyboard.buttons[1].map((b) => [b.action.type, b.action.payload]),
+    ).toEqual([
+      ["text", JSON.stringify({ a: "my" })],
+      ["text", JSON.stringify({ a: "admin" })],
+    ]);
+  });
+
+  it("без поддержки open_app — запись через бота", () => {
+    const keyboard = parse(
+      toVkKeyboard(
+        menu(true),
+        { ...FULL_CAPABILITIES, openApp: false },
+        MINI_APP,
+        { persistent: true },
+      ),
+    );
+    expect(keyboard.buttons[0][0].action.label).toBe(APP_FALLBACK.label);
+  });
+});

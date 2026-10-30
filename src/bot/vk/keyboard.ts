@@ -53,6 +53,10 @@ export function capabilitiesFrom(clientInfo: unknown): ClientCapabilities {
  * callback-кнопками (событие message_event); для старых клиентов — текстовые
  * кнопки, их payload приходит в message_new. Без поддержки клавиатур — undefined.
  *
+ * `persistent` — постоянная клавиатура у поля ввода (не inline, `one_time: false`):
+ * остаётся, пока бот не пришлёт другую обычную клавиатуру, inline-кнопки сообщений
+ * её не заменяют. Кнопки — текстовые: так их понимает любой клиент с клавиатурой.
+ *
  * Кнопка приложения (действие «app») становится кнопкой ВКонтакте open_app,
  * открывающей VK Mini App в контексте сообщества. У open_app нет цвета и
  * подписи под названием: пояснение — в тексте сообщения над кнопками.
@@ -61,9 +65,11 @@ export function toVkKeyboard(
   rows: Button[][],
   caps: ClientCapabilities,
   miniApp?: MiniAppButton,
+  { persistent = false }: { persistent?: boolean } = {},
 ): string | undefined {
   if (rows.length === 0 || !caps.keyboard) return undefined;
-  const type = caps.callback && caps.inline ? "callback" : "text";
+  const inline = caps.inline && !persistent;
+  const type = caps.callback && inline ? "callback" : "text";
   const openApp = miniApp && caps.openApp ? miniApp : undefined;
   const buttons: object[][] = rows.map((row) =>
     row.map((original) => {
@@ -91,7 +97,7 @@ export function toVkKeyboard(
     }),
   );
   return JSON.stringify({
-    ...(caps.inline ? { inline: true } : { one_time: false }),
+    ...(inline ? { inline: true } : { one_time: false }),
     buttons,
   });
 }
