@@ -25,7 +25,8 @@
     "clinic": "tsx scripts/clinic-instance.mts",
     "backup": "tsx scripts/clinic-backup.mts",
     "monitor": "tsx scripts/monitor.mts",
-    "e2e:patient-flow": "node scripts/e2e/patient-flow.mjs"
+    "e2e:patient-flow": "node scripts/e2e/patient-flow.mjs",
+    "e2e:bot-booking": "tsx scripts/e2e/bot-booking.mts"
   },
   "dependencies": {
     "@vkontakte/vk-bridge": "3.0.2",
