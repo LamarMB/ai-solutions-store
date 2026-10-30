@@ -1,0 +1,949 @@
+Permissions 0644 for n8n settings file /home/runner/work/ai-solutions-store/ai-solutions-store/.n8nhome/.n8n/config are too wide. This is ignored for now, but in the future n8n will attempt to change the permissions automatically. To automatically enforce correct permissions now set N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true (recommended), or turn this check off set N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false.
+{
+  "data": {
+    "version": 1,
+    "startData": {},
+    "resultData": {
+      "runData": {
+        "Карта системы: открыть (только просмотр)": [
+          {
+            "startTime": 1793354571944,
+            "executionIndex": 0,
+            "source": [],
+            "hints": [],
+            "executionTime": 1,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Пациент открывает VK Mini App": [
+          {
+            "startTime": 1793354571945,
+            "executionIndex": 1,
+            "source": [
+              {
+                "previousNode": "Карта системы: открыть (только просмотр)"
+              }
+            ],
+            "hints": [],
+            "executionTime": 2,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "API Mini App /api/miniapp": [
+          {
+            "startTime": 1793354571947,
+            "executionIndex": 2,
+            "source": [
+              {
+                "previousNode": "Пациент открывает VK Mini App"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Запись на приём (ClinicSchedule)": [
+          {
+            "startTime": 1793354571947,
+            "executionIndex": 3,
+            "source": [
+              {
+                "previousNode": "API Mini App /api/miniapp"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571949,
+            "executionIndex": 15,
+            "source": [
+              {
+                "previousNode": "Справочник клиники"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 22,
+            "source": [
+              {
+                "previousNode": "Справочник клиники",
+                "previousNodeRun": 1
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "База SQLite: bookings": [
+          {
+            "startTime": 1793354571947,
+            "executionIndex": 4,
+            "source": [
+              {
+                "previousNode": "Запись на приём (ClinicSchedule)"
+              }
+            ],
+            "hints": [],
+            "executionTime": 1,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571949,
+            "executionIndex": 16,
+            "source": [
+              {
+                "previousNode": "Запись на приём (ClinicSchedule)",
+                "previousNodeRun": 1
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 23,
+            "source": [
+              {
+                "previousNode": "Запись на приём (ClinicSchedule)",
+                "previousNodeRun": 2
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Админ-панель клиники /admin": [
+          {
+            "startTime": 1793354571948,
+            "executionIndex": 5,
+            "source": [
+              {
+                "previousNode": "База SQLite: bookings"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571949,
+            "executionIndex": 17,
+            "source": [
+              {
+                "previousNode": "База SQLite: bookings",
+                "previousNodeRun": 1
+              }
+            ],
+            "hints": [],
+            "executionTime": 1,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 24,
+            "source": [
+              {
+                "previousNode": "База SQLite: bookings",
+                "previousNodeRun": 2
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "ТРЕБУЕТ РЕАЛИЗАЦИИ: исходящие события приложения": [
+          {
+            "startTime": 1793354571948,
+            "executionIndex": 6,
+            "source": [
+              {
+                "previousNode": "База SQLite: bookings"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 18,
+            "source": [
+              {
+                "previousNode": "База SQLite: bookings",
+                "previousNodeRun": 1
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 25,
+            "source": [
+              {
+                "previousNode": "База SQLite: bookings",
+                "previousNodeRun": 2
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "ТРЕБУЕТ РЕАЛИЗАЦИИ: публичный /api/health": [
+          {
+            "startTime": 1793354571948,
+            "executionIndex": 7,
+            "source": [
+              {
+                "previousNode": "ТРЕБУЕТ РЕАЛИЗАЦИИ: исходящие события приложения"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 19,
+            "source": [
+              {
+                "previousNode": "ТРЕБУЕТ РЕАЛИЗАЦИИ: исходящие события приложения",
+                "previousNodeRun": 1
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 26,
+            "source": [
+              {
+                "previousNode": "ТРЕБУЕТ РЕАЛИЗАЦИИ: исходящие события приложения",
+                "previousNodeRun": 2
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Пациент пишет в сообщения сообщества ВК": [
+          {
+            "startTime": 1793354571948,
+            "executionIndex": 8,
+            "source": [
+              {
+                "previousNode": "Карта системы: открыть (только просмотр)"
+              }
+            ],
+            "hints": [],
+            "executionTime": 1,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Приём событий: VK Bots Long Poll": [
+          {
+            "startTime": 1793354571949,
+            "executionIndex": 9,
+            "source": [
+              {
+                "previousNode": "Пациент пишет в сообщения сообщества ВК"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Повторы и частота сообщений": [
+          {
+            "startTime": 1793354571949,
+            "executionIndex": 10,
+            "source": [
+              {
+                "previousNode": "Приём событий: VK Bots Long Poll"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Проверка безопасности до ИИ": [
+          {
+            "startTime": 1793354571949,
+            "executionIndex": 11,
+            "source": [
+              {
+                "previousNode": "Повторы и частота сообщений"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Фильтр посторонних тем": [
+          {
+            "startTime": 1793354571949,
+            "executionIndex": 12,
+            "source": [
+              {
+                "previousNode": "Проверка безопасности до ИИ"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "ИИ ведёт разговор": [
+          {
+            "startTime": 1793354571949,
+            "executionIndex": 13,
+            "source": [
+              {
+                "previousNode": "Фильтр посторонних тем"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Справочник клиники": [
+          {
+            "startTime": 1793354571949,
+            "executionIndex": 14,
+            "source": [
+              {
+                "previousNode": "ИИ ведёт разговор"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 21,
+            "source": [
+              {
+                "previousNode": "ИИ недоступен или лимит → разговор по правилам"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "ИИ недоступен или лимит → разговор по правилам": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 20,
+            "source": [
+              {
+                "previousNode": "ИИ ведёт разговор"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Передача человеку: текст пациента + согласие": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 27,
+            "source": [
+              {
+                "previousNode": "ИИ ведёт разговор"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Обращение в базе (RequestStore, шифрование)": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 28,
+            "source": [
+              {
+                "previousNode": "Передача человеку: текст пациента + согласие"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Уведомление администратору во ВК": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 29,
+            "source": [
+              {
+                "previousNode": "Обращение в базе (RequestStore, шифрование)"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Раздел «Обращения» в панели": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 30,
+            "source": [
+              {
+                "previousNode": "Уведомление администратору во ВК"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Экстренно: 103 / 112, без записи": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 31,
+            "source": [
+              {
+                "previousNode": "Проверка безопасности до ИИ"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Мониторинг на сервере (monitor.mts)": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 32,
+            "source": [
+              {
+                "previousNode": "Повторы и частота сообщений"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Тревога и «Восстановлено» в Telegram владельца": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 33,
+            "source": [
+              {
+                "previousNode": "Мониторинг на сервере (monitor.mts)"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Резервные копии клиник (P0-8)": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 34,
+            "source": [
+              {
+                "previousNode": "Мониторинг на сервере (monitor.mts)"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "Ошибка ВКонтакте → повтор Long Poll": [
+          {
+            "startTime": 1793354571950,
+            "executionIndex": 35,
+            "source": [
+              {
+                "previousNode": "Приём событий: VK Bots Long Poll"
+              }
+            ],
+            "hints": [],
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [
+                [
+                  {
+                    "json": {},
+                    "pairedItem": {
+                      "item": 0
+                    }
+                  }
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "lastNodeExecuted": "Ошибка ВКонтакте → повтор Long Poll"
+    },
+    "executionData": {
+      "contextData": {},
+      "nodeExecutionStack": [],
+      "metadata": {},
+      "waitingExecution": {},
+      "waitingExecutionSource": {},
+      "runtimeData": {
+        "version": 1,
+        "establishedAt": 1793354571944,
+        "source": "cli"
+      }
+    }
+  },
+  "mode": "cli",
+  "startedAt": "2026-10-30T10:02:51.940Z",
+  "stoppedAt": "2026-10-30T10:02:51.951Z",
+  "status": "success",
+  "finished": true
+}
+rc=0
