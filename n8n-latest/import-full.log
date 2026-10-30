@@ -1,0 +1,4 @@
+
+Your Node.js version 22.23.4 is currently not supported by n8n.
+Please use a Node.js version that satisfies the following version range: >=24.0.0
+
