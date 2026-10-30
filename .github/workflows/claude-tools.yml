@@ -1,5 +1,4 @@
-# Временный служебный процесс Claude: форматирование, проверки и скриншоты демо
-# для ветки из tools/target. Результаты — в ветку tmp/claude-out. Не для main.
+# Временная проверка Claude: импорт workflow в настоящий n8n. Результаты — в tmp/claude-out.
 name: claude-tools
 on:
   push:
@@ -9,33 +8,34 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        n8n: ["1", "latest"]
     steps:
       - uses: actions/checkout@v7
-        with:
-          path: tools-src
-      - run: echo "TARGET=$(cat tools-src/tools/target)" >> "$GITHUB_ENV"
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ env.TARGET }}
-          path: app
       - uses: actions/setup-node@v7
         with:
-          node-version-file: app/.nvmrc
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-      - name: run
-        working-directory: app
-        run: bash ../tools-src/tools/run.sh
+          node-version: 22
+      - name: n8n
+        run: |
+          mkdir -p out; export N8N_USER_FOLDER=$PWD/.n8nhome N8N_ENCRYPTION_KEY=test-only-key-123456 N8N_DIAGNOSTICS_ENABLED=false
+          npm i -g n8n@${{ matrix.n8n }} > out/install.log 2>&1; n8n --version > out/version.txt 2>&1
+          { n8n import:workflow --input=n8n/full.json; echo "rc=$?"; } > out/import-full.log 2>&1
+          { n8n import:workflow --input=n8n/monitor-test.json; echo "rc=$?"; } > out/import-mon.log 2>&1
+          n8n export:workflow --all --output=out/exported.json > out/export.log 2>&1
+          { timeout 300 n8n execute --id=montest0000000001 --rawOutput; echo "rc=$?"; } > out/exec1.log 2>&1
+          { timeout 300 n8n execute --id=montest0000000001 --rawOutput; echo "rc=$?"; } > out/exec2.log 2>&1
+          { timeout 300 n8n execute --id=demomedmap0000001 --rawOutput; echo "rc=$?"; } > out/exec-map.log 2>&1
       - name: publish
         if: always()
-        working-directory: tools-src
         run: |
-          git config user.name claude-tools
-          git config user.email claude-tools@users.noreply.github.com
-          git checkout -q --orphan out
-          git rm -rqf .
-          cp -r "$GITHUB_WORKSPACE/out/." .
-          git add -A
-          git commit -qm "out $(date -u +%FT%TZ) $TARGET"
-          git push -qf origin HEAD:tmp/claude-out
+          git config user.name claude-tools; git config user.email claude-tools@users.noreply.github.com
+          mv out /tmp/out-${{ matrix.n8n }}
+          for i in 1 2 3 4 5; do
+            git fetch -q origin tmp/claude-out && git checkout -q -B o FETCH_HEAD || git checkout -q --orphan o
+            git rm -rqf . >/dev/null 2>&1; git clean -fdq -e /tmp
+            mkdir -p n8n-${{ matrix.n8n }} && cp -r /tmp/out-${{ matrix.n8n }}/. n8n-${{ matrix.n8n }}/
+            git add -A && git commit -qm "n8n ${{ matrix.n8n }}" && git push -q origin HEAD:tmp/claude-out && break; sleep 5
+          done
