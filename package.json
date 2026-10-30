@@ -24,7 +24,8 @@
     "doctors:demo-photos": "tsx scripts/demo-photos.mts",
     "clinic": "tsx scripts/clinic-instance.mts",
     "backup": "tsx scripts/clinic-backup.mts",
-    "monitor": "tsx scripts/monitor.mts"
+    "monitor": "tsx scripts/monitor.mts",
+    "e2e:patient-flow": "node scripts/e2e/patient-flow.mjs"
   },
   "dependencies": {
     "@vkontakte/vk-bridge": "3.0.2",
