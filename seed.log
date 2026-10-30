@@ -1,3 +1,0 @@
-testova:set primerov:set demonstrova:set maketov:set obraztsova:set vymyslov:set
-mine {"status":"ok","booking":{"id":25,"peerId":900100,"doctorId":"testova","date":"2026-10-28","time":"10:30","createdAt":"2026-10-25T15:27:37.810Z","status":"confirmed","source":"miniapp"}}
-bookings 20 users 3, request 1

@@ -1,8 +1,0 @@
-target: claude/product-map 1ff9351
-ci: OK
-lint: OK
-typecheck: OK
-test: OK
-build: OK
-seed: OK
-shots: OK
