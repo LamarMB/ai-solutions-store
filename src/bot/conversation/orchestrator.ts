@@ -325,7 +325,15 @@ async function handleText(
     return emergency(conv);
   const adviceRequest = isMedicalAdviceRequest(allowed);
 
-  // 3. Однозначная простая просьба вне разговора о жалобе — правилами, без модели.
+  // 3. «Если болит горло, это к ней?» — вопрос о враче из разговора: ответ по
+  //    справочнику направлений клиники, без модели и без списка всех врачей.
+  if (flags.length === 0 && !adviceRequest && conv.urgency !== "emergency") {
+    const fit = doctorFit(flow, conv, allowed, allowedNorm, ctx);
+    if (fit)
+      return { ...fit, stats: ctx.model ? ["model_requests_saved"] : [] };
+  }
+
+  // 4. Однозначная простая просьба вне разговора о жалобе — правилами, без модели.
   if (
     ctx.model &&
     flags.length === 0 &&
@@ -346,7 +354,7 @@ async function handleText(
     };
   }
 
-  // 4. Модель ведёт разговор; её решение уже проверено по справочнику.
+  // 5. Модель ведёт разговор; её решение уже проверено по справочнику.
   if (ctx.model) {
     const decision = await ctx.model.decide({
       peerId: ctx.peerId,
@@ -367,7 +375,7 @@ async function handleText(
     return { ...result, stats: [...(result.stats ?? []), "model_requests"] };
   }
 
-  // 5. Без модели — правила.
+  // 6. Без модели — правила.
   return fallback(flow, conv, allowed, allowedNorm, adviceRequest, ctx);
 }
 
@@ -641,6 +649,80 @@ async function execute(
     case "small_talk":
       return step(conv, show(flow, ctx, notes));
   }
+}
+
+/** «к ней?», «этот врач подойдёт?» — вопрос о враче, о котором шла речь. */
+const DOCTOR_REF =
+  /(?:^|\s)к (?:ней|нему)(?=\s|[?!.]|$)|(?:этот|эта|этому|к этому) (?:врач|доктор|специалист)|(?:она|он) подойд|подойд\S* ли (?:она|он)/;
+
+/** Врач из разговора: выбранный на шаге записи или единственный врач направления. */
+function doctorInContext(
+  flow: DialogState,
+  conv: Conversation,
+  ctx: TurnContext,
+) {
+  if ("doctorId" in flow)
+    return ctx.clinic.doctors.find((d) => d.id === flow.doctorId);
+  const specialtyId =
+    "specialtyId" in flow ? flow.specialtyId : conv.specialtyId;
+  const doctors = ctx.clinic.doctors.filter(
+    (d) => d.specialtyId === specialtyId,
+  );
+  return doctors.length === 1 ? doctors[0] : undefined;
+}
+
+/**
+ * Вопрос «подходит ли этот врач» с понятной жалобой: да — дни этого врача; нет —
+ * кто он по направлению и к кому в клинике записывают с такой жалобой (только
+ * маршрутизация по справочнику, без диагнозов). Врача в разговоре нет — уточняющий
+ * вопрос. Жалобы нет или она неоднозначна — undefined: решает модель с контекстом.
+ */
+function doctorFit(
+  flow: DialogState,
+  conv: Conversation,
+  raw: string,
+  text: string,
+  ctx: TurnContext,
+): Step | undefined {
+  if (!DOCTOR_REF.test(text)) return undefined;
+  const doctor = doctorInContext(flow, conv, ctx);
+  if (!doctor)
+    return step(
+      conv,
+      show(flow, ctx, [
+        "Уточните, пожалуйста, о каком враче речь: напишите имя — подскажу, подходит ли он по направлению.",
+      ]),
+    );
+  const complaint = detectComplaint(raw);
+  if (!complaint?.explicit || complaint.others?.length) return undefined;
+  const target = specialtyForArea(ctx.clinic, complaint.area);
+  if (!target) return undefined;
+  const own = ctx.clinic.specialties.find((s) => s.id === doctor.specialtyId);
+  const next = { ...conv, specialtyId: target.id };
+  if (doctor.specialtyId === target.id)
+    return step(
+      next,
+      show(
+        // Запись к этому врачу уже идёт (день, время, подтверждение) — тот же шаг.
+        "doctorId" in flow && flow.doctorId === doctor.id
+          ? flow
+          : {
+              step: "day",
+              specialtyId: doctor.specialtyId,
+              doctorId: doctor.id,
+            },
+        ctx,
+        [
+          `Да, с такими жалобами в клинике записывают ${target.toWhom} — ${doctor.name} подходит.`,
+        ],
+      ),
+    );
+  return step(
+    next,
+    show({ step: "doctor", specialtyId: target.id }, ctx, [
+      `${doctor.name} — ${own ? own.title.toLowerCase() : "врач другого направления"}. С такими жалобами в клинике записывают ${target.toWhom}.`,
+    ]),
+  );
 }
 
 /** Слов в простой просьбе — не больше: длинное сообщение обычно несёт подробности. */

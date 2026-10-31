@@ -256,3 +256,79 @@ describe("сквозная запись простыми сообщениями"
     expect(t.model!.calls).toHaveLength(0);
   });
 });
+
+describe("«Если болит горло, это к ней?» — вопрос о враче из разговора", () => {
+  const atTestova = async () => {
+    const t = setup();
+    const r = await t.say("хочу к терапевту");
+    await t.press(r, "Анна Тестова");
+    expect(t.flow()).toMatchObject({ doctorId: "testova" });
+    return t;
+  };
+
+  it("врач другого направления: кто он и к кому записывают — без списка всех врачей", async () => {
+    const t = await atTestova();
+    const reply = text(await t.say("Если болит горло, это к ней?"));
+    expect(reply).toMatch(
+      /Анна Тестова — терапевт\. С такими жалобами в клинике записывают к ЛОРу/,
+    );
+    expect(reply).not.toMatch(/Павел Примеров|Демьян|Ольга Макетова/);
+    expect(reply.match(/к ЛОРу/g)).toHaveLength(1);
+    expect(t.flow()).toMatchObject({ step: "doctor", specialtyId: "ent" });
+    expect(t.model!.calls).toHaveLength(0);
+  });
+
+  it("врач того же направления: «да», запись к нему продолжается", async () => {
+    const t = setup();
+    await t.say("хочу к лору");
+    const reply = text(await t.say("если болит горло, к ней можно?"));
+    expect(reply).toMatch(/Да, с такими жалобами .* Елена Образцова подходит/);
+    expect(t.flow()).toMatchObject({ step: "day", doctorId: "obraztsova" });
+    expect(t.model!.calls).toHaveLength(0);
+  });
+
+  it("на шаге подтверждения тот же шаг; запись — только после «Подтвердить»", async () => {
+    const t = setup();
+    const r = await t.say("ближайшее время к лору");
+    expect(t.flow().step).toBe("confirm");
+    await t.say("у меня заложен нос, этот врач подойдёт?");
+    expect(t.flow().step).toBe("confirm");
+    expect(t.schedule.listBookings(PEER)).toHaveLength(0);
+    await t.press(r, "Подтвердить");
+    expect(t.schedule.listBookings(PEER)).toHaveLength(1);
+  });
+
+  it("врача в разговоре нет — уточняющий вопрос, не список врачей", async () => {
+    const t = setup();
+    const reply = text(await t.say("Если болит горло, это к ней?"));
+    expect(reply).toMatch(/о каком враче речь/);
+    expect(reply).not.toMatch(/Анна Тестова|Елена Образцова/);
+    expect(t.model!.calls).toHaveLength(0);
+  });
+
+  it("«к нему?» без жалобы или с неоднозначной жалобой — модель с контекстом врача", async () => {
+    let t = await atTestova();
+    await t.say("а к нему можно?");
+    expect(t.model!.calls).toHaveLength(1);
+    expect(t.model!.calls[0].flow).toMatchObject({ doctorId: "testova" });
+    t = await atTestova();
+    await t.say("болит горло и колено, это к ней?");
+    expect(t.model!.calls).toHaveLength(1);
+  });
+
+  it("тревожные признаки — 103/112 раньше ответа о враче", async () => {
+    const t = await atTestova();
+    const reply = text(await t.say("болит горло и трудно дышать, это к ней?"));
+    expect(reply).toContain(EMERGENCY_TEXT.slice(0, 40));
+    expect(reply).not.toMatch(/записывают к/);
+  });
+
+  it("просьба о лекарстве — отказ, а не маршрутизация", async () => {
+    const t = await atTestova();
+    const reply = text(
+      await t.say("что выпить, если болит горло, к ней идти?"),
+    );
+    expect(reply).not.toMatch(/записывают к ЛОРу/);
+    expect(reply).not.toMatch(/ибупрофен|парацетамол|таблетк/i);
+  });
+});
