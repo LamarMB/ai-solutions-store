@@ -36,6 +36,28 @@ type RequestFormProps = {
   initialSubmissionId: string;
 };
 
+/** Поле контакта по способу связи. */
+const CONTACT_FIELDS = {
+  telegram: {
+    label: "Ваш Telegram",
+    type: "text",
+    autoComplete: "off",
+    placeholder: "@clinic_admin",
+  },
+  phone: {
+    label: "Телефон",
+    type: "tel",
+    autoComplete: "tel",
+    placeholder: "+7 900 000-00-00",
+  },
+  email: {
+    label: "Email",
+    type: "email",
+    autoComplete: "email",
+    placeholder: "name@clinic.ru",
+  },
+} as const;
+
 const FIELD_ORDER: RequestField[] = [
   "name",
   "company",
@@ -59,7 +81,7 @@ export function RequestForm({
   const [clientErrors, setClientErrors] = useState<
     Partial<Record<RequestField, string>>
   >({});
-  const [method, setMethod] = useState<ContactMethod>("email");
+  const [method, setMethod] = useState<ContactMethod>("telegram");
   const formRef = useRef<HTMLFormElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
 
@@ -119,7 +141,7 @@ export function RequestForm({
           <h2 className="text-h3 font-semibold">
             {mode === "test"
               ? "Проверка пройдена — заявка не отправлена"
-              : "Заявка принята"}
+              : "Заявка отправлена. Мы скоро с вами свяжемся"}
           </h2>
         </div>
         {mode === "test" && (
@@ -211,7 +233,16 @@ export function RequestForm({
       >
         {serverMessage && (
           <p className="rounded-card border-danger/40 text-danger text-small bg-danger/10 border p-4">
-            {serverMessage}
+            {serverMessage} Введённые данные сохранены в форме. Можно также
+            написать нам в Telegram{" "}
+            <a
+              href={telegram.href}
+              {...externalLinkProps}
+              className="font-medium underline underline-offset-2"
+            >
+              {telegram.handle}
+            </a>
+            .
           </p>
         )}
       </div>
@@ -231,18 +262,15 @@ export function RequestForm({
             className={inputClass(errors.name)}
           />
         </Field>
-        <Field
-          id="company"
-          label="Компания"
-          hint="необязательно"
-          error={errors.company}
-        >
+        <Field id="company" label="Клиника" required error={errors.company}>
           <input
             id="company"
             name="company"
             data-field="company"
             autoComplete="organization"
             maxLength={LIMITS.companyMax}
+            required
+            onInput={() => clearError("company")}
             aria-invalid={errors.company ? true : undefined}
             aria-describedby={errors.company ? "company-error" : undefined}
             className={inputClass(errors.company)}
@@ -257,8 +285,9 @@ export function RequestForm({
         <div className="mt-2 flex flex-wrap gap-2">
           {(
             [
-              ["email", "Email"],
+              ["telegram", "Telegram"],
               ["phone", "Телефон"],
+              ["email", "Email"],
             ] as const
           ).map(([value, label]) => (
             <label
@@ -274,7 +303,7 @@ export function RequestForm({
                 type="radio"
                 name="contactMethod"
                 value={value}
-                data-field={value === "email" ? "contactMethod" : undefined}
+                data-field={value === "telegram" ? "contactMethod" : undefined}
                 checked={method === value}
                 onChange={() => {
                   setMethod(value);
@@ -291,7 +320,7 @@ export function RequestForm({
 
       <Field
         id="contact"
-        label={method === "email" ? "Email" : "Телефон"}
+        label={CONTACT_FIELDS[method].label}
         required
         error={errors.contact}
       >
@@ -299,12 +328,10 @@ export function RequestForm({
           id="contact"
           name="contact"
           data-field="contact"
-          type={method === "email" ? "email" : "tel"}
-          inputMode={method === "email" ? "email" : "tel"}
-          autoComplete={method === "email" ? "email" : "tel"}
-          placeholder={
-            method === "email" ? "name@company.ru" : "+7 900 000-00-00"
-          }
+          type={CONTACT_FIELDS[method].type}
+          inputMode={CONTACT_FIELDS[method].type}
+          autoComplete={CONTACT_FIELDS[method].autoComplete}
+          placeholder={CONTACT_FIELDS[method].placeholder}
           maxLength={LIMITS.contactMax}
           required
           aria-invalid={errors.contact ? true : undefined}
@@ -354,7 +381,8 @@ export function RequestForm({
             className="accent-accent mt-0.5 size-5 shrink-0 scroll-mt-32"
           />
           <span>
-            Я даю согласие на обработку персональных данных в соответствии с{" "}
+            Я даю согласие на обработку указанных данных для связи по заявке,
+            включая передачу оператору через Telegram, в соответствии с{" "}
             <Link
               href="/privacy"
               target="_blank"

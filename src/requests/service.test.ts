@@ -24,7 +24,7 @@ function makeForm(overrides: Record<string, string> = {}) {
   const fd = new FormData();
   const fields: Record<string, string> = {
     name: "Анна",
-    company: "",
+    company: "Клиника «Пример»",
     contactMethod: "email",
     contact: "anna@example.com",
     message: "Нужно автоматизировать обработку счетов.",
@@ -84,16 +84,18 @@ describe("handleSubmission", () => {
     );
     const record = store.saved[0];
     expect(Object.keys(record).sort()).toEqual(
-      ["contact", "createdAt", "id", "items", "message"].sort(),
+      ["contact", "createdAt", "id", "items", "message", "source"].sort(),
     );
     expect(record.items).toEqual([
       { solutionId: "document-data-extraction", packageId: "pilot" },
     ]);
     expect(record.contact).toEqual({
       name: "Анна",
+      company: "Клиника «Пример»",
       method: "email",
       value: "anna@example.com",
     });
+    expect(record.source).toBe("страница заявки /request");
     expect(JSON.stringify(record)).not.toMatch(
       /website|startedAt|submissionId/,
     );
@@ -224,6 +226,7 @@ describe("TestRequestStore", () => {
       items: [],
       contact: { name: "Анна", method: "email", value: "a@b.c" },
       message: "текст",
+      source: "страница заявки /request",
     });
     expect(s.acceptedCount).toBe(1);
     expect(JSON.stringify(s)).not.toContain("a@b.c");

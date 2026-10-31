@@ -8,7 +8,7 @@ import {
 
 const valid = {
   name: "Анна",
-  company: "",
+  company: "Клиника «Пример»",
   contactMethod: "email",
   contact: "Anna@Example.com",
   message: "Нужно автоматизировать обработку счетов.",
@@ -26,7 +26,7 @@ describe("RequestFormSchema", () => {
   it("принимает минимальную корректную заявку и нормализует данные", () => {
     const r = RequestFormSchema.parse(valid);
     expect(r.contact).toBe("anna@example.com");
-    expect(r.company).toBeUndefined();
+    expect(r.company).toBe("Клиника «Пример»");
     expect(r.solutionId).toBeUndefined();
   });
 
@@ -52,7 +52,17 @@ describe("RequestFormSchema", () => {
     ],
     ["пустой контакт", { contact: "" }, "contact"],
     ["неизвестный способ связи", { contactMethod: "fax" }, "contactMethod"],
-    ["слишком длинная компания", { company: "x".repeat(151) }, "company"],
+    ["нет клиники", { company: " " }, "company"],
+    [
+      "слишком длинное название клиники",
+      { company: "x".repeat(151) },
+      "company",
+    ],
+    [
+      "неверный Telegram",
+      { contactMethod: "telegram", contact: "ab" },
+      "contact",
+    ],
   ])("отклоняет: %s", (_, patch, field) => {
     expect(errorsOf({ ...valid, ...patch })).toHaveProperty(field);
   });

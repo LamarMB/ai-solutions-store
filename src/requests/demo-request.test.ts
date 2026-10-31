@@ -116,6 +116,7 @@ describe("доставка заявки в Telegram", () => {
       value: "@clinic_admin",
     },
     message: "",
+    source: "главная страница, «Получить демонстрацию»",
   };
 
   it("текст без разметки, со всеми полями и отметкой о согласии", async () => {
@@ -133,6 +134,7 @@ describe("доставка заявки в Telegram", () => {
     expect(tg.calls[0].body).toMatchObject({ chat_id: "42" });
     expect(tg.calls[0].body).not.toHaveProperty("parse_mode");
     const text = String(tg.calls[0].body.text);
+    expect(text).toMatch(/Источник: главная страница/);
     expect(text).toMatch(/Имя: Анна/);
     expect(text).toMatch(/Клиника: Клиника/);
     expect(text).toMatch(/Связь \(Telegram\): @clinic_admin/);

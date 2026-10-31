@@ -8,7 +8,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata: Metadata = pageMetadata({
   title: "Политика конфиденциальности",
   description:
-    "Политика обработки персональных данных AI Solutions Store готовится. Сейчас заявки принимаются в тестовом режиме и не сохраняются.",
+    "Политика обработки персональных данных, которые посетители сайта указывают в формах заявки.",
   path: "/privacy",
   noindex: true,
 });

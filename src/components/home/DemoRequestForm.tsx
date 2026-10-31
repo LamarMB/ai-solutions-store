@@ -118,11 +118,10 @@ export function DemoRequestForm() {
           <>
             <p className="flex items-center gap-2 font-semibold">
               <Icon name="check" size={20} className="text-accent" />
-              Заявка отправлена
+              Заявка отправлена. Мы скоро с вами свяжемся
             </p>
             <p className="text-small text-muted mt-3">
-              Свяжемся с вами по указанному контакту, чтобы договориться о
-              времени демонстрации. Номер заявки: {state.reference}.
+              Номер заявки: {state.reference}.
             </p>
           </>
         ) : (
@@ -201,7 +200,8 @@ export function DemoRequestForm() {
             role="alert"
             className="border-danger/40 text-danger text-small bg-danger/10 rounded-xl border p-4"
           >
-            {serverMessage} Можно написать нам в Telegram{" "}
+            {serverMessage} Введённые данные сохранены в форме. Можно также
+            написать нам в Telegram{" "}
             <a
               href={telegram.href}
               {...externalLinkProps}
@@ -300,8 +300,8 @@ export function DemoRequestForm() {
             className="accent-accent mt-1 size-4 shrink-0"
           />
           <span className="text-muted">
-            Согласен на обработку указанных данных для связи по заявке — в
-            соответствии с{" "}
+            Согласен на обработку указанных данных для связи по заявке, включая
+            передачу оператору через Telegram, — в соответствии с{" "}
             <Link
               href="/privacy"
               className="text-accent hover:text-accent-hover"

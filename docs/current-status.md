@@ -59,7 +59,9 @@
     25 000 ₽/мес и 50 000 ₽ внедрение. Публикуются только после подтверждения,
     `src/content/solutions/clinic-ai-administrator.ts`.
   - Состав тарифов (предложение в каталоге).
-  - Политика персональных данных и включение формы заявки ([requests.md](requests.md)).
+  - Включение приёма заявок в Telegram — `deploy/requests-enable.sh`: нужны токен бота,
+    chat ID (определяется сам) и данные оператора; текст политики — `src/content/privacy.ts`
+    ([requests.md](requests.md)).
 
 ## В `main`
 

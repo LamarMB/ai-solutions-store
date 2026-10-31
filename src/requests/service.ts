@@ -87,10 +87,8 @@ export async function handleSubmission(
     };
   }
 
-  const schema =
-    fd.get(FORM_KIND_FIELD) === DEMO_FORM
-      ? DemoRequestSchema
-      : RequestFormSchema;
+  const demo = fd.get(FORM_KIND_FIELD) === DEMO_FORM;
+  const schema = demo ? DemoRequestSchema : RequestFormSchema;
   const parsed = schema.safeParse(formDataToInput(fd));
   if (!parsed.success) {
     return {
@@ -117,6 +115,9 @@ export async function handleSubmission(
       value: data.contact,
     },
     message: data.message,
+    source: demo
+      ? "главная страница, «Получить демонстрацию»"
+      : "страница заявки /request",
   };
 
   try {

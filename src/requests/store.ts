@@ -17,6 +17,8 @@ export type RequestRecord = {
     value: string;
   };
   message: string;
+  /** Откуда заявка: форма на главной или страница /request. */
+  source: string;
 };
 
 /**
@@ -59,6 +61,7 @@ export function requestMessage(record: RequestRecord): string {
   const { contact } = record;
   return [
     "Заявка с сайта",
+    `Источник: ${record.source}`,
     `Номер: ${record.id}`,
     `Имя: ${contact.name}`,
     ...(contact.company ? [`Клиника: ${contact.company}`] : []),
@@ -84,6 +87,8 @@ export class TelegramRequestStore implements RequestStore {
     private readonly options: {
       token: string;
       chatId: string;
+      /** Адрес Bot API (по умолчанию https://api.telegram.org) — для проверки на стенде. */
+      apiBase?: string;
       fetch?: typeof fetch;
       timeoutMs?: number;
     },
@@ -92,7 +97,7 @@ export class TelegramRequestStore implements RequestStore {
   async save(record: RequestRecord): Promise<void> {
     const doFetch = this.options.fetch ?? globalThis.fetch;
     const response = await doFetch(
-      `https://api.telegram.org/bot${this.options.token}/sendMessage`,
+      `${this.options.apiBase ?? "https://api.telegram.org"}/bot${this.options.token}/sendMessage`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,8 +126,9 @@ export function requestStoreFromEnv(
 ): RequestStore {
   const token = env.REQUESTS_TELEGRAM_BOT_TOKEN?.trim();
   const chatId = env.REQUESTS_TELEGRAM_CHAT_ID?.trim();
+  const apiBase = env.REQUESTS_TELEGRAM_API?.trim() || undefined;
   return token && chatId && policyPublished
-    ? new TelegramRequestStore({ token, chatId })
+    ? new TelegramRequestStore({ token, chatId, apiBase })
     : new TestRequestStore();
 }
 

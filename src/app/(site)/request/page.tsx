@@ -23,7 +23,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata: Metadata = pageMetadata({
   title: "Оставить заявку",
   description:
-    "Заявка на внедрение ИИ-решения из каталога или общая заявка. Приём заявок работает в тестовом режиме.",
+    "Заявка на демонстрацию и внедрение ИИ-администратора для клиники.",
   path: "/request",
   noindex: true,
 });

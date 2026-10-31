@@ -43,9 +43,8 @@ const RequestFormSchemaBase = z.strictObject({
   company: z
     .string()
     .trim()
-    .max(LIMITS.companyMax, `Не длиннее ${LIMITS.companyMax} символов`)
-    .optional()
-    .transform((v) => (v ? v : undefined)),
+    .min(2, "Укажите название клиники")
+    .max(LIMITS.companyMax, `Не длиннее ${LIMITS.companyMax} символов`),
   contactMethod: ContactMethodSchema,
   contact: z
     .string()
