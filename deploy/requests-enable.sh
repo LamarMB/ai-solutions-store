@@ -102,25 +102,35 @@ if [[ -z $CHAT ]]; then
 fi
 [[ $CHAT =~ ^-?[0-9]+$ ]] || die "chat ID должен быть числом"
 
-# 3. Оператор персональных данных
+# 3. Оператор персональных данных. Каждое поле проверяется (кодировка, символы);
+# при ошибке вопрос повторяется. Enter — оставить сохранённое значение.
+valid() { # $1 — вид поля, $2 — значение; 0 — корректно
+  node -e '
+    const [kind, v] = process.argv.slice(1);
+    if (/[\uFFFD\u0000-\u001f"\\]/.test(v)) process.exit(1);
+    const re = { name: /^[\p{L}][\p{L}\s.\-«»()]{2,149}$/u, inn: /^(\d{10}|\d{12})$/, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ }[kind];
+    process.exit(re.test(v) ? 0 : 1);' "$1" "$2"
+}
+field() { # $1 — вид, $2 — вопрос, $3 — сохранённое значение; результат в REPLY
+  local saved=$3 i
+  for i in 1 2 3; do
+    if [[ -n $saved ]]; then ask "$2 [Enter — оставить «$saved»]:"; else ask "$2"; fi
+    [[ -z $REPLY && -n $saved ]] && REPLY=$saved
+    valid "$1" "$REPLY" && return 0
+    printf 'Не похоже на корректное значение (возможно, при исправлении ввода стёрлась часть буквы). Введите заново, без исправлений, или вставьте из буфера.\n' >/dev/tty
+  done
+  die "некорректный ввод — ничего не изменено"
+}
 OP_NAME=$(current PRIVACY_OPERATOR_NAME)
-OP_INN=$(current PRIVACY_OPERATOR_INN)
-OP_EMAIL=$(current PRIVACY_OPERATOR_EMAIL)
-if [[ -n $OP_NAME && -n $OP_INN && -n $OP_EMAIL ]]; then
-  ask "Оператор уже задан: $OP_NAME, ИНН $OP_INN, $OP_EMAIL. Оставить? [да/нет]:"
-  [[ $REPLY =~ ^(да|y|yes|д)$ ]] || OP_NAME=
-fi
-if [[ -z $OP_NAME || -z $OP_INN || -z $OP_EMAIL ]]; then
-  ask "Оператор персональных данных — ФИО предпринимателя или название организации (например, «ИП Иванов Иван Иванович»):"
-  OP_NAME=$REPLY
-  ask "ИНН оператора (10 или 12 цифр):"
-  OP_INN=$REPLY
-  ask "Email для запросов о персональных данных:"
-  OP_EMAIL=$REPLY
-fi
-[[ ${#OP_NAME} -ge 3 && $OP_NAME != *'"'* && $OP_NAME != *$'\n'* ]] || die "некорректное имя оператора"
-[[ $OP_INN =~ ^([0-9]{10}|[0-9]{12})$ ]] || die "ИНН — 10 или 12 цифр"
-[[ $OP_EMAIL =~ ^[^[:space:]@\"]+@[^[:space:]@\"]+\.[^[:space:]@\"]+$ ]] || die "некорректный email"
+valid name "$OP_NAME" || OP_NAME=
+field name "Оператор персональных данных — ФИО полностью (если ИП — «ИП Фамилия Имя Отчество»):" "$OP_NAME"
+OP_NAME=$REPLY
+ask "Проверьте написание: «$OP_NAME». Верно? [да/нет]:"
+[[ $REPLY =~ ^(да|y|yes|д)$ ]] || die "отменено — запустите команду снова и введите имя заново; ничего не изменено"
+field inn "ИНН оператора (10 или 12 цифр):" "$(current PRIVACY_OPERATOR_INN)"
+OP_INN=$REPLY
+field email "Email для запросов о персональных данных (будет опубликован на /privacy):" "$(current PRIVACY_OPERATOR_EMAIL)"
+OP_EMAIL=$REPLY
 
 cat >/dev/tty <<EOF
 
@@ -146,7 +156,8 @@ ask "В Telegram пришло сообщение «Проверка: сюда б
 cp -p "$ENV_FILE" "$BK/env.local"
 set_env() {
   local key=$1 value=$2
-  grep -v -E "^[[:space:]]*(export[[:space:]]+)?$key[[:space:]]*=" "$ENV_FILE" >"$TMP/env" || true
+  # -a: файл читается как текст, даже если в нём есть нестандартные байты.
+  grep -a -v -E "^[[:space:]]*(export[[:space:]]+)?$key[[:space:]]*=" "$ENV_FILE" >"$TMP/env" || true
   printf '%s="%s"\n' "$key" "$value" >>"$TMP/env"
   cat "$TMP/env" >"$ENV_FILE" # cat > сохраняет владельца и права файла
 }
