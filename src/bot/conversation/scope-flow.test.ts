@@ -363,17 +363,21 @@ describe("11. оффтоп, пропущенный фильтром, откло�
 });
 
 describe("12. нет лишних обращений к OpenAI", () => {
-  it("кнопки, приветствие, благодарность, «да» на подтверждении — без модели", async () => {
+  it("кнопки, приветствие, благодарность, простая просьба, «да» на подтверждении — без модели", async () => {
     const model = clinicModel();
     const t = setup(model);
     expect(text(await t.say("Здравствуйте!"))).toMatch(/Я помощник клиники/);
     const r = await t.say("хочу записаться к терапевту");
-    expect(model.calls).toHaveLength(1);
     await t.press(r, "Ближайшее время");
     await t.say("да");
     expect(text(await t.say("Спасибо!"))).toMatch(/Пожалуйста/);
-    expect(model.calls).toHaveLength(1);
-    expect(t.stats()).toMatchObject({ smalltalk_local: 2, model_requests: 1 });
+    expect(model.calls).toHaveLength(0);
+    expect(t.stats()).toMatchObject({
+      smalltalk_local: 2,
+      simple_rules: 1,
+      model_requests_saved: 3,
+    });
+    expect(t.stats()).not.toHaveProperty("model_requests");
     expect(t.schedule.listBookings(PEER)).toHaveLength(1);
   });
 

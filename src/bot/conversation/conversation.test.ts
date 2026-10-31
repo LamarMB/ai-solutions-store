@@ -426,9 +426,13 @@ describe("7–8. смена темы и вопросы посреди запис
       return raw();
     });
     const t = setup({ model });
+    // «Мне нужен ЛОР» однозначно — правилами, без модели: сразу дни единственного ЛОРа.
     let r = await t.say("Мне нужен ЛОР");
-    expect(text(r)).toMatch(/Вам удобнее сегодня, завтра/);
+    expect(model.calls).toHaveLength(0);
+    expect(t.flow()).toMatchObject({ step: "day", doctorId: "obraztsova" });
+    // Дальше разговор посреди записи — с моделью, контекст не теряется.
     r = await t.say("А сколько стоит приём?");
+    expect(model.calls).toHaveLength(1);
     expect(text(r)).toMatch(/2 100 ₽/);
     expect(t.flow()).toMatchObject({ step: "day", doctorId: "obraztsova" });
     r = await t.say("Ладно, давай на завтра");

@@ -325,7 +325,28 @@ async function handleText(
     return emergency(conv);
   const adviceRequest = isMedicalAdviceRequest(allowed);
 
-  // 3. Модель ведёт разговор; её решение уже проверено по справочнику.
+  // 3. Однозначная простая просьба вне разговора о жалобе — правилами, без модели.
+  if (
+    ctx.model &&
+    flags.length === 0 &&
+    !adviceRequest &&
+    (await isSimpleRequest(flow, session.conv, conv, allowed, allowedNorm, ctx))
+  ) {
+    const result = await fallback(
+      flow,
+      conv,
+      allowed,
+      allowedNorm,
+      adviceRequest,
+      ctx,
+    );
+    return {
+      ...result,
+      stats: [...(result.stats ?? []), ...saved("simple_rules")],
+    };
+  }
+
+  // 4. Модель ведёт разговор; её решение уже проверено по справочнику.
   if (ctx.model) {
     const decision = await ctx.model.decide({
       peerId: ctx.peerId,
@@ -346,7 +367,7 @@ async function handleText(
     return { ...result, stats: [...(result.stats ?? []), "model_requests"] };
   }
 
-  // 4. Без модели — правила.
+  // 5. Без модели — правила.
   return fallback(flow, conv, allowed, allowedNorm, adviceRequest, ctx);
 }
 
@@ -619,6 +640,138 @@ async function execute(
 
     case "small_talk":
       return step(conv, show(flow, ctx, notes));
+  }
+}
+
+/** Слов в простой просьбе — не больше: длинное сообщение обычно несёт подробности. */
+const SIMPLE_MAX_WORDS = 6;
+/** Служебные и вежливые слова, допустимые в простой просьбе. */
+const SIMPLE_FILLER = new Set(
+  "я мне меня мой мои моя мою вы вас вам ваш ваша ваши вашей у к ко в во на по про с со о об где как какие какой кто сколько что это есть ли можно пожалуйста хочу хотел хотела бы нужно нужен нужна надо клиника клиники клинику клинике".split(
+    " ",
+  ),
+);
+/**
+ * Основы слов простых просьб: меню, записи, администратор, справка, запись.
+ * Слово вне этого списка, служебных слов и названий специалистов и врачей
+ * клиники — сообщение неоднозначно и идёт в модель («сколько стоит айфон»).
+ */
+const SIMPLE_STEMS = [
+  "меню",
+  "начат",
+  "главн",
+  "запис",
+  "запиш",
+  "покаж",
+  "показ",
+  "посмотр",
+  "отмен",
+  "админ",
+  "позов",
+  "позват",
+  "оператор",
+  "человек",
+  "живо",
+  "цен",
+  "стоим",
+  "стоит",
+  "прайс",
+  "оплат",
+  "адрес",
+  "находит",
+  "располож",
+  "добрат",
+  "доехат",
+  "проезд",
+  "парковк",
+  "подготов",
+  "взять",
+  "документ",
+  "паспорт",
+  "врач",
+  "специалист",
+  "принима",
+  "прием",
+  "консультац",
+  "ближайш",
+  "время",
+  "свободн",
+];
+
+/** Основы названий специалистов и имён врачей клиники: «анне» ← «Анна», «лору» ← «ЛОР». */
+function entityStems(clinic: TurnContext["clinic"]): string[] {
+  const words = [
+    ...clinic.specialties.flatMap((s) => [s.title, s.toWhom]),
+    ...clinic.doctors.map((d) => d.name),
+  ]
+    .flatMap((t) => normalizeText(t).split(/[^a-zа-я0-9-]+/))
+    .filter((w) => w.length >= 3 && !SIMPLE_FILLER.has(w));
+  return words.map((w) =>
+    w.length > 5 ? w.slice(0, 5) : w.slice(0, Math.max(3, w.length - 1)),
+  );
+}
+
+/** Все слова сообщения знакомы: служебные, слова простых просьб, названия клиники. */
+function onlyKnownWords(words: string[], clinic: TurnContext["clinic"]) {
+  const entities = entityStems(clinic);
+  return words.every(
+    (w) =>
+      SIMPLE_FILLER.has(w) ||
+      SIMPLE_STEMS.some((s) => w.startsWith(s)) ||
+      entities.some((s) => w.startsWith(s)),
+  );
+}
+
+/**
+ * Просьба, которую правила понимают однозначно, — модель не нужна:
+ * меню, «мои записи», администратор, справка с определённой темой, запись к
+ * названному специалисту или врачу без даты и времени, короткое «записаться».
+ * Все слова сообщения знакомы (служебные, простых просьб, названия клиники).
+ * Только вне разговора: шаг «меню», нет жалобы, открытого вопроса и прежнего
+ * экстренного состояния. Жалобы, медицинские вопросы, перечисления («и», запятая)
+ * и всё неоднозначное идут в модель, как раньше. Подтверждение записи —
+ * по-прежнему отдельным шагом с кнопкой.
+ */
+async function isSimpleRequest(
+  flow: DialogState,
+  before: Conversation,
+  conv: Conversation,
+  raw: string,
+  text: string,
+  ctx: TurnContext,
+): Promise<boolean> {
+  if (flow.step !== "menu") return false;
+  if (before.complaint || before.pending || before.urgency === "emergency")
+    return false;
+  if (conv.complaint || conv.urgency === "emergency" || detectComplaint(raw))
+    return false;
+  const words = text.split(/[^a-zа-я0-9-]+/).filter(Boolean);
+  if (
+    words.length > SIMPLE_MAX_WORDS ||
+    !onlyKnownWords(words, ctx.clinic) ||
+    /[,;]/.test(raw) ||
+    /\s(?:и|или|а|но)\s/.test(` ${text} `)
+  )
+    return false;
+  const meaning = await ctx.interpreter.interpret(raw, {
+    peerId: ctx.peerId,
+    today: ctx.today,
+    step: flow.step,
+  });
+  switch (meaning.intent) {
+    case "menu":
+    case "my_bookings":
+    case "admin":
+      return true;
+    case "question":
+      return meaning.topic !== undefined;
+    case "book":
+      if (meaning.date || meaning.time) return false;
+      return (
+        Boolean(meaning.specialtyId || meaning.doctorId) || words.length <= 3
+      );
+    default:
+      return false;
   }
 }
 

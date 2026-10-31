@@ -34,6 +34,8 @@ export const STAT_KEYS = [
   "model_out_of_scope",
   /** Приветствие или благодарность — ответ без модели. */
   "smalltalk_local",
+  /** Однозначная простая просьба (меню, справка, запись к названному врачу) — правилами. */
+  "simple_rules",
   "too_long_rejected",
   "rate_limited",
   "spam_ignored",
