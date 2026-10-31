@@ -35,7 +35,7 @@ describe("навигация", () => {
   });
 
   it("подвал ссылается только на известные разделы", () => {
-    const known = new Set(allNavHrefs);
+    const known = new Set<string>(allNavHrefs);
     for (const group of footerNav) {
       for (const item of group.items) {
         expect(
@@ -51,10 +51,13 @@ describe("навигация", () => {
     expect(headerActions.consultant.href).toBe("/consultant");
   });
 
-  it("обращение клиента ведёт в рабочий Telegram, подвал содержит контакт", () => {
+  it("«Получить демонстрацию» ведёт к разделу #demo (там Telegram), подвал содержит контакт", () => {
     expect(telegram.href).toBe("https://t.me/tgboostman");
-    expect(headerActions.demo.href).toBe(telegram.href);
-    expect(isExternalHref(headerActions.demo.href)).toBe(true);
+    expect(headerActions.demo).toEqual({
+      href: "/#demo",
+      label: "Получить демонстрацию",
+    });
+    expect(isExternalHref(headerActions.demo.href)).toBe(false);
     expect(
       footerNav.some((g) => g.items.some((i) => i.href === telegram.href)),
     ).toBe(true);

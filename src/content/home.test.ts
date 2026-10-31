@@ -5,6 +5,8 @@ import {
   faq,
   hero,
   staffFeatures,
+  workflow,
+  type WorkflowNode,
 } from "@/content/home";
 import { getScreen } from "@/content/product-map";
 
@@ -25,7 +27,17 @@ const texts = [
   demoSection.text,
   demoSection.pending,
   demoSection.contactNote,
+  demoSection.contactNoteLive,
   ...demoSection.points,
+  workflow.title,
+  workflow.text,
+  workflow.note,
+  ...(workflow.nodes as readonly WorkflowNode[]).flatMap((n) => [
+    n.title,
+    n.text,
+    ...n.details,
+    ...(n.note ? [n.note] : []),
+  ]),
 ];
 
 describe("тексты главной", () => {
@@ -51,6 +63,22 @@ describe("тексты главной", () => {
     );
     expect(demoSection.contactNote).toMatch(/telegram/i);
     expect(demoSection.contactNote).toMatch(/тестовом режиме/i);
+  });
+
+  it("схема работы: пять блоков по порядку, без обещаний интеграций", () => {
+    expect(workflow.nodes.map((n) => n.title)).toEqual([
+      "Пациент",
+      "ИИ-администратор",
+      "Подбор врача и услуги",
+      "Запись",
+      "Информация для клиники",
+    ]);
+    const all = texts.join(" ");
+    expect(all).not.toMatch(/n8n|webhook|вебхук|amoCRM|Битрикс/i);
+    // МИС упоминается только как оцениваемая отдельно.
+    for (const n of workflow.nodes)
+      for (const d of n.details)
+        if (/МИС/.test(d)) expect(d).toMatch(/оценивается отдельно/);
   });
 
   it("снимки панели существуют и это окна браузера", () => {

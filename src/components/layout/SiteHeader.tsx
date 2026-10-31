@@ -5,7 +5,6 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Icon } from "@/components/ui/Icon";
 import { headerActions } from "@/config/navigation";
-import { externalLinkProps } from "@/config/contact";
 
 export function SiteHeader() {
   return (
@@ -29,11 +28,7 @@ export function SiteHeader() {
             </ButtonLink>
           </div>
           <div className="hidden sm:block">
-            <ButtonLink
-              href={headerActions.demo.href}
-              size="sm"
-              {...externalLinkProps}
-            >
+            <ButtonLink href={headerActions.demo.href} size="sm">
               {headerActions.demo.label}
             </ButtonLink>
           </div>

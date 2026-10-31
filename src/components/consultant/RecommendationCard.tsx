@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { solutionHref } from "@/catalog/links";
 import { headerActions } from "@/config/navigation";
-import { externalLinkProps } from "@/config/contact";
 import type { RecommendationView } from "@/consultant/recommendations";
 import { DemoBadge, MaturityBadge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
@@ -62,7 +61,6 @@ export function RecommendationCard({ rec }: { rec: RecommendationView }) {
         </Link>
         <Link
           href={headerActions.demo.href}
-          {...externalLinkProps}
           className="glass glass-hover text-small rounded-control text-ink inline-flex h-9 items-center px-4 font-medium"
         >
           {headerActions.demo.label}

@@ -57,11 +57,11 @@ describe("данные каталога", () => {
     expect(getIndustries().map((i) => i.id)).toEqual(["healthcare"]);
   });
 
-  it("публичные цены — фиксированные и «от»; концепции без пакетов", () => {
+  it("публичные цены — «по запросу», пока владелец не утвердил цены; концепции без пакетов", () => {
     const kinds = new Set(
       getSolutions().flatMap((s) => s.packages.map((p) => p.price.kind)),
     );
-    expect([...kinds].sort()).toEqual(["fixed", "from"]);
+    expect([...kinds].sort()).toEqual(["on_request"]);
     // Вид «по запросу» по-прежнему встречается в скрытых записях.
     expect(
       catalog.solutions.some((s) =>
@@ -85,33 +85,26 @@ describe("данные каталога", () => {
 
 describe("тарифы ИИ-администратора", () => {
   const admin = getSolutionById("clinic-ai-administrator")!;
-  const rub = (kind: "fixed" | "from", amount: number) => ({
-    kind,
-    amount,
-    currency: "RUB",
-  });
-
-  it("Старт, Оптимум, Бизнес — внедрение и обслуживание как согласовано", () => {
+  it("Старт и Оптимум; цены не опубликованы до утверждения — «по запросу»", () => {
     expect(
       admin.packages.map((p) => [p.title, p.price, p.monthlyPrice]),
     ).toEqual([
-      ["Старт", rub("fixed", 1500000), rub("fixed", 390000)],
-      ["Оптимум", rub("fixed", 3500000), rub("fixed", 790000)],
-      ["Бизнес", rub("from", 7500000), rub("from", 1490000)],
+      ["Старт", { kind: "on_request" }, { kind: "on_request" }],
+      ["Оптимум", { kind: "on_request" }, { kind: "on_request" }],
     ]);
-    expect(getStartingPrice(admin)).toEqual(rub("fixed", 1500000));
+    expect(getStartingPrice(admin)).toEqual({ kind: "on_request" });
   });
 
-  it("рекомендуемый — только «Оптимум»; цены помечены как предварительные", () => {
+  it("рекомендуемый — только «Оптимум»; стоимость — на демонстрации", () => {
     expect(
       admin.packages.filter((p) => p.recommended).map((p) => p.id),
     ).toEqual(["optimum"]);
-    expect(admin.pricingNote).toMatch(/предварительные/);
+    expect(admin.pricingNote).toMatch(/на демонстрации/);
   });
 
   it("запись: сразу — по расписанию панели, МИС — отдельно; без обещаний мгновенности", () => {
-    const optimum = admin.packages.find((p) => p.id === "optimum")!;
-    expect(optimum.includes.join(" ")).toMatch(
+    const start = admin.packages.find((p) => p.id === "start")!;
+    expect(start.includes.join(" ")).toMatch(
       /подтверждается сразу по расписанию в панели клиники/,
     );
     expect(admin.description).toMatch(

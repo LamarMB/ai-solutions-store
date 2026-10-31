@@ -6,7 +6,6 @@ import { useEffect, useRef } from "react";
 import { buttonClasses } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { headerActions, isActivePath, mainNav } from "@/config/navigation";
-import { externalLinkProps } from "@/config/contact";
 import { cn } from "@/lib/cn";
 
 /**
@@ -93,7 +92,6 @@ export function MobileMenu() {
             <Link
               href={headerActions.demo.href}
               onClick={close}
-              {...externalLinkProps}
               className={buttonClasses({ size: "lg" })}
             >
               {headerActions.demo.label}

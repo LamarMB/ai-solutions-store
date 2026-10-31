@@ -486,6 +486,113 @@
   }
 }
 
+/*
+ * Схема работы на главной (WorkflowScheme): блоки со связями. Связь — линия с
+ * бегущей точкой (только transform и opacity); столбцом на узком экране, в
+ * строку от lg. При reduced-motion точка не показывается.
+ */
+.flow-link {
+  position: relative;
+  flex: none;
+  align-self: center;
+  width: 2px;
+  height: 2.25rem;
+  background: linear-gradient(180deg, var(--border-strong), var(--accent));
+  opacity: 0.75;
+}
+.flow-link-dot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 9999px;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+  animation: flow-dot-y 2.4s ease-in-out infinite;
+}
+.flow-port {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 9999px;
+  background: var(--bg);
+  border: 2px solid var(--border-strong);
+}
+.flow-port-in {
+  top: -6px;
+}
+.flow-port-out {
+  bottom: -6px;
+}
+.flow-scheme > li:first-child .flow-port-in,
+.flow-scheme > li:last-child .flow-port-out {
+  display: none;
+}
+@media (min-width: 64rem) {
+  .flow-link {
+    align-self: flex-start;
+    width: 2.5rem;
+    height: 2px;
+    margin-top: 2.5rem;
+    background: linear-gradient(90deg, var(--border-strong), var(--accent));
+  }
+  .flow-link-dot {
+    top: 50%;
+    left: 0;
+    margin: -4px 0 0 -4px;
+    animation-name: flow-dot-x;
+  }
+  .flow-port {
+    top: calc(2.5rem - 5px);
+    bottom: auto;
+    margin-left: 0;
+  }
+  .flow-port-in {
+    left: -6px;
+  }
+  .flow-port-out {
+    left: auto;
+    right: -6px;
+  }
+}
+@keyframes flow-dot-y {
+  from {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20%,
+  80% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(2.25rem);
+    opacity: 0;
+  }
+}
+@keyframes flow-dot-x {
+  from {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  20%,
+  80% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(2.5rem);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-link-dot {
+    display: none;
+  }
+}
+
 /* Первый экран: мягкий подъём вторичных элементов (заголовок не скрывается). */
 @keyframes rise-in {
   from {

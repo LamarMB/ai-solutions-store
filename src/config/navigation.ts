@@ -17,8 +17,8 @@ export const mainNav = [
 export const headerActions = {
   consultant: { href: "/consultant", label: "Подобрать решение" },
   request: { href: "/request", label: "Оставить заявку" },
-  /** Обращение клиента — рабочий Telegram (config/contact.ts), новая вкладка. */
-  demo: { href: telegram.href, label: "Запросить демонстрацию" },
+  /** Раздел демонстрации на главной: Telegram и форма заявки (когда приём включён). */
+  demo: { href: "/#demo", label: "Получить демонстрацию" },
 } as const satisfies Record<string, NavItem>;
 
 /** Группы ссылок подвала. */

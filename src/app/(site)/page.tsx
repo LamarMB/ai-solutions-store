@@ -17,12 +17,14 @@ import { SectionIntro } from "@/components/home/SectionIntro";
 import { SetupStrip } from "@/components/home/SetupStrip";
 import { StaffPanel } from "@/components/home/StaffPanel";
 import { Trust } from "@/components/home/Trust";
+import { WorkflowScheme } from "@/components/home/WorkflowScheme";
 import { Container } from "@/components/ui/Container";
 import {
   MAP_ANCHOR,
   PRODUCT_MAP_SOLUTION_ID,
   SETUP_ANCHOR,
 } from "@/content/product-map";
+import { workflow } from "@/content/home";
 import { absoluteUrl, getSeoConfig, jsonLd, pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 
@@ -57,6 +59,27 @@ export default function Home() {
       />
       <Hero />
       <Benefits />
+
+      <section
+        id="how"
+        aria-labelledby="how-title"
+        className="scroll-mt-20 py-16 md:py-24 xl:py-28"
+      >
+        <Container>
+          <SectionIntro
+            id="how-title"
+            eyebrow="Схема работы"
+            title={workflow.title}
+            text={workflow.text}
+          />
+          <div className="mt-14">
+            <WorkflowScheme nodes={workflow.nodes} />
+          </div>
+          <p className="text-small text-muted mt-8 flex items-start gap-2">
+            {workflow.note}
+          </p>
+        </Container>
+      </section>
 
       <section
         id="path"

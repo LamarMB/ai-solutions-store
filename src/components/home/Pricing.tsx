@@ -5,7 +5,6 @@ import { Container } from "@/components/ui/Container";
 import { Icon } from "@/components/ui/Icon";
 import { PackagePrice } from "@/components/ui/PackagePrice";
 import { headerActions } from "@/config/navigation";
-import { externalLinkProps } from "@/config/contact";
 import { cn } from "@/lib/cn";
 import { SectionIntro } from "./SectionIntro";
 
@@ -25,11 +24,11 @@ export function Pricing({ solution }: { solution: Solution }) {
           id="tariffs-title"
           eyebrow="Тарифы"
           title="Внедрение один раз, обслуживание — ежемесячно"
-          text="«Старт» — ответы в сообщениях сообщества ВКонтакте. «Оптимум» добавляет запись в чате и приложении клиники, расписание и роли сотрудников в панели. Состав уточняем на демонстрации."
+          text="«Старт» — ИИ-администратор в сообщениях сообщества ВКонтакте с записью через бота. «Оптимум» добавляет приложение клиники во ВКонтакте и работу врачей в панели. Стоимость и состав уточняем на демонстрации."
         />
         <ul
           aria-label="Тарифы"
-          className="-mx-4 mt-14 flex snap-x snap-mandatory [scrollbar-width:none] gap-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0"
+          className="-mx-4 mt-14 flex snap-x snap-mandatory [scrollbar-width:none] gap-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:mx-auto lg:grid lg:max-w-4xl lg:grid-cols-2 lg:overflow-visible lg:px-0 lg:pb-0"
         >
           {solution.packages.map((pkg, i) => (
             <li
@@ -72,7 +71,6 @@ export function Pricing({ solution }: { solution: Solution }) {
               </ul>
               <ButtonLink
                 href={headerActions.demo.href}
-                {...externalLinkProps}
                 variant={pkg.recommended ? "primary" : "secondary"}
                 className="mt-8"
               >

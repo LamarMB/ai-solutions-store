@@ -3,7 +3,6 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Icon } from "@/components/ui/Icon";
 import { headerActions } from "@/config/navigation";
-import { externalLinkProps } from "@/config/contact";
 import { hero } from "@/content/home";
 import { cn } from "@/lib/cn";
 import { HeroConsole } from "./HeroConsole";
@@ -49,7 +48,6 @@ export function Hero() {
           >
             <ButtonLink
               href={headerActions.demo.href}
-              {...externalLinkProps}
               size="lg"
               className="btn-bright rounded-xl"
             >

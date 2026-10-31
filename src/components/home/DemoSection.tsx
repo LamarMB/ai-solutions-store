@@ -8,6 +8,8 @@ import { MaturityBadge } from "@/components/ui/Badge";
 import { externalLinkProps, telegram } from "@/config/contact";
 import { demoContact } from "@/config/demo";
 import { demoSection } from "@/content/home";
+import { getRequestStore } from "@/requests/store";
+import { DemoRequestForm } from "./DemoRequestForm";
 
 /**
  * Раздел #demo. Кнопка ведёт в рабочий Telegram (src/config/demo.ts); без
@@ -15,6 +17,8 @@ import { demoSection } from "@/content/home";
  * принимаются. Ниже — модули в разработке с пометкой статуса.
  */
 export function DemoSection({ concepts }: { concepts: Solution[] }) {
+  // Форма — только когда заявки действительно доставляются (docs/requests.md).
+  const formLive = getRequestStore().mode === "live";
   return (
     <section
       id="demo"
@@ -71,7 +75,9 @@ export function DemoSection({ concepts }: { concepts: Solution[] }) {
               >
                 <Icon name="info" size={18} className="mt-0.5 shrink-0" />
                 <span>
-                  {demoSection.contactNote}{" "}
+                  {formLive
+                    ? demoSection.contactNoteLive
+                    : demoSection.contactNote}{" "}
                   <a
                     href={demoContact.href}
                     {...externalLinkProps}
@@ -91,17 +97,27 @@ export function DemoSection({ concepts }: { concepts: Solution[] }) {
               </p>
             )}
           </div>
-          <ul className="relative space-y-4 self-center">
-            {demoSection.points.map((point) => (
-              <li
-                key={point}
-                className="border-border bg-bg/60 flex items-center gap-4 rounded-2xl border p-5"
-              >
-                <Icon name="check" size={20} className="text-accent shrink-0" />
-                <span>{point}</span>
-              </li>
-            ))}
-          </ul>
+          {formLive ? (
+            <div className="relative self-center">
+              <DemoRequestForm />
+            </div>
+          ) : (
+            <ul className="relative space-y-4 self-center">
+              {demoSection.points.map((point) => (
+                <li
+                  key={point}
+                  className="border-border bg-bg/60 flex items-center gap-4 rounded-2xl border p-5"
+                >
+                  <Icon
+                    name="check"
+                    size={20}
+                    className="text-accent shrink-0"
+                  />
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {concepts.length > 0 && (

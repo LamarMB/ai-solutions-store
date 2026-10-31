@@ -1,6 +1,9 @@
 import type { Solution } from "@/catalog/schema";
 import {
+  DEMO_FORM,
+  DemoRequestSchema,
   fieldErrors,
+  FORM_KIND_FIELD,
   formDataToInput,
   RequestFormSchema,
   SERVICE_FIELDS,
@@ -84,7 +87,11 @@ export async function handleSubmission(
     };
   }
 
-  const parsed = RequestFormSchema.safeParse(formDataToInput(fd));
+  const schema =
+    fd.get(FORM_KIND_FIELD) === DEMO_FORM
+      ? DemoRequestSchema
+      : RequestFormSchema;
+  const parsed = schema.safeParse(formDataToInput(fd));
   if (!parsed.success) {
     return {
       status: "invalid",
