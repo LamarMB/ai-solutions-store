@@ -96,13 +96,29 @@ function networkReason(error: unknown): { reason: string; uncertain: boolean } {
   if (e?.name === "TimeoutError" || e?.name === "AbortError")
     return { reason: "timeout", uncertain: true };
   const code = typeof e?.cause?.code === "string" ? e.cause.code : "";
-  const safe = /^[A-Z_]{2,40}$/.test(code) ? code : "unknown";
+  const name = typeof e?.name === "string" ? e.name : "";
+  const safe = /^[A-Z_0-9]{2,40}$/.test(code)
+    ? code
+    : /^[A-Za-z]{2,40}$/.test(name)
+      ? name
+      : "unknown";
   // До соединения (DNS, отказ, нет маршрута) запрос точно не ушёл.
   const notSent =
     /^(ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|UND_ERR_CONNECT_TIMEOUT)$/.test(
       safe,
     );
   return { reason: `network ${safe}`, uncertain: !notSent };
+}
+
+/** Описание ошибки от Telegram («Bad Request: chat not found») — только безопасные символы. */
+function telegramDescription(body: unknown): string {
+  const d = (body as { description?: unknown } | null)?.description;
+  if (typeof d !== "string") return "";
+  const safe = d
+    .replace(/[^A-Za-z0-9 :_.,'-]/g, "")
+    .trim()
+    .slice(0, 80);
+  return safe ? `, ${safe}` : "";
 }
 
 /**
@@ -126,6 +142,8 @@ export class TelegramRequestStore implements RequestStore {
 
   async save(record: RequestRecord): Promise<void> {
     const doFetch = this.options.fetch ?? globalThis.fetch;
+    const started = Date.now();
+    const after = () => ` after ${Date.now() - started}ms`;
     let response: Response;
     try {
       response = await doFetch(
@@ -143,7 +161,7 @@ export class TelegramRequestStore implements RequestStore {
       );
     } catch (error) {
       const { reason, uncertain } = networkReason(error);
-      throw new DeliveryError(reason, uncertain);
+      throw new DeliveryError(reason + after(), uncertain);
     }
     const body = (await response.json().catch(() => null)) as {
       ok?: boolean;
@@ -151,8 +169,12 @@ export class TelegramRequestStore implements RequestStore {
     if (response.ok && body?.ok === true) return;
     // Telegram ответил 200, но тело не прочитано — сообщение, скорее всего, ушло.
     if (response.ok && body === null)
-      throw new DeliveryError("http 200, unreadable body", true);
-    throw new DeliveryError(`http ${response.status}`, false);
+      throw new DeliveryError(`http 200, unreadable body${after()}`, true);
+    throw new DeliveryError(
+      `http ${response.status}${telegramDescription(body)}${after()}`,
+      // 200 без ok: true — ответ непонятный, сообщение могло уйти.
+      response.ok,
+    );
   }
 }
 

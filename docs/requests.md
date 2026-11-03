@@ -38,7 +38,8 @@
   заявку», ссылка на @tgboostman, введённые поля сохраняются.
 
 На сервере заявка не хранится. В журнал попадают только номер, режим и причина сбоя
-(`reason=timeout`, `reason=http 401`, `reason=network ECONNRESET`); имя, контакт и
+(`reason=timeout after 25003ms`, `reason=http 400, Bad Request: chat not found after 80ms`,
+`reason=network ECONNRESET after 120ms`); имя, контакт и
 токен — нет (тесты `src/requests/*.test.ts`). Посмотреть сбои на сервере:
 `sudo journalctl -u clinic-admin --since today -o cat | grep requests`.
 

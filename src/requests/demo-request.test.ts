@@ -291,7 +291,7 @@ describe("ответ Telegram не получен", () => {
     await handleSubmission(demoForm(), d);
     expect(f.calls()).toBe(1);
     expect(logs.join(" ")).toMatch(
-      /save failed id=req-1 mode=live reason=timeout/,
+      /save failed id=req-1 mode=live reason=timeout after \d+ms/,
     );
   });
 
@@ -345,5 +345,43 @@ describe("ответ Telegram не получен", () => {
       .catch((e: DeliveryError) => e);
     expect(error).toBeInstanceOf(DeliveryError);
     expect((error as DeliveryError).uncertain).toBe(true);
+  });
+});
+
+describe("причина отказа Telegram в журнале", () => {
+  it("код и описание Telegram без токена и данных; 200 без ok — не подтверждено", async () => {
+    const logs: string[] = [];
+    const tg = fakeTelegram({
+      status: 400,
+      body: { ok: false, description: "Bad Request: chat not found <Анна>" },
+    });
+    const state = await handleSubmission(
+      demoForm(),
+      deps(
+        new TelegramRequestStore({
+          token: TOKEN,
+          chatId: "42",
+          fetch: tg.fetch,
+        }),
+        logs,
+      ),
+    );
+    expect(state.status).toBe("error");
+    expect(logs.join(" ")).toMatch(
+      /reason=http 400, Bad Request: chat not found after \d+ms/,
+    );
+    expect(logs.join(" ")).not.toMatch(/Анна|secret/);
+
+    const odd = await handleSubmission(
+      demoForm({ submissionId: "323e4567-e89b-42d3-a456-426614174000" }),
+      deps(
+        new TelegramRequestStore({
+          token: TOKEN,
+          chatId: "42",
+          fetch: fakeTelegram({ status: 200, body: { ok: false } }).fetch,
+        }),
+      ),
+    );
+    expect(odd.status).toBe("uncertain");
   });
 });
