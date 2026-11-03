@@ -26,6 +26,7 @@ import {
   SETUP_ANCHOR,
 } from "@/content/product-map";
 import { pageMetadata } from "@/lib/seo";
+import { getRequestStore } from "@/requests/store";
 
 export function generateStaticParams() {
   return getSolutions().map((solution) => ({ id: solution.id }));
@@ -48,6 +49,7 @@ export default async function SolutionPage({
 }: PageProps<"/catalog/[id]">) {
   const solution = getSolutionById((await params).id);
   if (!solution) notFound();
+  const requestsLive = getRequestStore().mode === "live";
 
   const categoryTitles = new Map(getCategories().map((c) => [c.id, c.title]));
   const industryTitles = new Map(getIndustries().map((i) => [i.id, i.title]));
@@ -161,9 +163,9 @@ export default async function SolutionPage({
           <>
             <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-small text-muted max-w-prose">
-                Заявки пока принимаются в Telegram — напишите нам, обсудим
-                задачу клиники и покажем демо. Форма заявки на сайте работает в
-                тестовом режиме и ничего не отправляет.
+                {requestsLive
+                  ? "Выберите пакет и оставьте заявку — свяжемся, обсудим задачу клиники и покажем демо. Или напишите нам в Telegram."
+                  : "Заявки пока принимаются в Telegram — напишите нам, обсудим задачу клиники и покажем демо. Форма заявки на сайте работает в тестовом режиме и ничего не отправляет."}
               </p>
               <ButtonLink
                 href={telegram.href}

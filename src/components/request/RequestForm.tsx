@@ -126,6 +126,44 @@ export function RequestForm({
     }
   };
 
+  if (state.status === "uncertain") {
+    return (
+      <div
+        ref={statusRef}
+        tabIndex={-1}
+        role="status"
+        className="rounded-card border-border bg-surface border p-6 outline-none sm:p-8"
+      >
+        <div className="flex items-center gap-3">
+          <span className="border-border grid size-10 place-items-center rounded-full border">
+            <Icon name="send" size={20} />
+          </span>
+          <h2 className="text-h3 font-semibold">Заявка отправлена</h2>
+        </div>
+        <p className="text-small text-muted mt-4">
+          {state.message} Номер заявки:{" "}
+          <span className="font-mono">{state.reference}</span>.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <a
+            href={telegram.href}
+            {...externalLinkProps}
+            className="glass glass-hover text-small rounded-control text-ink inline-flex h-10 items-center gap-2 px-4 font-medium"
+          >
+            <Icon name="send" size={16} />
+            {telegram.label}
+          </a>
+          <Link
+            href="/catalog"
+            className="liquid-primary text-small rounded-control inline-flex h-10 items-center px-4 font-medium"
+          >
+            Вернуться в каталог
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (state.status === "accepted") {
     return (
       <div

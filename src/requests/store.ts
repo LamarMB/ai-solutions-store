@@ -76,6 +76,36 @@ export function requestMessage(record: RequestRecord): string {
 }
 
 /**
+ * Ошибка доставки с причиной для журнала: без токена и данных заявки.
+ * `uncertain` — ответ не получен (тайм-аут или обрыв после отправки): заявка
+ * могла дойти, повторная отправка может её задублировать.
+ */
+export class DeliveryError extends Error {
+  constructor(
+    readonly reason: string,
+    readonly uncertain: boolean,
+  ) {
+    super(`delivery failed: ${reason}`);
+    this.name = "DeliveryError";
+  }
+}
+
+/** Причина сетевой ошибки fetch — только имя и код, без адреса с токеном. */
+function networkReason(error: unknown): { reason: string; uncertain: boolean } {
+  const e = error as { name?: string; cause?: { code?: unknown } };
+  if (e?.name === "TimeoutError" || e?.name === "AbortError")
+    return { reason: "timeout", uncertain: true };
+  const code = typeof e?.cause?.code === "string" ? e.cause.code : "";
+  const safe = /^[A-Z_]{2,40}$/.test(code) ? code : "unknown";
+  // До соединения (DNS, отказ, нет маршрута) запрос точно не ушёл.
+  const notSent =
+    /^(ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|UND_ERR_CONNECT_TIMEOUT)$/.test(
+      safe,
+    );
+  return { reason: `network ${safe}`, uncertain: !notSent };
+}
+
+/**
  * Доставка заявки сообщением в Telegram владельцу (Bot API sendMessage). На
  * сервере заявка не хранится. Ошибка доставки — исключение: пользователь видит
  * ошибку, а не «отправлено». Токен в журнал и в ошибку не попадает.
@@ -96,22 +126,33 @@ export class TelegramRequestStore implements RequestStore {
 
   async save(record: RequestRecord): Promise<void> {
     const doFetch = this.options.fetch ?? globalThis.fetch;
-    const response = await doFetch(
-      `${this.options.apiBase ?? "https://api.telegram.org"}/bot${this.options.token}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: this.options.chatId,
-          text: requestMessage(record),
-          disable_web_page_preview: true,
-        }),
-        signal: AbortSignal.timeout(this.options.timeoutMs ?? 10_000),
-      },
-    );
-    const body = (await response.json().catch(() => ({}))) as { ok?: boolean };
-    if (!response.ok || body.ok !== true)
-      throw new Error(`telegram delivery failed: http ${response.status}`);
+    let response: Response;
+    try {
+      response = await doFetch(
+        `${this.options.apiBase ?? "https://api.telegram.org"}/bot${this.options.token}/sendMessage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: this.options.chatId,
+            text: requestMessage(record),
+            disable_web_page_preview: true,
+          }),
+          signal: AbortSignal.timeout(this.options.timeoutMs ?? 25_000),
+        },
+      );
+    } catch (error) {
+      const { reason, uncertain } = networkReason(error);
+      throw new DeliveryError(reason, uncertain);
+    }
+    const body = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+    } | null;
+    if (response.ok && body?.ok === true) return;
+    // Telegram ответил 200, но тело не прочитано — сообщение, скорее всего, ушло.
+    if (response.ok && body === null)
+      throw new DeliveryError("http 200, unreadable body", true);
+    throw new DeliveryError(`http ${response.status}`, false);
   }
 }
 

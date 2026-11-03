@@ -8,6 +8,7 @@ import { DemoRequestSchema, formDataToInput } from "@/requests/schema";
 import { handleSubmission, type SubmitDeps } from "@/requests/service";
 import type { SubmitState } from "@/requests/state";
 import {
+  DeliveryError,
   requestMessage,
   requestStoreFromEnv,
   TelegramRequestStore,
@@ -254,5 +255,95 @@ describe("обработка короткой заявки", () => {
     );
     expect(state.status).toBe("invalid");
     expect(tg.calls).toHaveLength(0);
+  });
+});
+
+describe("ответ Telegram не получен", () => {
+  /** fetch, который отправил запрос и упал с заданной ошибкой. */
+  function failingFetch(error: unknown) {
+    let calls = 0;
+    const fetch = (async () => {
+      calls += 1;
+      throw error;
+    }) as unknown as typeof globalThis.fetch;
+    return { fetch, calls: () => calls };
+  }
+  const timeout = new DOMException("The operation timed out.", "TimeoutError");
+  const refused = Object.assign(new TypeError("fetch failed"), {
+    cause: { code: "ECONNREFUSED" },
+  });
+  const reset = Object.assign(new TypeError("fetch failed"), {
+    cause: { code: "ECONNRESET", message: `api.telegram.org/bot${TOKEN}` },
+  });
+
+  it("тайм-аут — «отправлена, подтверждение не пришло», а не «не удалось»; повтор не шлёт вторую", async () => {
+    const f = failingFetch(timeout);
+    const logs: string[] = [];
+    const d = deps(
+      new TelegramRequestStore({ token: TOKEN, chatId: "42", fetch: f.fetch }),
+      logs,
+    );
+    const state = await handleSubmission(demoForm(), d);
+    expect(state).toMatchObject({ status: "uncertain", reference: "req-1" });
+    expect("message" in state && state.message).toMatch(
+      /повторно отправлять не нужно/,
+    );
+    await handleSubmission(demoForm(), d);
+    expect(f.calls()).toBe(1);
+    expect(logs.join(" ")).toMatch(
+      /save failed id=req-1 mode=live reason=timeout/,
+    );
+  });
+
+  it("обрыв после отправки — тоже «не подтверждено»; токена в журнале нет", async () => {
+    const logs: string[] = [];
+    const state = await handleSubmission(
+      demoForm(),
+      deps(
+        new TelegramRequestStore({
+          token: TOKEN,
+          chatId: "42",
+          fetch: failingFetch(reset).fetch,
+        }),
+        logs,
+      ),
+    );
+    expect(state.status).toBe("uncertain");
+    expect(logs.join(" ")).toMatch(/reason=network ECONNRESET/);
+    expect(logs.join(" ")).not.toMatch(/secret|telegram\.org|Анна/);
+  });
+
+  it("соединение не установлено — запрос не ушёл: обычная ошибка, можно повторить", async () => {
+    const f = failingFetch(refused);
+    const d = deps(
+      new TelegramRequestStore({ token: TOKEN, chatId: "42", fetch: f.fetch }),
+    );
+    expect((await handleSubmission(demoForm(), d)).status).toBe("error");
+    await handleSubmission(demoForm(), d);
+    expect(f.calls()).toBe(2);
+  });
+
+  it("200 с нечитаемым телом — не подтверждено; 502 — ошибка", async () => {
+    const unreadable = (async () =>
+      new Response("<html>", {
+        status: 200,
+      })) as unknown as typeof globalThis.fetch;
+    const store = new TelegramRequestStore({
+      token: TOKEN,
+      chatId: "42",
+      fetch: unreadable,
+    });
+    const error = await store
+      .save({
+        id: "x",
+        createdAt: "",
+        items: [],
+        contact: { name: "a", method: "telegram", value: "@a" },
+        message: "",
+        source: "",
+      })
+      .catch((e: DeliveryError) => e);
+    expect(error).toBeInstanceOf(DeliveryError);
+    expect((error as DeliveryError).uncertain).toBe(true);
   });
 });

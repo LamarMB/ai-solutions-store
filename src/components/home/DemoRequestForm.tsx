@@ -106,6 +106,33 @@ export function DemoRequestForm() {
     startTransition(() => formAction(formData));
   };
 
+  if (state.status === "uncertain") {
+    return (
+      <div
+        ref={statusRef}
+        tabIndex={-1}
+        role="status"
+        className="border-border bg-bg/60 rounded-2xl border p-6 outline-none"
+      >
+        <p className="flex items-center gap-2 font-semibold">
+          <Icon name="send" size={20} className="text-accent" />
+          Заявка отправлена
+        </p>
+        <p className="text-small text-muted mt-3">
+          {state.message} Номер заявки: {state.reference}. Telegram:{" "}
+          <a
+            href={telegram.href}
+            {...externalLinkProps}
+            className="text-accent font-medium"
+          >
+            {telegram.handle}
+          </a>
+          .
+        </p>
+      </div>
+    );
+  }
+
   if (state.status === "accepted") {
     return (
       <div

@@ -106,7 +106,7 @@ export function PackagePicker({
           type="submit"
           className="liquid-primary rounded-control text-body inline-flex h-13 shrink-0 items-center justify-center gap-2 px-6 font-medium"
         >
-          Форма заявки (тест)
+          Оставить заявку
           <Icon name="arrow-right" size={18} />
         </button>
       </div>

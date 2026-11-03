@@ -10,7 +10,15 @@ import {
 } from "@/requests/schema";
 import type { RateLimiter } from "@/requests/rate-limit";
 import type { SubmitState } from "@/requests/state";
-import type { RequestRecord, RequestStore } from "@/requests/store";
+import {
+  DeliveryError,
+  type RequestRecord,
+  type RequestStore,
+} from "@/requests/store";
+
+/** Ответ Telegram не получен: заявка могла дойти — не просим отправить её снова. */
+export const UNCERTAIN_MESSAGE =
+  "Заявка отправлена, но подтверждение доставки не пришло. Скорее всего, она уже у нас — повторно отправлять не нужно. Если мы не свяжемся в течение рабочего дня, напишите нам в Telegram.";
 
 /** Минимальное время заполнения формы: быстрее заполняют только боты. */
 export const MIN_FILL_MS = 3_000;
@@ -122,8 +130,21 @@ export async function handleSubmission(
 
   try {
     await deps.store.save(record);
-  } catch {
-    deps.log(`[requests] save failed id=${record.id} mode=${deps.store.mode}`);
+  } catch (error) {
+    const known = error instanceof DeliveryError;
+    deps.log(
+      `[requests] save failed id=${record.id} mode=${deps.store.mode} reason=${known ? error.reason : "unknown"}`,
+    );
+    if (known && error.uncertain) {
+      // Повтор с тем же ключом не отправит заявку второй раз.
+      const result: SubmitState = {
+        status: "uncertain",
+        message: UNCERTAIN_MESSAGE,
+        reference: record.id,
+      };
+      deps.idempotency.set(submissionId, result);
+      return result;
+    }
     return {
       status: "error",
       message: "Не удалось обработать заявку. Попробуйте позже.",

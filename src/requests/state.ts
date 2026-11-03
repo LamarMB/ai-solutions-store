@@ -12,6 +12,8 @@ export type SubmitState =
   | { status: "too_fast"; message: string }
   | { status: "rate_limited"; message: string }
   | { status: "error"; message: string }
+  /** Доставка не подтверждена: заявка могла дойти (тайм-аут ответа). */
+  | { status: "uncertain"; message: string; reference: string }
   | { status: "accepted"; mode: IntakeMode; reference: string };
 
 export const INITIAL_STATE: SubmitState = { status: "idle" };

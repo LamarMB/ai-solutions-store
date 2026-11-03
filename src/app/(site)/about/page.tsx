@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Section } from "@/components/ui/Section";
 import { principles } from "@/content/approach";
 import { pageMetadata } from "@/lib/seo";
+import { getRequestStore } from "@/requests/store";
 
 export const metadata: Metadata = pageMetadata({
   title: "О компании",
@@ -31,8 +32,11 @@ const siteParts = [
   {
     title: "Заявка на решение",
     text: "Форма заявки на выбранный пакет — в тестовом режиме, данные не сохраняются.",
+    textLive:
+      "Заявка на выбранный пакет или общая заявка — приходит нам в Telegram.",
     href: "/request",
     status: "В разработке",
+    statusLive: "Работает",
   },
   {
     title: "Подбор решения",
@@ -43,6 +47,12 @@ const siteParts = [
 ] as const;
 
 export default function AboutPage() {
+  const live = getRequestStore().mode === "live";
+  const parts = siteParts.map((part) =>
+    live && "textLive" in part
+      ? { ...part, text: part.textLive, status: part.statusLive }
+      : part,
+  );
   return (
     <Section className="pt-8 md:pt-12 xl:pt-14">
       <Breadcrumbs
@@ -77,7 +87,7 @@ export default function AboutPage() {
           Что есть на сайте
         </h2>
         <ul className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {siteParts.map((part) => (
+          {parts.map((part) => (
             <li key={part.title}>
               <Card className="flex h-full flex-col">
                 <span className="text-caption text-muted">{part.status}</span>
